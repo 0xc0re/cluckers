@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cstory/cluckers/internal/ui"
+	"github.com/0xc0re/cluckers/internal/ui"
 	"github.com/hashicorp/go-retryablehttp"
 )
 

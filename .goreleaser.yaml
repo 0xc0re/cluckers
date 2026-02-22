@@ -22,5 +22,5 @@ checksum:
 
 release:
   github:
-    owner: cstory
+    owner: 0xc0re
     name: cluckers

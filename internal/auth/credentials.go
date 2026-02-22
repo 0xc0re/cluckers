@@ -8,8 +8,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/cstory/cluckers/internal/config"
-	"github.com/cstory/cluckers/internal/crypto"
+	"github.com/0xc0re/cluckers/internal/config"
+	"github.com/0xc0re/cluckers/internal/crypto"
 )
 
 // Credentials holds a user's login credentials for encrypted persistence.

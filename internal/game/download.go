@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"github.com/cstory/cluckers/internal/ui"
+	"github.com/0xc0re/cluckers/internal/ui"
 	"github.com/schollz/progressbar/v3"
 	"github.com/zeebo/blake3"
 )

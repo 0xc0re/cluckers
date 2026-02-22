@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/cstory/cluckers/internal/ui"
+	"github.com/0xc0re/cluckers/internal/ui"
 )
 
 // protonVersionRe extracts the numeric version from GE-Proton directory names.

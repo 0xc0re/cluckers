@@ -6,9 +6,9 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/cstory/cluckers/internal/game"
-	"github.com/cstory/cluckers/internal/ui"
-	"github.com/cstory/cluckers/internal/wine"
+	"github.com/0xc0re/cluckers/internal/game"
+	"github.com/0xc0re/cluckers/internal/ui"
+	"github.com/0xc0re/cluckers/internal/wine"
 )
 
 // LaunchConfig holds all parameters needed to launch the game under Wine.

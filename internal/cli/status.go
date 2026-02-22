@@ -7,9 +7,9 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/cstory/cluckers/internal/game"
-	"github.com/cstory/cluckers/internal/gateway"
-	"github.com/cstory/cluckers/internal/wine"
+	"github.com/0xc0re/cluckers/internal/game"
+	"github.com/0xc0re/cluckers/internal/gateway"
+	"github.com/0xc0re/cluckers/internal/wine"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )
