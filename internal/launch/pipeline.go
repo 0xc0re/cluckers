@@ -313,7 +313,7 @@ func stepLaunchGame(ctx context.Context, state *LaunchState, _ *ui.StepSpinner) 
 	return LaunchGame(ctx, &LaunchConfig{
 		WinePath:         state.WinePath,
 		WinePrefix:       state.PrefixPath,
-		GameDir:          state.Config.GameDir,
+		GameDir:          state.GameDir,
 		Username:         state.Username,
 		AccessToken:      state.AccessToken,
 		OIDCTokenPath:    oidcPath,

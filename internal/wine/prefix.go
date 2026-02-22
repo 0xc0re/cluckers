@@ -64,6 +64,14 @@ func createFromProtonTemplate(prefixPath, protonDir, winePath string, verbose bo
 		return fmt.Errorf("copy Proton-GE template: %w", err)
 	}
 
+	// Create dosdevices symlinks. Proton-GE's template omits these because
+	// Proton's own wrapper script normally creates them. Without c: and z:,
+	// wineboot cannot resolve C:\windows and fails with exit code 53.
+	if err := ensureDosdevices(prefixPath, verbose); err != nil {
+		os.RemoveAll(prefixPath)
+		return fmt.Errorf("create dosdevices symlinks: %w", err)
+	}
+
 	// Run wineboot --init to finalize the prefix.
 	ui.Verbose("Running wineboot --init to finalize prefix...", verbose)
 	if err := runWineboot(prefixPath, winePath); err != nil {
@@ -71,6 +79,31 @@ func createFromProtonTemplate(prefixPath, protonDir, winePath string, verbose bo
 	}
 
 	ui.Info("Wine prefix created successfully.")
+	return nil
+}
+
+// ensureDosdevices creates the c: and z: drive letter symlinks in dosdevices/.
+// These are required for wineboot to resolve Windows paths like C:\windows.
+func ensureDosdevices(prefixPath string, verbose bool) error {
+	dosdevices := filepath.Join(prefixPath, "dosdevices")
+	if err := os.MkdirAll(dosdevices, 0755); err != nil {
+		return err
+	}
+
+	links := map[string]string{
+		"c:": "../drive_c",
+		"z:": "/",
+	}
+	for name, target := range links {
+		link := filepath.Join(dosdevices, name)
+		if _, err := os.Lstat(link); err == nil {
+			continue // Already exists.
+		}
+		ui.Verbose(fmt.Sprintf("Creating dosdevices/%s -> %s", name, target), verbose)
+		if err := os.Symlink(target, link); err != nil {
+			return fmt.Errorf("symlink %s: %w", name, err)
+		}
+	}
 	return nil
 }
 
