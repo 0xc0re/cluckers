@@ -20,11 +20,28 @@ Native Linux launcher for Realm Royale on the Project Crown private server.
 
 ## Install
 
+### Download (recommended)
+
+Grab the latest release from [GitHub Releases](https://github.com/0xc0re/cluckers/releases):
+
+```bash
+# Download latest release
+curl -s https://api.github.com/repos/0xc0re/cluckers/releases/latest \
+  | grep "browser_download_url.*tar.gz\"" \
+  | cut -d '"' -f 4 \
+  | xargs curl -LO
+tar xzf cluckers_*.tar.gz
+sudo cp cluckers /usr/local/bin/  # optional
 ```
+
+### Build from source
+
+Requires Go 1.25+:
+
+```bash
 git clone https://github.com/0xc0re/cluckers.git
 cd cluckers
 go build -o cluckers ./cmd/cluckers
-sudo cp cluckers /usr/local/bin/  # optional
 ```
 
 ## Usage
