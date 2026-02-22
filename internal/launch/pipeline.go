@@ -1,0 +1,217 @@
+package launch
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
+
+	"github.com/cstory/cluckers/internal/auth"
+	"github.com/cstory/cluckers/internal/config"
+	"github.com/cstory/cluckers/internal/gateway"
+	"github.com/cstory/cluckers/internal/ui"
+)
+
+// LaunchState holds accumulated state across pipeline steps.
+type LaunchState struct {
+	Config      *config.Config
+	Client      *gateway.Client
+	Username    string
+	Password    string
+	AccessToken string
+	OIDCToken   string
+	Bootstrap   []byte
+	WinePath    string
+}
+
+// Step represents a single step in the launch pipeline.
+type Step struct {
+	Name string
+	Fn   func(ctx context.Context, state *LaunchState) error
+}
+
+// Run orchestrates the full launch pipeline: health check, auth, OIDC, bootstrap, game launch.
+// Each step shows a spinner while active and a checkmark on completion.
+func Run(ctx context.Context, cfg *config.Config) error {
+	// Set up signal handling for clean shutdown.
+	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
+	defer cancel()
+
+	// Create gateway client.
+	client := gateway.NewClient(cfg.Gateway, cfg.Verbose)
+
+	state := &LaunchState{
+		Config: cfg,
+		Client: client,
+	}
+
+	steps := []Step{
+		{Name: "Checking gateway", Fn: stepHealthCheck},
+		{Name: "Authenticating", Fn: stepAuthenticate},
+		{Name: "Requesting OIDC token", Fn: stepOIDCToken},
+		{Name: "Requesting content bootstrap", Fn: stepBootstrap},
+		{Name: "Detecting Wine", Fn: stepDetectWine},
+		{Name: "Launching game", Fn: stepLaunchGame},
+	}
+
+	for _, step := range steps {
+		spinner := ui.StartStep(step.Name)
+
+		if err := step.Fn(ctx, state); err != nil {
+			spinner.Fail()
+			ui.Error(ui.FormatError(err, cfg.Verbose))
+			return err
+		}
+
+		spinner.Success()
+	}
+
+	return nil
+}
+
+// stepHealthCheck verifies the gateway is reachable. Warns but continues on failure
+// (matching POC behavior -- gateway might be flaky but login still works).
+func stepHealthCheck(ctx context.Context, state *LaunchState) error {
+	if err := state.Client.HealthCheck(ctx); err != nil {
+		// Warn but continue -- gateway might be flaky.
+		ui.Warn("Gateway health check failed, continuing anyway...")
+		ui.Verbose(fmt.Sprintf("Health check error: %s", err), state.Config.Verbose)
+	}
+	return nil
+}
+
+// stepAuthenticate loads saved credentials or prompts for new ones, then logs in.
+// On saved credential failure, re-prompts once before returning an error.
+func stepAuthenticate(ctx context.Context, state *LaunchState) error {
+	// Try saved credentials first.
+	creds, err := auth.LoadCredentials()
+	if err != nil {
+		ui.Verbose(fmt.Sprintf("Could not load saved credentials: %s", err), state.Config.Verbose)
+	}
+
+	if creds != nil {
+		// Try login with saved credentials.
+		result, err := auth.Login(ctx, state.Client, creds.Username, creds.Password)
+		if err == nil {
+			state.Username = result.Username
+			state.AccessToken = result.AccessToken
+			state.Password = creds.Password
+			ui.Verbose("Logged in with saved credentials", state.Config.Verbose)
+			return nil
+		}
+		// Saved credentials failed -- re-prompt once.
+		ui.Warn("Saved credentials failed, please re-enter.")
+		ui.Verbose(fmt.Sprintf("Saved login error: %s", err), state.Config.Verbose)
+	}
+
+	// Prompt for credentials.
+	username, err := ui.PromptUsername()
+	if err != nil {
+		return err
+	}
+
+	password, err := ui.PromptPassword()
+	if err != nil {
+		return err
+	}
+
+	result, err := auth.Login(ctx, state.Client, username, password)
+	if err != nil {
+		return err
+	}
+
+	state.Username = result.Username
+	state.AccessToken = result.AccessToken
+	state.Password = password
+
+	// Save credentials for future launches.
+	if saveErr := auth.SaveCredentials(username, password); saveErr != nil {
+		ui.Warn(fmt.Sprintf("Could not save credentials: %s", saveErr))
+	}
+
+	return nil
+}
+
+// stepOIDCToken retrieves an EAC OIDC JWT token from the gateway.
+func stepOIDCToken(ctx context.Context, state *LaunchState) error {
+	token, err := auth.GetOIDCToken(ctx, state.Client, state.Username, state.AccessToken)
+	if err != nil {
+		return err
+	}
+	state.OIDCToken = token
+	return nil
+}
+
+// stepBootstrap retrieves the content bootstrap from the gateway.
+// Nil bootstrap is OK -- the game can launch without it.
+func stepBootstrap(ctx context.Context, state *LaunchState) error {
+	data, err := auth.GetContentBootstrap(ctx, state.Client, state.Username, state.AccessToken)
+	if err != nil {
+		return err
+	}
+	state.Bootstrap = data
+	if data == nil {
+		ui.Warn("No content bootstrap received (game may still work)")
+	} else {
+		ui.Verbose(fmt.Sprintf("Content bootstrap: %d bytes", len(data)), state.Config.Verbose)
+	}
+	return nil
+}
+
+// stepDetectWine finds a suitable Wine binary.
+func stepDetectWine(ctx context.Context, state *LaunchState) error {
+	winePath, err := FindWine(state.Config.WinePath)
+	if err != nil {
+		return err
+	}
+	state.WinePath = winePath
+	ui.Verbose(fmt.Sprintf("Wine: %s", winePath), state.Config.Verbose)
+	return nil
+}
+
+// stepLaunchGame writes temp files and launches the game under Wine.
+func stepLaunchGame(ctx context.Context, state *LaunchState) error {
+	// Write OIDC token to temp file.
+	oidcPath, oidcCleanup, err := writeOIDCTokenFile(state.OIDCToken)
+	if err != nil {
+		return err
+	}
+	defer oidcCleanup()
+
+	return LaunchGame(ctx, &LaunchConfig{
+		WinePath:         state.WinePath,
+		GameDir:          state.Config.GameDir,
+		Username:         state.Username,
+		AccessToken:      state.AccessToken,
+		OIDCTokenPath:    oidcPath,
+		ContentBootstrap: state.Bootstrap,
+		HostX:            state.Config.HostX,
+		Verbose:          state.Config.Verbose,
+	})
+}
+
+// writeOIDCTokenFile writes the OIDC token string to a temp file.
+func writeOIDCTokenFile(token string) (path string, cleanup func(), err error) {
+	f, err := os.CreateTemp("", "realm_eac_oidc_*.txt")
+	if err != nil {
+		return "", nil, fmt.Errorf("create temp file for OIDC token: %w", err)
+	}
+
+	if _, err := f.WriteString(token); err != nil {
+		f.Close()
+		os.Remove(f.Name())
+		return "", nil, fmt.Errorf("write OIDC token: %w", err)
+	}
+
+	if err := f.Close(); err != nil {
+		os.Remove(f.Name())
+		return "", nil, fmt.Errorf("close OIDC token temp file: %w", err)
+	}
+
+	cleanup = func() {
+		os.Remove(f.Name())
+	}
+
+	return f.Name(), cleanup, nil
+}
