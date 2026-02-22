@@ -303,7 +303,7 @@ else
 fi
 
 # --------------------------------------------------------------------------- #
-#  PATH check
+#  PATH check — auto-add if missing
 # --------------------------------------------------------------------------- #
 
 PATH_OK=true
@@ -313,6 +313,27 @@ case ":$PATH:" in
         PATH_OK=false
         ;;
 esac
+
+PATH_ADDED=false
+if [ "$PATH_OK" = false ]; then
+    # Determine the shell RC file to modify.
+    SHELL_NAME=$(basename "${SHELL:-/bin/sh}")
+    case "$SHELL_NAME" in
+        zsh)  RC_FILE="$HOME/.zshrc" ;;
+        bash) RC_FILE="$HOME/.bashrc" ;;
+        *)    RC_FILE="$HOME/.profile" ;;
+    esac
+
+    EXPORT_LINE='export PATH="$HOME/.local/bin:$PATH"'
+
+    # Only append if the line isn't already in the file.
+    if [ -f "$RC_FILE" ] && grep -qF '.local/bin' "$RC_FILE" 2>/dev/null; then
+        : # Already present in RC file, skip.
+    else
+        printf '%s\n' "$EXPORT_LINE" >> "$RC_FILE"
+        PATH_ADDED=true
+    fi
+fi
 
 # --------------------------------------------------------------------------- #
 #  Summary
@@ -334,12 +355,13 @@ fi
 
 printf "\n"
 
-# PATH warning.
-if [ "$PATH_OK" = false ]; then
-    warn "$INSTALL_DIR is not in your PATH."
-    printf "  Add it by running:\n"
-    printf "    echo 'export PATH=\"\$HOME/.local/bin:\$PATH\"' >> ~/.bashrc\n"
-    printf "    source ~/.bashrc\n"
+# PATH status.
+if [ "$PATH_ADDED" = true ]; then
+    success "Added $INSTALL_DIR to PATH in $(basename "$RC_FILE")."
+    printf "  Run 'source %s' or open a new terminal to use cluckers.\n" "$RC_FILE"
+    printf "\n"
+elif [ "$PATH_OK" = false ]; then
+    warn "$INSTALL_DIR is not in your PATH (already configured in $(basename "$RC_FILE"), restart your shell)."
     printf "\n"
 fi
 
