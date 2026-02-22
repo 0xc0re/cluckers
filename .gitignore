@@ -1,2 +1,28 @@
+# Build output
 /cluckers
+
+# Planning/scratch
+.planning/
 POC/
+
+# Credentials
+.env
+*.env
+
+# Editor/IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Go
+vendor/
+
+# Wine/Proton artifacts
+*.exe.so
+*.dll

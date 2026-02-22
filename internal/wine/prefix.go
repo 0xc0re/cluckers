@@ -37,13 +37,20 @@ func CreatePrefix(prefixPath string, winePath string, verbose bool) error {
 // createFromProtonTemplate creates a prefix by copying Proton-GE's default_pfx template,
 // then running wineboot --init to finalize.
 func createFromProtonTemplate(prefixPath, protonDir, winePath string, verbose bool) error {
+	// Check both possible template locations:
+	//   - ProtonUp-Qt versioned installs: <protonDir>/default_pfx
+	//   - System packages (e.g. AUR proton-ge-custom-bin): <protonDir>/files/share/default_pfx
 	templateDir := filepath.Join(protonDir, "default_pfx")
 	if _, err := os.Stat(templateDir); err != nil {
-		return &ui.UserError{
-			Message:    "Proton-GE default prefix template not found",
-			Detail:     fmt.Sprintf("Expected template at: %s", templateDir),
-			Suggestion: "Your Proton-GE installation may be incomplete. Try reinstalling via ProtonUp-Qt.",
+		alt := filepath.Join(protonDir, "files", "share", "default_pfx")
+		if _, err2 := os.Stat(alt); err2 != nil {
+			return &ui.UserError{
+				Message:    "Proton-GE default prefix template not found",
+				Detail:     fmt.Sprintf("Checked:\n  %s\n  %s", templateDir, alt),
+				Suggestion: "Your Proton-GE installation may be incomplete. Try reinstalling via ProtonUp-Qt.",
+			}
 		}
+		templateDir = alt
 	}
 
 	ui.Info("Creating Wine prefix from Proton-GE template...")
