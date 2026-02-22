@@ -82,6 +82,11 @@ output with additional details.
 
 Remove saved credentials.
 
+### `cluckers steam add`
+
+Add Cluckers as a non-Steam game in your Steam library. Creates a `.desktop` file
+so Steam can find it. Useful for launching from Steam's Gaming Mode on Steam Deck.
+
 ### `cluckers --version`
 
 Show version info.
@@ -119,10 +124,16 @@ Created at runtime:
 
 ## Steam Deck
 
-- Add the cluckers binary as a non-Steam game in Desktop Mode
-- Set launch options if needed
-- Works in Gaming Mode once configured
-- Proton-GE is auto-detected from Steam's compatibilitytools.d
+1. Install via the quick install script (works in Desktop Mode terminal or SSH)
+2. Install Proton-GE via ProtonUp-Qt from the Discover store
+3. Run `cluckers steam add` to add it to your Steam library
+4. In Steam, find "Realm Royale (Cluckers)" and launch it
+
+**Controller input:** In Steam's per-game controller settings for the Cluckers
+shortcut, change the controller template to **"Gamepad with Joystick"**. The
+default template doesn't work correctly with the game's DirectInput polling.
+
+Proton-GE is auto-detected from Steam's `compatibilitytools.d` directory.
 
 ## License
 
