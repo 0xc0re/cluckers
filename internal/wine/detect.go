@@ -71,7 +71,37 @@ func protonSearchDirs(home string) []string {
 		// Snap Steam.
 		filepath.Join(home, "snap", "steam", "common", ".steam",
 			"steam", "compatibilitytools.d"),
+		// ProtonUp-Qt Flatpak — when installed via Flatpak Discover on Steam Deck,
+		// ProtonUp-Qt writes to its own data dir which Steam reads via symlink.
+		filepath.Join(home, ".var", "app", "net.davidotek.pupgui2",
+			"data", "Steam", "compatibilitytools.d"),
+		// Steam Deck native Steam internal path (sometimes differs from symlink).
+		filepath.Join(home, ".local", "share", "Steam", "steamapps", "common",
+			"Proton - GE", "compatibilitytools.d"),
 	}
+}
+
+// symlinkResolvedDirs returns additional search directories by resolving
+// ~/.steam/root and ~/.steam/steam symlinks. On Steam Deck, these are often
+// symlinks to ~/.local/share/Steam but may point elsewhere.
+func symlinkResolvedDirs(home string) []string {
+	symlinks := []string{
+		filepath.Join(home, ".steam", "root"),
+		filepath.Join(home, ".steam", "steam"),
+	}
+
+	var dirs []string
+	for _, link := range symlinks {
+		resolved, err := filepath.EvalSymlinks(link)
+		if err != nil {
+			continue
+		}
+		// Only add if it resolved to something different from the original.
+		if resolved != link {
+			dirs = append(dirs, filepath.Join(resolved, "compatibilitytools.d"))
+		}
+	}
+	return dirs
 }
 
 // FindProtonGE scans standard directories for Proton-GE installations and returns
@@ -80,7 +110,11 @@ func FindProtonGE(home string) []ProtonGEInstall {
 	var installs []ProtonGEInstall
 	seen := make(map[string]bool) // Deduplicate by WinePath (symlinked dirs may overlap).
 
-	for _, dir := range protonSearchDirs(home) {
+	// Combine static search dirs with symlink-resolved dirs.
+	searchDirs := protonSearchDirs(home)
+	searchDirs = append(searchDirs, symlinkResolvedDirs(home)...)
+
+	for _, dir := range searchDirs {
 		// Check system package: proton-ge-custom/files/bin/wine64
 		sysPath := filepath.Join(dir, "proton-ge-custom", "files", "bin", "wine64")
 		if _, err := os.Stat(sysPath); err == nil {

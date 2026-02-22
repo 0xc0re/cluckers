@@ -37,20 +37,60 @@ func CreatePrefix(prefixPath string, winePath string, verbose bool) error {
 // createFromProtonTemplate creates a prefix by copying Proton-GE's default_pfx template,
 // then running wineboot --init to finalize.
 func createFromProtonTemplate(prefixPath, protonDir, winePath string, verbose bool) error {
-	// Check both possible template locations:
-	//   - ProtonUp-Qt versioned installs: <protonDir>/default_pfx
-	//   - System packages (e.g. AUR proton-ge-custom-bin): <protonDir>/files/share/default_pfx
-	templateDir := filepath.Join(protonDir, "default_pfx")
-	if _, err := os.Stat(templateDir); err != nil {
-		alt := filepath.Join(protonDir, "files", "share", "default_pfx")
-		if _, err2 := os.Stat(alt); err2 != nil {
-			return &ui.UserError{
-				Message:    "Proton-GE default prefix template not found",
-				Detail:     fmt.Sprintf("Checked:\n  %s\n  %s", templateDir, alt),
-				Suggestion: "Your Proton-GE installation may be incomplete. Try reinstalling via ProtonUp-Qt.",
+	// Resolve symlinks in protonDir to show the real path in diagnostics.
+	resolvedProtonDir, _ := filepath.EvalSymlinks(protonDir)
+	if resolvedProtonDir == "" {
+		resolvedProtonDir = protonDir
+	}
+
+	// Check all known template locations across different Proton-GE packaging variants.
+	candidates := []string{
+		filepath.Join(protonDir, "default_pfx"),                    // ProtonUp-Qt versioned installs
+		filepath.Join(protonDir, "files", "share", "default_pfx"), // System packages (e.g. AUR proton-ge-custom-bin)
+		filepath.Join(protonDir, "files", "default_pfx"),          // Some Proton-GE packages
+		filepath.Join(protonDir, "share", "default_pfx"),          // Another variant
+	}
+
+	var templateDir string
+	for _, candidate := range candidates {
+		if _, err := os.Stat(candidate); err == nil {
+			templateDir = candidate
+			break
+		}
+	}
+
+	if templateDir == "" {
+		// Build detailed diagnostic info.
+		checkedPaths := ""
+		for _, c := range candidates {
+			checkedPaths += "\n  " + c
+		}
+
+		// List actual contents of protonDir so the user can see what IS there.
+		dirContents := ""
+		entries, err := os.ReadDir(resolvedProtonDir)
+		if err != nil {
+			dirContents = fmt.Sprintf("\n  (could not read directory: %s)", err)
+		} else {
+			for _, e := range entries {
+				dirContents += "\n  " + e.Name()
+				if e.IsDir() {
+					dirContents += "/"
+				}
 			}
 		}
-		templateDir = alt
+
+		detail := fmt.Sprintf("Checked paths:%s\n\nProton directory: %s", checkedPaths, protonDir)
+		if resolvedProtonDir != protonDir {
+			detail += fmt.Sprintf("\nResolved path: %s", resolvedProtonDir)
+		}
+		detail += fmt.Sprintf("\nDirectory contents:%s", dirContents)
+
+		return &ui.UserError{
+			Message:    "Proton-GE default prefix template not found",
+			Detail:     detail,
+			Suggestion: "Your Proton-GE installation may be incomplete. Try reinstalling via ProtonUp-Qt.",
+		}
 	}
 
 	ui.Info("Creating Wine prefix from Proton-GE template...")

@@ -250,13 +250,29 @@ WINE_STATUS=""
 
 check_proton_ge() {
     # Check all standard Proton-GE locations (mirrors detect.go logic).
-    for base_dir in \
-        "$HOME/.steam/root/compatibilitytools.d" \
-        "$HOME/.steam/steam/compatibilitytools.d" \
-        "$HOME/.local/share/Steam/compatibilitytools.d" \
-        "$HOME/.var/app/com.valvesoftware.Steam/data/Steam/compatibilitytools.d" \
-        "/usr/share/steam/compatibilitytools.d"; do
+    SEARCH_DIRS="
+        $HOME/.steam/root/compatibilitytools.d
+        $HOME/.steam/steam/compatibilitytools.d
+        $HOME/.local/share/Steam/compatibilitytools.d
+        $HOME/.var/app/com.valvesoftware.Steam/data/Steam/compatibilitytools.d
+        /usr/share/steam/compatibilitytools.d
+        $HOME/snap/steam/common/.steam/steam/compatibilitytools.d
+        $HOME/.var/app/net.davidotek.pupgui2/data/Steam/compatibilitytools.d
+        $HOME/.local/share/Steam/steamapps/common/Proton - GE/compatibilitytools.d
+    "
 
+    # Add symlink-resolved paths for ~/.steam/root and ~/.steam/steam.
+    for link in "$HOME/.steam/root" "$HOME/.steam/steam"; do
+        if [ -L "$link" ]; then
+            resolved=$(readlink -f "$link" 2>/dev/null || true)
+            if [ -n "$resolved" ] && [ "$resolved" != "$link" ]; then
+                SEARCH_DIRS="$SEARCH_DIRS
+        $resolved/compatibilitytools.d"
+            fi
+        fi
+    done
+
+    for base_dir in $SEARCH_DIRS; do
         # Check proton-ge-custom (system package).
         if [ -f "$base_dir/proton-ge-custom/files/bin/wine64" ]; then
             printf '%s' "$base_dir/proton-ge-custom"
