@@ -103,6 +103,12 @@ func LaunchGame(ctx context.Context, cfg *LaunchConfig) error {
 	if wine.IsProtonGE(cfg.WinePath) {
 		env = append(env, "WINEFSYNC=1")
 	}
+	env = append(env, "WINEDLLOVERRIDES=dxgi=n")
+	if isSteamDeck() {
+		env = append(env, "STEAM_INPUT_DISABLE=1")
+		env = append(env, "SDL_GAMECONTROLLERCONFIG=")
+		env = append(env, "SDL_JOYSTICK_HIDAPI=0")
+	}
 
 	if cfg.Verbose {
 		ui.Verbose(fmt.Sprintf("Wine command: %v", args), true)
@@ -127,4 +133,15 @@ func LaunchGame(ctx context.Context, cfg *LaunchConfig) error {
 	}
 
 	return nil
+}
+
+// isSteamDeck returns true if running on a Steam Deck.
+func isSteamDeck() bool {
+	if wine.DetectDistro() == "steamos" {
+		return true
+	}
+	if _, err := os.Stat("/home/deck"); err == nil {
+		return true
+	}
+	return false
 }
