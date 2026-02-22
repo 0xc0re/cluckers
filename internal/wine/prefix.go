@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cstory/cluckers/internal/config"
-	"github.com/cstory/cluckers/internal/ui"
+	"github.com/0xc0re/cluckers/internal/config"
+	"github.com/0xc0re/cluckers/internal/ui"
 )
 
 // PrefixPath returns the default Wine prefix path under the data directory.

@@ -3,9 +3,9 @@ package cli
 import (
 	"path/filepath"
 
-	"github.com/cstory/cluckers/internal/config"
-	"github.com/cstory/cluckers/internal/game"
-	"github.com/cstory/cluckers/internal/ui"
+	"github.com/0xc0re/cluckers/internal/config"
+	"github.com/0xc0re/cluckers/internal/game"
+	"github.com/0xc0re/cluckers/internal/ui"
 	"github.com/spf13/cobra"
 )
 

@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/cstory/cluckers/internal/ui"
+	"github.com/0xc0re/cluckers/internal/ui"
 )
 
 // ExtractZip extracts a zip archive to destDir with zip-slip protection.

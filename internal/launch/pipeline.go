@@ -9,12 +9,12 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/cstory/cluckers/internal/auth"
-	"github.com/cstory/cluckers/internal/config"
-	"github.com/cstory/cluckers/internal/game"
-	"github.com/cstory/cluckers/internal/gateway"
-	"github.com/cstory/cluckers/internal/ui"
-	"github.com/cstory/cluckers/internal/wine"
+	"github.com/0xc0re/cluckers/internal/auth"
+	"github.com/0xc0re/cluckers/internal/config"
+	"github.com/0xc0re/cluckers/internal/game"
+	"github.com/0xc0re/cluckers/internal/gateway"
+	"github.com/0xc0re/cluckers/internal/ui"
+	"github.com/0xc0re/cluckers/internal/wine"
 )
 
 // LaunchState holds accumulated state across pipeline steps.

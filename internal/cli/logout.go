@@ -1,8 +1,8 @@
 package cli
 
 import (
-	"github.com/cstory/cluckers/internal/auth"
-	"github.com/cstory/cluckers/internal/ui"
+	"github.com/0xc0re/cluckers/internal/auth"
+	"github.com/0xc0re/cluckers/internal/ui"
 	"github.com/spf13/cobra"
 )
 

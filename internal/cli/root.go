@@ -1,7 +1,7 @@
 package cli
 
 import (
-	"github.com/cstory/cluckers/internal/config"
+	"github.com/0xc0re/cluckers/internal/config"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )

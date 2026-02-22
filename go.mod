@@ -1,4 +1,4 @@
-module github.com/cstory/cluckers
+module github.com/0xc0re/cluckers
 
 go 1.25.0
 

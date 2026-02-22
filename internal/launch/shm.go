@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/cstory/cluckers/assets"
+	"github.com/0xc0re/cluckers/assets"
 )
 
 // ExtractSHMLauncher writes the embedded shm_launcher.exe to a temp file and

@@ -10,8 +10,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/cstory/cluckers/internal/config"
-	"github.com/cstory/cluckers/internal/ui"
+	"github.com/0xc0re/cluckers/internal/config"
+	"github.com/0xc0re/cluckers/internal/ui"
 	"github.com/zeebo/blake3"
 )
 

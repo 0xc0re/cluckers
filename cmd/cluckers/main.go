@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/cstory/cluckers/internal/cli"
+	"github.com/0xc0re/cluckers/internal/cli"
 )
 
 // Set via ldflags at build time (goreleaser).

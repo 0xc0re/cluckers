@@ -5,8 +5,8 @@ import (
 	"encoding/base64"
 	"strings"
 
-	"github.com/cstory/cluckers/internal/gateway"
-	"github.com/cstory/cluckers/internal/ui"
+	"github.com/0xc0re/cluckers/internal/gateway"
+	"github.com/0xc0re/cluckers/internal/ui"
 )
 
 // LoginResult holds the successful result of a gateway login.

@@ -21,7 +21,7 @@ Native Linux launcher for Realm Royale on the Project Crown private server.
 ## Install
 
 ```
-git clone https://github.com/cstory/cluckers.git
+git clone https://github.com/0xc0re/cluckers.git
 cd cluckers
 go build -o cluckers ./cmd/cluckers
 sudo cp cluckers /usr/local/bin/  # optional
