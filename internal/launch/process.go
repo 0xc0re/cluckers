@@ -104,6 +104,22 @@ func LaunchGame(ctx context.Context, cfg *LaunchConfig) error {
 		env = append(env, "WINEFSYNC=1")
 	}
 
+	// Always set WINEDLLOVERRIDES for dxgi (needed for DXVK).
+	env = append(env, "WINEDLLOVERRIDES=dxgi=n")
+
+	// On Steam Deck, disable Steam Input's virtual gamepad layer so the game
+	// sees the raw controller hardware via Wine's winebus.sys/evdev instead of
+	// Steam Input's virtual Xbox 360 pad (28de:11ff). The UE3 game's DirectInput
+	// polling gets stuck in keyboard mode with the virtual pad.
+	if isSteamDeck() {
+		if cfg.Verbose {
+			ui.Verbose("Steam Deck detected, setting controller environment", true)
+		}
+		env = append(env, "STEAM_INPUT_DISABLE=1")
+		env = append(env, "SDL_GAMECONTROLLERCONFIG=")
+		env = append(env, "SDL_JOYSTICK_HIDAPI=0")
+	}
+
 	if cfg.Verbose {
 		ui.Verbose(fmt.Sprintf("Wine command: %v", args), true)
 	}
@@ -127,4 +143,16 @@ func LaunchGame(ctx context.Context, cfg *LaunchConfig) error {
 	}
 
 	return nil
+}
+
+// isSteamDeck returns true if running on a Steam Deck.
+// Checks os-release distro ID and the well-known /home/deck directory.
+func isSteamDeck() bool {
+	if wine.DetectDistro() == "steamos" {
+		return true
+	}
+	if _, err := os.Stat("/home/deck"); err == nil {
+		return true
+	}
+	return false
 }
