@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/cstory/cluckers/internal/auth"
 	"github.com/cstory/cluckers/internal/config"
 	"github.com/cstory/cluckers/internal/gateway"
 	"github.com/cstory/cluckers/internal/ui"
+	"github.com/cstory/cluckers/internal/wine"
 )
 
 // LaunchState holds accumulated state across pipeline steps.
@@ -23,6 +25,7 @@ type LaunchState struct {
 	OIDCToken   string
 	Bootstrap   []byte
 	WinePath    string
+	PrefixPath  string
 }
 
 // Step represents a single step in the launch pipeline.
@@ -59,6 +62,8 @@ func Run(ctx context.Context, cfg *config.Config) error {
 		{Name: "Requesting OIDC token", Fn: stepOIDCToken},
 		{Name: "Requesting content bootstrap", Fn: stepBootstrap},
 		{Name: "Detecting Wine", Fn: stepDetectWine},
+		{Name: "Ensuring Wine prefix", Fn: stepEnsurePrefix},
+		{Name: "Verifying Wine prefix", Fn: stepVerifyPrefix},
 		{Name: "Launching game", Fn: stepLaunchGame},
 	}
 
@@ -172,12 +177,50 @@ func stepBootstrap(ctx context.Context, state *LaunchState, _ *ui.StepSpinner) e
 
 // stepDetectWine finds a suitable Wine binary.
 func stepDetectWine(ctx context.Context, state *LaunchState, _ *ui.StepSpinner) error {
-	winePath, err := FindWine(state.Config.WinePath)
+	winePath, err := wine.FindWine(state.Config.WinePath)
 	if err != nil {
 		return err
 	}
 	state.WinePath = winePath
 	ui.Verbose(fmt.Sprintf("Wine: %s", winePath), state.Config.Verbose)
+	return nil
+}
+
+// stepEnsurePrefix ensures the Wine prefix exists, creating it if needed.
+func stepEnsurePrefix(ctx context.Context, state *LaunchState, _ *ui.StepSpinner) error {
+	// Determine prefix path: config override or default.
+	prefixPath := state.Config.WinePrefix
+	if prefixPath == "" {
+		prefixPath = wine.PrefixPath()
+	}
+
+	// Check if prefix already exists.
+	if _, err := os.Stat(prefixPath); err == nil {
+		ui.Verbose(fmt.Sprintf("Wine prefix exists: %s", prefixPath), state.Config.Verbose)
+		state.PrefixPath = prefixPath
+		return nil
+	}
+
+	// Prefix doesn't exist -- create it.
+	if err := wine.CreatePrefix(prefixPath, state.WinePath, state.Config.Verbose); err != nil {
+		return err
+	}
+
+	state.PrefixPath = prefixPath
+	return nil
+}
+
+// stepVerifyPrefix checks that all required DLLs exist in the Wine prefix.
+func stepVerifyPrefix(ctx context.Context, state *LaunchState, _ *ui.StepSpinner) error {
+	healthy, missing := wine.VerifyPrefix(state.PrefixPath)
+	if !healthy {
+		return &ui.UserError{
+			Message:    "Wine prefix missing required DLLs",
+			Detail:     fmt.Sprintf("Missing: %s", strings.Join(missing, ", ")),
+			Suggestion: wine.RepairInstructions(state.WinePath, missing),
+		}
+	}
+	ui.Verbose(fmt.Sprintf("Prefix verified: %d DLLs present", len(wine.RequiredDLLs)), state.Config.Verbose)
 	return nil
 }
 
@@ -192,7 +235,7 @@ func stepLaunchGame(ctx context.Context, state *LaunchState, _ *ui.StepSpinner) 
 
 	return LaunchGame(ctx, &LaunchConfig{
 		WinePath:         state.WinePath,
-		WinePrefix:       state.Config.WinePrefix,
+		WinePrefix:       state.PrefixPath,
 		GameDir:          state.Config.GameDir,
 		Username:         state.Username,
 		AccessToken:      state.AccessToken,

@@ -7,8 +7,8 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"github.com/cstory/cluckers/internal/config"
 	"github.com/cstory/cluckers/internal/ui"
+	"github.com/cstory/cluckers/internal/wine"
 )
 
 // LaunchConfig holds all parameters needed to launch the game under Wine.
@@ -50,7 +50,7 @@ func LaunchGame(ctx context.Context, cfg *LaunchConfig) error {
 	gameArgs := []string{
 		fmt.Sprintf("-user=%s", cfg.Username),
 		fmt.Sprintf("-token=%s", cfg.AccessToken),
-		fmt.Sprintf("-eac_oidc_token_file=%s", LinuxToWinePath(cfg.OIDCTokenPath)),
+		fmt.Sprintf("-eac_oidc_token_file=%s", wine.LinuxToWinePath(cfg.OIDCTokenPath)),
 		fmt.Sprintf("-hostx=%s", cfg.HostX),
 		"-Language=INT",
 		"-dx11",
@@ -84,9 +84,9 @@ func LaunchGame(ctx context.Context, cfg *LaunchConfig) error {
 		args = append(args,
 			cfg.WinePath,
 			shmPath,
-			LinuxToWinePath(bootstrapPath),
+			wine.LinuxToWinePath(bootstrapPath),
 			shmName,
-			LinuxToWinePath(gameExe),
+			wine.LinuxToWinePath(gameExe),
 		)
 		args = append(args, gameArgs...)
 	} else {
@@ -97,15 +97,11 @@ func LaunchGame(ctx context.Context, cfg *LaunchConfig) error {
 
 	// Set up environment.
 	env := os.Environ()
-	if IsProtonGE(cfg.WinePath) {
-		prefix := cfg.WinePrefix
-		if prefix == "" {
-			prefix = filepath.Join(config.DataDir(), "prefix")
-		}
-		env = append(env,
-			"WINEPREFIX="+prefix,
-			"WINEFSYNC=1",
-		)
+	if cfg.WinePrefix != "" {
+		env = append(env, "WINEPREFIX="+cfg.WinePrefix)
+	}
+	if wine.IsProtonGE(cfg.WinePath) {
+		env = append(env, "WINEFSYNC=1")
 	}
 
 	if cfg.Verbose {
