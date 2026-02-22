@@ -19,18 +19,19 @@ import (
 
 // LaunchState holds accumulated state across pipeline steps.
 type LaunchState struct {
-	Config       *config.Config
-	Client       *gateway.Client
-	Username     string
-	Password     string
-	AccessToken  string
-	OIDCToken    string
-	Bootstrap    []byte
-	WinePath     string
-	PrefixPath   string
-	GameDir      string
-	VersionInfo  *game.VersionInfo
+	Config        *config.Config
+	Client        *gateway.Client
+	Username      string
+	Password      string
+	AccessToken   string
+	OIDCToken     string
+	Bootstrap     []byte
+	WinePath      string
+	PrefixPath    string
+	GameDir       string
+	VersionInfo   *game.VersionInfo
 	NeedsDownload bool
+	TokenCache    *auth.TokenCache
 }
 
 // Step represents a single step in the launch pipeline.
@@ -102,11 +103,28 @@ func stepHealthCheck(ctx context.Context, state *LaunchState, _ *ui.StepSpinner)
 
 // stepAuthenticate loads saved credentials or prompts for new ones, then logs in.
 // On saved credential failure, re-prompts once before returning an error.
+// Checks the token cache first to skip the API call when a valid cached token exists.
 func stepAuthenticate(ctx context.Context, state *LaunchState, spinner *ui.StepSpinner) error {
+	// Load token cache for potential reuse.
+	cache, err := auth.LoadTokenCache()
+	if err != nil {
+		ui.Verbose(fmt.Sprintf("Could not load token cache: %s", err), state.Config.Verbose)
+	}
+
 	// Try saved credentials first.
 	creds, err := auth.LoadCredentials()
 	if err != nil {
 		ui.Verbose(fmt.Sprintf("Could not load saved credentials: %s", err), state.Config.Verbose)
+	}
+
+	// If cache has a valid access token for the same user, use it directly.
+	if cache != nil && cache.AccessTokenValid() && creds != nil && cache.Username == creds.Username {
+		state.Username = cache.Username
+		state.AccessToken = cache.AccessToken
+		state.Password = creds.Password
+		state.TokenCache = cache
+		ui.Verbose("Using cached access token (still valid)", state.Config.Verbose)
+		return nil
 	}
 
 	if creds != nil {
@@ -116,6 +134,16 @@ func stepAuthenticate(ctx context.Context, state *LaunchState, spinner *ui.StepS
 			state.Username = result.Username
 			state.AccessToken = result.AccessToken
 			state.Password = creds.Password
+
+			// Cache the access token for future launches.
+			state.TokenCache = &auth.TokenCache{
+				Username:    result.Username,
+				AccessToken: result.AccessToken,
+			}
+			if saveErr := auth.SaveTokenCache(state.TokenCache); saveErr != nil {
+				ui.Verbose(fmt.Sprintf("Could not save token cache: %s", saveErr), state.Config.Verbose)
+			}
+
 			ui.Verbose("Logged in with saved credentials", state.Config.Verbose)
 			return nil
 		}
@@ -153,16 +181,46 @@ func stepAuthenticate(ctx context.Context, state *LaunchState, spinner *ui.StepS
 		ui.Warn(fmt.Sprintf("Could not save credentials: %s", saveErr))
 	}
 
+	// Cache the access token for future launches.
+	state.TokenCache = &auth.TokenCache{
+		Username:    result.Username,
+		AccessToken: result.AccessToken,
+	}
+	if saveErr := auth.SaveTokenCache(state.TokenCache); saveErr != nil {
+		ui.Verbose(fmt.Sprintf("Could not save token cache: %s", saveErr), state.Config.Verbose)
+	}
+
 	return nil
 }
 
 // stepOIDCToken retrieves an EAC OIDC JWT token from the gateway.
+// Checks the token cache first to skip the API call when a valid cached OIDC token exists.
 func stepOIDCToken(ctx context.Context, state *LaunchState, _ *ui.StepSpinner) error {
+	// Check cache for a valid OIDC token.
+	if state.TokenCache != nil && state.TokenCache.OIDCTokenValid() {
+		state.OIDCToken = state.TokenCache.OIDCToken
+		ui.Verbose("Using cached OIDC token (still valid)", state.Config.Verbose)
+		return nil
+	}
+
 	token, err := auth.GetOIDCToken(ctx, state.Client, state.Username, state.AccessToken)
 	if err != nil {
 		return err
 	}
 	state.OIDCToken = token
+
+	// Update the token cache with the fresh OIDC token.
+	if state.TokenCache == nil {
+		state.TokenCache = &auth.TokenCache{
+			Username:    state.Username,
+			AccessToken: state.AccessToken,
+		}
+	}
+	state.TokenCache.OIDCToken = token
+	if saveErr := auth.SaveTokenCache(state.TokenCache); saveErr != nil {
+		ui.Verbose(fmt.Sprintf("Could not save token cache: %s", saveErr), state.Config.Verbose)
+	}
+
 	return nil
 }
 

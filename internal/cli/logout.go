@@ -8,13 +8,16 @@ import (
 
 var logoutCmd = &cobra.Command{
 	Use:   "logout",
-	Short: "Remove saved credentials",
-	Long:  "Deletes saved login credentials from disk. You will be prompted to log in again on next launch.",
+	Short: "Remove saved credentials and cached tokens",
+	Long:  "Deletes saved login credentials and cached tokens from disk. You will be prompted to log in again on next launch.",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := auth.DeleteCredentials(); err != nil {
 			return err
 		}
-		ui.Success("Credentials removed")
+		if err := auth.ClearTokenCache(); err != nil {
+			ui.Warn("Could not clear token cache: " + err.Error())
+		}
+		ui.Success("Credentials and cached tokens removed")
 		return nil
 	},
 }

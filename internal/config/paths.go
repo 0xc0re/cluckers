@@ -24,6 +24,11 @@ func ConfigDir() string {
 	return filepath.Join(DataDir(), "config")
 }
 
+// CacheDir returns the cache directory under the data dir.
+func CacheDir() string {
+	return filepath.Join(DataDir(), "cache")
+}
+
 // ConfigFile returns the path to the TOML settings file.
 func ConfigFile() string {
 	return filepath.Join(ConfigDir(), "settings.toml")
