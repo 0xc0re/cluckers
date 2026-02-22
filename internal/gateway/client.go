@@ -90,6 +90,10 @@ func (c *Client) Post(ctx context.Context, command string, body interface{}, res
 		}
 	}
 
+	if c.verbose {
+		ui.Verbose(fmt.Sprintf("Gateway %s response: %s", command, string(respBody)), true)
+	}
+
 	if err := json.Unmarshal(respBody, result); err != nil {
 		return &ui.UserError{
 			Message: "Failed to parse gateway response.",
@@ -115,7 +119,7 @@ func (c *Client) HealthCheck(ctx context.Context) error {
 			Err:        err,
 		}
 	}
-	if !resp.Success {
+	if !bool(resp.Success) {
 		return &ui.UserError{
 			Message:    "Gateway is down.",
 			Detail:     "LAUNCHER_HEALTH returned SUCCESS=false",

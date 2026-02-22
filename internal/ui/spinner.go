@@ -40,11 +40,18 @@ func StartStep(name string) *StepSpinner {
 	return ss
 }
 
-// Success stops the spinner and prints a green checkmark with the step name.
-func (ss *StepSpinner) Success() {
+// Stop stops the spinner animation without printing any status.
+// Use this before interactive prompts that need clean stdout.
+func (ss *StepSpinner) Stop() {
 	if ss.spinner != nil {
 		ss.spinner.Stop()
+		ss.spinner = nil
 	}
+}
+
+// Success stops the spinner and prints a green checkmark with the step name.
+func (ss *StepSpinner) Success() {
+	ss.Stop()
 	if ss.isTTY {
 		Success(ss.name)
 	}
@@ -52,9 +59,7 @@ func (ss *StepSpinner) Success() {
 
 // Fail stops the spinner and prints a red cross with the step name.
 func (ss *StepSpinner) Fail() {
-	if ss.spinner != nil {
-		ss.spinner.Stop()
-	}
+	ss.Stop()
 	if ss.isTTY {
 		Error(ss.name)
 	}

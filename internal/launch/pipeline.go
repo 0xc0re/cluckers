@@ -28,7 +28,7 @@ type LaunchState struct {
 // Step represents a single step in the launch pipeline.
 type Step struct {
 	Name string
-	Fn   func(ctx context.Context, state *LaunchState) error
+	Fn   func(ctx context.Context, state *LaunchState, spinner *ui.StepSpinner) error
 }
 
 // Run orchestrates the full launch pipeline: health check, auth, OIDC, bootstrap, game launch.
@@ -37,6 +37,13 @@ func Run(ctx context.Context, cfg *config.Config) error {
 	// Set up signal handling for clean shutdown.
 	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 	defer cancel()
+
+	// Force exit on Ctrl+C — stdin reads block and don't check context.
+	go func() {
+		<-ctx.Done()
+		fmt.Println("\nInterrupted.")
+		os.Exit(130)
+	}()
 
 	// Create gateway client.
 	client := gateway.NewClient(cfg.Gateway, cfg.Verbose)
@@ -58,7 +65,7 @@ func Run(ctx context.Context, cfg *config.Config) error {
 	for _, step := range steps {
 		spinner := ui.StartStep(step.Name)
 
-		if err := step.Fn(ctx, state); err != nil {
+		if err := step.Fn(ctx, state, spinner); err != nil {
 			spinner.Fail()
 			ui.Error(ui.FormatError(err, cfg.Verbose))
 			return err
@@ -72,7 +79,7 @@ func Run(ctx context.Context, cfg *config.Config) error {
 
 // stepHealthCheck verifies the gateway is reachable. Warns but continues on failure
 // (matching POC behavior -- gateway might be flaky but login still works).
-func stepHealthCheck(ctx context.Context, state *LaunchState) error {
+func stepHealthCheck(ctx context.Context, state *LaunchState, _ *ui.StepSpinner) error {
 	if err := state.Client.HealthCheck(ctx); err != nil {
 		// Warn but continue -- gateway might be flaky.
 		ui.Warn("Gateway health check failed, continuing anyway...")
@@ -83,7 +90,7 @@ func stepHealthCheck(ctx context.Context, state *LaunchState) error {
 
 // stepAuthenticate loads saved credentials or prompts for new ones, then logs in.
 // On saved credential failure, re-prompts once before returning an error.
-func stepAuthenticate(ctx context.Context, state *LaunchState) error {
+func stepAuthenticate(ctx context.Context, state *LaunchState, spinner *ui.StepSpinner) error {
 	// Try saved credentials first.
 	creds, err := auth.LoadCredentials()
 	if err != nil {
@@ -101,8 +108,12 @@ func stepAuthenticate(ctx context.Context, state *LaunchState) error {
 			return nil
 		}
 		// Saved credentials failed -- re-prompt once.
+		spinner.Stop()
 		ui.Warn("Saved credentials failed, please re-enter.")
 		ui.Verbose(fmt.Sprintf("Saved login error: %s", err), state.Config.Verbose)
+	} else {
+		// No saved creds -- stop spinner so prompt is visible.
+		spinner.Stop()
 	}
 
 	// Prompt for credentials.
@@ -134,7 +145,7 @@ func stepAuthenticate(ctx context.Context, state *LaunchState) error {
 }
 
 // stepOIDCToken retrieves an EAC OIDC JWT token from the gateway.
-func stepOIDCToken(ctx context.Context, state *LaunchState) error {
+func stepOIDCToken(ctx context.Context, state *LaunchState, _ *ui.StepSpinner) error {
 	token, err := auth.GetOIDCToken(ctx, state.Client, state.Username, state.AccessToken)
 	if err != nil {
 		return err
@@ -145,7 +156,7 @@ func stepOIDCToken(ctx context.Context, state *LaunchState) error {
 
 // stepBootstrap retrieves the content bootstrap from the gateway.
 // Nil bootstrap is OK -- the game can launch without it.
-func stepBootstrap(ctx context.Context, state *LaunchState) error {
+func stepBootstrap(ctx context.Context, state *LaunchState, _ *ui.StepSpinner) error {
 	data, err := auth.GetContentBootstrap(ctx, state.Client, state.Username, state.AccessToken)
 	if err != nil {
 		return err
@@ -160,7 +171,7 @@ func stepBootstrap(ctx context.Context, state *LaunchState) error {
 }
 
 // stepDetectWine finds a suitable Wine binary.
-func stepDetectWine(ctx context.Context, state *LaunchState) error {
+func stepDetectWine(ctx context.Context, state *LaunchState, _ *ui.StepSpinner) error {
 	winePath, err := FindWine(state.Config.WinePath)
 	if err != nil {
 		return err
@@ -171,7 +182,7 @@ func stepDetectWine(ctx context.Context, state *LaunchState) error {
 }
 
 // stepLaunchGame writes temp files and launches the game under Wine.
-func stepLaunchGame(ctx context.Context, state *LaunchState) error {
+func stepLaunchGame(ctx context.Context, state *LaunchState, _ *ui.StepSpinner) error {
 	// Write OIDC token to temp file.
 	oidcPath, oidcCleanup, err := writeOIDCTokenFile(state.OIDCToken)
 	if err != nil {
@@ -181,6 +192,7 @@ func stepLaunchGame(ctx context.Context, state *LaunchState) error {
 
 	return LaunchGame(ctx, &LaunchConfig{
 		WinePath:         state.WinePath,
+		WinePrefix:       state.Config.WinePrefix,
 		GameDir:          state.Config.GameDir,
 		Username:         state.Username,
 		AccessToken:      state.AccessToken,

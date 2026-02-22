@@ -29,7 +29,7 @@ func Login(ctx context.Context, client *gateway.Client, username, password strin
 		return nil, err
 	}
 
-	if !resp.Success {
+	if !bool(resp.Success) {
 		msg := resp.TextValue
 		if msg == "" {
 			msg = "Unknown error"

@@ -14,6 +14,7 @@ import (
 // LaunchConfig holds all parameters needed to launch the game under Wine.
 type LaunchConfig struct {
 	WinePath         string
+	WinePrefix       string
 	GameDir          string
 	Username         string
 	AccessToken      string
@@ -97,7 +98,10 @@ func LaunchGame(ctx context.Context, cfg *LaunchConfig) error {
 	// Set up environment.
 	env := os.Environ()
 	if IsProtonGE(cfg.WinePath) {
-		prefix := filepath.Join(config.DataDir(), "prefix")
+		prefix := cfg.WinePrefix
+		if prefix == "" {
+			prefix = filepath.Join(config.DataDir(), "prefix")
+		}
 		env = append(env,
 			"WINEPREFIX="+prefix,
 			"WINEFSYNC=1",
