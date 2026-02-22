@@ -20,6 +20,31 @@ archives:
 checksum:
   name_template: checksums.txt
 
+changelog:
+  sort: asc
+  groups:
+    - title: Features
+      regexp: '^feat'
+      order: 0
+    - title: Bug Fixes
+      regexp: '^fix'
+      order: 1
+    - title: CI/CD
+      regexp: '^ci'
+      order: 2
+    - title: Documentation
+      regexp: '^docs'
+      order: 3
+    - title: Refactoring
+      regexp: '^refactor'
+      order: 4
+    - title: Other
+      order: 999
+  filters:
+    exclude:
+      - '^Merge'
+      - '^chore'
+
 release:
   github:
     owner: 0xc0re

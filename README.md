@@ -57,7 +57,7 @@ Config file: `~/.cluckers/config/settings.toml` (optional, created manually).
 
 ```toml
 gateway = "https://gateway-dev.project-crown.com"
-hostx = "157.90.131.105"
+hostx = "your.server.ip"
 wine_path = ""       # auto-detected if empty
 wine_prefix = ""     # defaults to ~/.cluckers/prefix/
 game_dir = ""        # defaults to ~/.cluckers/game/
