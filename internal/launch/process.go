@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 
+	"github.com/cstory/cluckers/internal/game"
 	"github.com/cstory/cluckers/internal/ui"
 	"github.com/cstory/cluckers/internal/wine"
 )
@@ -29,7 +29,7 @@ type LaunchConfig struct {
 // shm_launcher.exe) are cleaned up after the game exits or on context cancellation.
 func LaunchGame(ctx context.Context, cfg *LaunchConfig) error {
 	// Validate game executable exists.
-	gameExe := filepath.Join(cfg.GameDir, "Binaries", "Win64", "ShippingPC-RealmGameNoEditor.exe")
+	gameExe := game.GameExePath(cfg.GameDir)
 	if _, err := os.Stat(gameExe); err != nil {
 		return &ui.UserError{
 			Message:    "Game executable not found: " + gameExe,

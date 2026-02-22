@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 
 	"github.com/cstory/cluckers/internal/auth"
 	"github.com/cstory/cluckers/internal/config"
+	"github.com/cstory/cluckers/internal/game"
 	"github.com/cstory/cluckers/internal/gateway"
 	"github.com/cstory/cluckers/internal/ui"
 	"github.com/cstory/cluckers/internal/wine"
@@ -17,15 +19,18 @@ import (
 
 // LaunchState holds accumulated state across pipeline steps.
 type LaunchState struct {
-	Config      *config.Config
-	Client      *gateway.Client
-	Username    string
-	Password    string
-	AccessToken string
-	OIDCToken   string
-	Bootstrap   []byte
-	WinePath    string
-	PrefixPath  string
+	Config       *config.Config
+	Client       *gateway.Client
+	Username     string
+	Password     string
+	AccessToken  string
+	OIDCToken    string
+	Bootstrap    []byte
+	WinePath     string
+	PrefixPath   string
+	GameDir      string
+	VersionInfo  *game.VersionInfo
+	NeedsDownload bool
 }
 
 // Step represents a single step in the launch pipeline.
@@ -64,6 +69,8 @@ func Run(ctx context.Context, cfg *config.Config) error {
 		{Name: "Detecting Wine", Fn: stepDetectWine},
 		{Name: "Ensuring Wine prefix", Fn: stepEnsurePrefix},
 		{Name: "Verifying Wine prefix", Fn: stepVerifyPrefix},
+		{Name: "Checking game version", Fn: stepCheckVersion},
+		{Name: "Downloading game update", Fn: stepDownloadGame},
 		{Name: "Launching game", Fn: stepLaunchGame},
 	}
 
@@ -221,6 +228,76 @@ func stepVerifyPrefix(ctx context.Context, state *LaunchState, _ *ui.StepSpinner
 		}
 	}
 	ui.Verbose(fmt.Sprintf("Prefix verified: %d DLLs present", len(wine.RequiredDLLs)), state.Config.Verbose)
+	return nil
+}
+
+// stepCheckVersion checks the remote game version and determines if a download is needed.
+func stepCheckVersion(ctx context.Context, state *LaunchState, _ *ui.StepSpinner) error {
+	// Resolve game directory.
+	gameDir := state.Config.GameDir
+	if gameDir == "" {
+		gameDir = game.GameDir()
+	}
+	state.GameDir = gameDir
+
+	info, err := game.FetchVersionInfo(ctx)
+	if err != nil {
+		return &ui.UserError{
+			Message:    "Could not check game version.",
+			Detail:     fmt.Sprintf("%s", err),
+			Suggestion: "Check your internet connection and try again.",
+		}
+	}
+	state.VersionInfo = info
+
+	needsUpdate, err := game.NeedsUpdate(gameDir, info)
+	if err != nil {
+		return fmt.Errorf("checking game version: %w", err)
+	}
+
+	if needsUpdate {
+		state.NeedsDownload = true
+		ui.Verbose(fmt.Sprintf("Game update available: %s", info.LatestVersion), state.Config.Verbose)
+	} else {
+		ui.Verbose(fmt.Sprintf("Game is up to date (version %s)", info.LatestVersion), state.Config.Verbose)
+	}
+
+	return nil
+}
+
+// stepDownloadGame downloads and extracts the game update if needed.
+// This step is a no-op when the game is already up to date.
+func stepDownloadGame(ctx context.Context, state *LaunchState, spinner *ui.StepSpinner) error {
+	if !state.NeedsDownload {
+		ui.Verbose("Game files up to date, skipping download", state.Config.Verbose)
+		return nil
+	}
+
+	// Stop the spinner -- the progress bar handles visual feedback during download.
+	spinner.Stop()
+
+	if err := config.EnsureDir(state.GameDir); err != nil {
+		return fmt.Errorf("creating game directory: %w", err)
+	}
+
+	if err := game.DownloadAndVerify(ctx, state.VersionInfo, state.GameDir); err != nil {
+		return &ui.UserError{
+			Message:    "Failed to download game update.",
+			Detail:     fmt.Sprintf("%s", err),
+			Suggestion: "Check your internet connection and try again. Partial downloads will be resumed.",
+		}
+	}
+
+	zipPath := filepath.Join(state.GameDir, "game.zip")
+	if err := game.ExtractZip(zipPath, state.GameDir); err != nil {
+		return &ui.UserError{
+			Message:    "Failed to extract game files.",
+			Detail:     fmt.Sprintf("%s", err),
+			Suggestion: "Run `cluckers update` to retry.",
+		}
+	}
+
+	ui.Success("Game files updated to version " + state.VersionInfo.LatestVersion)
 	return nil
 }
 
