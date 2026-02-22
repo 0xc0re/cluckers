@@ -15,6 +15,29 @@ go test ./internal/crypto/ -run TestSecretbox  # single test example
 
 Build tags: none (pure Go + go:embed). Version set via ldflags at build time (goreleaser pattern).
 
+## Releasing
+
+Tag-driven via GoReleaser v2 + GitHub Actions:
+
+```bash
+git tag v0.2.0
+git push origin v0.2.0
+```
+
+Pushing a `v*` tag triggers `.github/workflows/release.yaml`, which runs GoReleaser to build a static binary, generate a grouped changelog, and publish a GitHub Release with tarball + checksums.
+
+**Commit message prefixes** (used for changelog grouping):
+
+| Prefix | Changelog Group |
+|--------|----------------|
+| `feat:` | Features |
+| `fix:` | Bug Fixes |
+| `ci:` | CI/CD |
+| `docs:` | Documentation |
+| `refactor:` | Refactoring |
+
+Commits starting with `Merge` or `chore` are excluded from the changelog.
+
 ## Project Structure
 
 ```
