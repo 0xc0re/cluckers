@@ -20,7 +20,24 @@ Native Linux launcher for Realm Royale on the Project Crown private server.
 
 ## Install
 
-### Download (recommended)
+### Quick install (recommended)
+
+```bash
+curl -sSL https://raw.githubusercontent.com/0xc0re/cluckers/master/install.sh | sh
+```
+
+This downloads the latest release binary to `~/.local/bin/cluckers`. To install
+elsewhere, set `INSTALL_DIR`:
+
+```bash
+INSTALL_DIR=/usr/local/bin curl -sSL https://raw.githubusercontent.com/0xc0re/cluckers/master/install.sh | sh
+```
+
+**Steam Deck:** Works out of the box. The installer detects SteamOS and places
+the binary in `~/.local/bin`. If you don't have Proton-GE installed, grab
+ProtonUp-Qt from the Discover store and install the latest GE-Proton version.
+
+### Manual download
 
 Grab the latest release from [GitHub Releases](https://github.com/0xc0re/cluckers/releases):
 
@@ -31,7 +48,8 @@ curl -s https://api.github.com/repos/0xc0re/cluckers/releases/latest \
   | cut -d '"' -f 4 \
   | xargs curl -LO
 tar xzf cluckers_*.tar.gz
-sudo cp cluckers /usr/local/bin/  # optional
+chmod +x cluckers
+mv cluckers ~/.local/bin/  # or wherever you prefer
 ```
 
 ### Build from source
