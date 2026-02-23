@@ -108,7 +108,7 @@ func LaunchGame(ctx context.Context, cfg *LaunchConfig) error {
 	if wine.IsProtonGE(cfg.WinePath) {
 		env = append(env, "WINEFSYNC=1")
 	}
-	env = append(env, "WINEDLLOVERRIDES=dxgi,xinput1_3=n")
+	env = append(env, "WINEDLLOVERRIDES=dxgi=n,xinput1_3=n")
 
 	if cfg.Verbose {
 		ui.Verbose(fmt.Sprintf("Wine command: %v", args), true)
