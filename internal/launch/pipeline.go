@@ -72,6 +72,7 @@ func Run(ctx context.Context, cfg *config.Config) error {
 		{Name: "Verifying Wine prefix", Fn: stepVerifyPrefix},
 		{Name: "Checking game version", Fn: stepCheckVersion},
 		{Name: "Downloading game update", Fn: stepDownloadGame},
+		{Name: "Configuring for Steam Deck", Fn: stepDeckConfig},
 		{Name: "Launching game", Fn: stepLaunchGame},
 	}
 
@@ -357,6 +358,12 @@ func stepDownloadGame(ctx context.Context, state *LaunchState, spinner *ui.StepS
 
 	ui.Success("Game files updated to version " + state.VersionInfo.LatestVersion)
 	return nil
+}
+
+// stepDeckConfig patches game settings for Steam Deck (fullscreen, resolution).
+// Skips silently on non-Deck systems or if already configured.
+func stepDeckConfig(ctx context.Context, state *LaunchState, _ *ui.StepSpinner) error {
+	return PatchDeckConfig(state.GameDir)
 }
 
 // stepLaunchGame writes temp files and launches the game under Wine.
