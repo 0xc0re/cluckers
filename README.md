@@ -129,9 +129,19 @@ Created at runtime:
 3. Run `cluckers steam add` to add it to your Steam library
 4. In Steam, find "Realm Royale (Cluckers)" and launch it
 
-**Controller input:** In Steam's per-game controller settings for the Cluckers
-shortcut, change the controller template to **"Gamepad with Joystick"**. The
-default template doesn't work correctly with the game's DirectInput polling.
+**Controller input:** The game has native XInput controller support. To use it on
+Steam Deck:
+
+1. In Steam, right-click "Realm Royale (Cluckers)" > Properties > Controller
+2. Select the **"Gamepad with Joystick Trackpad"** template (NOT the default template)
+3. In the game's config files, set these INI values:
+   - `c_bUseServerBindings=false` in both `DefaultInput.ini` and `RealmInput.ini`
+     (prevents the server from overwriting local gamepad settings)
+   - `DisableJoystickInput=false` in `DefaultInput.ini`
+
+Do NOT set `STEAM_INPUT_DISABLE=1` or other SDL environment variables. Steam Input
+must remain active to forward controller inputs to the virtual Xbox 360 pad that
+Wine reads via XInput.
 
 Proton-GE is auto-detected from Steam's `compatibilitytools.d` directory.
 
