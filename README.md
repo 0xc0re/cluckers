@@ -129,14 +129,16 @@ Created at runtime:
 3. Run `cluckers steam add` to add it to your Steam library
 4. In Steam, find "Realm Royale (Cluckers)" and launch it
 
-**Controller input:** The game has native XInput controller support. To use it on
-Steam Deck:
+**Controller input:** Controller support works automatically. The launcher deploys
+an XInput proxy DLL that fixes a UE3/Wine index mismatch (UE3 reserves XInput
+index 0 for the keyboard, but Wine assigns the controller to index 0).
+
+For Steam Deck:
 
 1. In Steam, right-click "Realm Royale (Cluckers)" > Properties > Controller
 2. Select the **"Gamepad with Joystick Trackpad"** template (NOT the default template)
-3. In the game's config files, set these INI values:
+3. In the game's config files, ensure these INI values are set:
    - `c_bUseServerBindings=false` in both `DefaultInput.ini` and `RealmInput.ini`
-     (prevents the server from overwriting local gamepad settings)
    - `DisableJoystickInput=false` in `DefaultInput.ini`
 
 Do NOT set `STEAM_INPUT_DISABLE=1` or other SDL environment variables. Steam Input

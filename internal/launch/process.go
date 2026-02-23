@@ -95,6 +95,11 @@ func LaunchGame(ctx context.Context, cfg *LaunchConfig) error {
 		args = append(args, gameArgs...)
 	}
 
+	// Deploy XInput remap proxy for controller support on Linux/Wine.
+	if err := DeployXInputProxy(cfg.GameDir); err != nil {
+		return fmt.Errorf("deploy xinput proxy: %w", err)
+	}
+
 	// Set up environment.
 	env := os.Environ()
 	if cfg.WinePrefix != "" {
@@ -103,7 +108,7 @@ func LaunchGame(ctx context.Context, cfg *LaunchConfig) error {
 	if wine.IsProtonGE(cfg.WinePath) {
 		env = append(env, "WINEFSYNC=1")
 	}
-	env = append(env, "WINEDLLOVERRIDES=dxgi=n")
+	env = append(env, "WINEDLLOVERRIDES=dxgi,xinput1_3=n")
 
 	if cfg.Verbose {
 		ui.Verbose(fmt.Sprintf("Wine command: %v", args), true)
@@ -114,6 +119,7 @@ func LaunchGame(ctx context.Context, cfg *LaunchConfig) error {
 	cmd.Env = env
 	cmd.Dir = cfg.GameDir
 	cmd.Stdout = os.Stdout
+
 	cmd.Stderr = os.Stderr
 
 	if err := cmd.Run(); err != nil {

@@ -26,3 +26,4 @@ vendor/
 # Wine/Proton artifacts
 *.exe.so
 *.dll
+!assets/*.dll
