@@ -2,7 +2,7 @@
 # Download and install the cluckers binary from GitHub Releases.
 #
 # Usage:
-#   irm https://raw.githubusercontent.com/0xc0re/cluckers/master/install.ps1 | iex
+#   (iwr https://raw.githubusercontent.com/0xc0re/cluckers/master/install.ps1).Content | iex
 #   powershell -ExecutionPolicy Bypass -File install.ps1
 
 $ErrorActionPreference = "Stop"
