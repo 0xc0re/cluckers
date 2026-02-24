@@ -1,22 +1,9 @@
 version: 2
 
 builds:
-  - id: cluckers-cli
+  - id: cluckers-linux
     main: ./cmd/cluckers
     binary: cluckers
-    env:
-      - CGO_ENABLED=0
-    goos:
-      - linux
-      - windows
-    goarch:
-      - amd64
-    ldflags:
-      - -s -w -X main.version={{.Version}} -X main.commit={{.ShortCommit}} -X main.date={{.Date}}
-
-  - id: cluckers-gui-linux
-    main: ./cmd/cluckers
-    binary: cluckers-gui
     env:
       - CGO_ENABLED=1
     goos:
@@ -28,12 +15,11 @@ builds:
     ldflags:
       - -s -w -X main.version={{.Version}} -X main.commit={{.ShortCommit}} -X main.date={{.Date}}
 
-  - id: cluckers-gui-windows
+  - id: cluckers-windows
     main: ./cmd/cluckers
-    binary: cluckers-gui
+    binary: cluckers
     env:
-      - CGO_ENABLED=1
-      - CC=x86_64-w64-mingw32-gcc
+      - CGO_ENABLED=0
     goos:
       - windows
     goarch:
@@ -46,9 +32,8 @@ builds:
 archives:
   - id: default
     builds:
-      - cluckers-cli
-      - cluckers-gui-linux
-      - cluckers-gui-windows
+      - cluckers-linux
+      - cluckers-windows
     format: tar.gz
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     format_overrides:
