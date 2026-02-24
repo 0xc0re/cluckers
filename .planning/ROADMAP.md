@@ -78,7 +78,7 @@ Phases execute in numeric order: 1 -> 2 -> 3
 | 1. Foundation and Core Launch | 3/3 | Complete    | 2004-02-22 |
 | 2. Wine and Game Management | 0/3 | Complete    | 2026-02-22 |
 | 3. First-Run Setup and Steam Deck | 0/2 | Not started | - |
-| 4. Cross-Platform GUI | 5/5 | Complete | 2026-02-24 |
+| 4. Cross-Platform GUI | 5/5 | Complete    | 2026-02-24 |
 
 ### Phase 4: Cross-Platform GUI
 
@@ -93,7 +93,7 @@ Phases execute in numeric order: 1 -> 2 -> 3
   5. Headless environments automatically fall back to CLI mode
   6. Steam Deck runs fullscreen, desktop runs windowed
   7. CI/CD produces both GUI and CLI-only binary variants
-**Plans:** 5 plans
+**Plans:** 5/5 plans complete
 
 Plans:
 - [x] 04-01-PLAN.md -- Fyne foundation: dependency, build tags, headless detection, theme, GUI skeleton
