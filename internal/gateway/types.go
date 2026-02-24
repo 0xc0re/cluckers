@@ -69,3 +69,17 @@ type GenericRequest struct {
 	UserName    string `json:"user_name"`
 	AccessToken string `json:"access_token"`
 }
+
+// BotNameRequest is the request body for LAUNCHER_SET_BOT_NAME.
+type BotNameRequest struct {
+	UserName    string `json:"user_name"`
+	AccessToken string `json:"access_token"`
+	BotName1    string `json:"bot_name_1"`
+	BotName2    string `json:"bot_name_2"`
+}
+
+// BotNameResponse is the response from LAUNCHER_SET_BOT_NAME.
+type BotNameResponse struct {
+	Success   FlexBool `json:"SUCCESS"`
+	TextValue string   `json:"TEXT_VALUE"`
+}

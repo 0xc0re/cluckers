@@ -17,8 +17,10 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
+	"github.com/0xc0re/cluckers/internal/auth"
 	"github.com/0xc0re/cluckers/internal/config"
 	"github.com/0xc0re/cluckers/internal/game"
+	"github.com/0xc0re/cluckers/internal/gateway"
 	guiassets "github.com/0xc0re/cluckers/internal/gui/assets"
 )
 
@@ -205,21 +207,74 @@ func MakeMainView(w fyne.Window, cfg *config.Config, username, password string, 
 
 	gameManagementGrid := container.NewGridWithColumns(3, verifyBtn, updateBtn, repairBtn)
 
-	// ---- Supporter Features: Bot Name ----
-	botNameEntry := widget.NewEntry()
-	botNameEntry.PlaceHolder = "Set bot name (supporters only)"
+	// ---- Supporter Features: Bot Names ----
+	botName1Entry := widget.NewEntry()
+	botName1Entry.PlaceHolder = "Bot name 1 (supporters only)"
+	botName2Entry := widget.NewEntry()
+	botName2Entry.PlaceHolder = "Bot name 2 (supporters only)"
 
-	botSetBtn := widget.NewButton("Set", nil)
+	botSetBtn := widget.NewButton("Set Bot Names", nil)
 	botSetBtn.OnTapped = func() {
-		// TODO: Implement bot name API call when gateway endpoint is documented
-		dialog.ShowInformation("Bot Name", "Bot name feature coming soon.", w)
+		name1 := botName1Entry.Text
+		name2 := botName2Entry.Text
+		if name1 == "" && name2 == "" {
+			dialog.ShowInformation("Bot Names", "Enter at least one bot name.", w)
+			return
+		}
+		botSetBtn.Disable()
+		go func() {
+			// Load cached access token.
+			cache, err := auth.LoadTokenCache()
+			if err != nil || cache == nil || !cache.AccessTokenValid() {
+				fyne.Do(func() {
+					dialog.ShowError(fmt.Errorf("no valid session found -- please launch the game once first to authenticate"), w)
+					botSetBtn.Enable()
+				})
+				return
+			}
+			client := gateway.NewClient(cfg.Gateway, cfg.Verbose)
+			req := gateway.BotNameRequest{
+				UserName:    username,
+				AccessToken: cache.AccessToken,
+				BotName1:    name1,
+				BotName2:    name2,
+			}
+			var resp gateway.BotNameResponse
+			if err := client.Post(context.Background(), "LAUNCHER_SET_BOT_NAME", req, &resp); err != nil {
+				fyne.Do(func() {
+					dialog.ShowError(fmt.Errorf("failed to set bot names: %s", err), w)
+					botSetBtn.Enable()
+				})
+				return
+			}
+			if !bool(resp.Success) {
+				msg := resp.TextValue
+				if msg == "" {
+					msg = "Unknown error"
+				}
+				fyne.Do(func() {
+					dialog.ShowError(fmt.Errorf("failed to set bot names: %s", msg), w)
+					botSetBtn.Enable()
+				})
+				return
+			}
+			fyne.Do(func() {
+				dialog.ShowInformation("Bot Names", "Bot names updated successfully!", w)
+				botSetBtn.Enable()
+			})
+		}()
 	}
 
-	botNameRow := container.NewBorder(nil, nil, nil, botSetBtn, botNameEntry)
 	botNameSection := container.NewVBox(
 		widget.NewLabelWithStyle("Supporter Features", fyne.TextAlignCenter, fyne.TextStyle{Italic: true}),
 		container.NewCenter(
-			container.NewGridWrap(fyne.NewSize(300, 36), botNameRow),
+			container.NewGridWrap(fyne.NewSize(340, 36), botName1Entry),
+		),
+		container.NewCenter(
+			container.NewGridWrap(fyne.NewSize(340, 36), botName2Entry),
+		),
+		container.NewCenter(
+			container.NewGridWrap(fyne.NewSize(200, 36), botSetBtn),
 		),
 	)
 
