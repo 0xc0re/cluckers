@@ -1,14 +1,14 @@
 # Project State
 
-Last activity: 2026-02-24 - Completed Phase 04 Plan 04: Settings Screen, Bot Name, Steam Deck Fullscreen
+Last activity: 2026-02-24 - Completed Phase 04 Plan 05: CI/CD for GUI and CLI-only Dual-Build (Phase 04 COMPLETE)
 
 ## Current Phase Execution
 
-- **Phase:** 04-cross-platform-gui
-- **Current Plan:** 5 of 5
-- **Last Completed:** 04-04-PLAN.md (Settings screen, bot name, Steam Deck fullscreen)
-- **Last Session:** 2026-02-24T16:09:36.872Z
-- **Stopped At:** Completed 04-03-PLAN.md
+- **Phase:** 04-cross-platform-gui (COMPLETE - 5/5 plans)
+- **Current Plan:** 5 of 5 (all complete)
+- **Last Completed:** 04-05-PLAN.md (CI/CD updates: goreleaser dual-build, workflow changes, human verification)
+- **Last Session:** 2026-02-24T16:35:54.680Z
+- **Stopped At:** Completed 04-05-PLAN.md (Phase 04 complete)
 
 ### Quick Tasks Completed
 
@@ -47,3 +47,7 @@ Last activity: 2026-02-24 - Completed Phase 04 Plan 04: Settings Screen, Bot Nam
 - [Phase 04]: StepListWidget uses container-based composition, not widget.BaseWidget, exposing layout via GetContainer()
 - [Phase 04]: RunWithReporterAndCreds uses context cancellation (no os.Signal), stepAuthenticate detects pre-populated credentials
 - [Phase 04]: buildSteps extracted as shared helper for DRY step construction across CLI and GUI pipelines
+- [Phase 04]: Per-step CGO_ENABLED in CI (no job-level env) for mixed GUI+CLI builds
+- [Phase 04]: Windows GUI uses CGO_ENABLED=0 (Fyne does not need CGO on Windows)
+- [Phase 04]: goreleaser uses 3 build IDs (cluckers-cli, cluckers-gui-linux, cluckers-gui-windows) for per-target CGO
+- [Phase 04]: Settings screen deferred to future release per user decision

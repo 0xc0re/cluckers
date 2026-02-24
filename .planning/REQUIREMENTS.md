@@ -104,7 +104,7 @@ Deferred to future release. Tracked but not in current roadmap.
 - [x] **GUI-06**: Headless environments automatically fall back to CLI mode
 - [x] **GUI-07**: CLI subcommands continue working unchanged
 - [x] **GUI-08**: Launcher closes when game launches
-- [ ] **GUI-09**: Cross-platform build (Linux + Windows amd64)
+- [x] **GUI-09**: Cross-platform build (Linux + Windows amd64)
 - [x] **GUI-10**: Settings accessible from GUI
 
 ## Out of Scope
@@ -172,15 +172,15 @@ Which phases cover which requirements. Updated during roadmap creation.
 | GUI-06 | Phase 4 | Complete |
 | GUI-07 | Phase 4 | Complete |
 | GUI-08 | Phase 4 | Complete |
-| GUI-09 | Phase 4 | Pending |
+| GUI-09 | Phase 4 | Complete |
 | GUI-10 | Phase 4 | Complete |
 
 **Coverage:**
 - v1 requirements: 37 total
-- GUI requirements: 10 total (2 complete, 8 pending)
+- GUI requirements: 10 total (10 complete, 0 pending)
 - Mapped to phases: 47
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-21*
-*Last updated: 2026-02-24 -- Added GUI requirements (Phase 4), marked GUI-01 and GUI-06 complete*
+*Last updated: 2026-02-24 -- Phase 4 complete, all GUI requirements (GUI-01 through GUI-10) marked complete*

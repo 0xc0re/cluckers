@@ -78,7 +78,7 @@ Phases execute in numeric order: 1 -> 2 -> 3
 | 1. Foundation and Core Launch | 3/3 | Complete    | 2004-02-22 |
 | 2. Wine and Game Management | 0/3 | Complete    | 2026-02-22 |
 | 3. First-Run Setup and Steam Deck | 0/2 | Not started | - |
-| 4. Cross-Platform GUI | 1/5 | In Progress | - |
+| 4. Cross-Platform GUI | 5/5 | Complete | 2026-02-24 |
 
 ### Phase 4: Cross-Platform GUI
 
@@ -97,7 +97,7 @@ Phases execute in numeric order: 1 -> 2 -> 3
 
 Plans:
 - [x] 04-01-PLAN.md -- Fyne foundation: dependency, build tags, headless detection, theme, GUI skeleton
-- [ ] 04-02-PLAN.md -- Login screen, ProgressReporter pipeline refactor
-- [ ] 04-03-PLAN.md -- Main view, launch progress with step checkmarks, GUIReporter
-- [ ] 04-04-PLAN.md -- Settings screen, bot name, Steam Deck fullscreen, CLI verification
-- [ ] 04-05-PLAN.md -- CI/CD updates: goreleaser dual-build, workflow changes, human verification
+- [x] 04-02-PLAN.md -- Login screen, ProgressReporter pipeline refactor
+- [x] 04-03-PLAN.md -- Main view, launch progress with step checkmarks, GUIReporter
+- [x] 04-04-PLAN.md -- Settings screen, bot name, Steam Deck fullscreen, CLI verification
+- [x] 04-05-PLAN.md -- CI/CD updates: goreleaser dual-build, workflow changes, human verification
