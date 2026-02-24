@@ -18,12 +18,15 @@ const (
 	OIDCTokenTTL = 55 * time.Minute
 )
 
-// TokenCache holds cached tokens with timestamps.
+// TokenCache holds cached tokens with independent per-token timestamps.
+// Each token type has its own TTL timestamp so that refreshing one token
+// does not reset the other's TTL.
 type TokenCache struct {
-	AccessToken string    `json:"access_token"`
-	OIDCToken   string    `json:"oidc_token"`
-	Username    string    `json:"username"`
-	CachedAt    time.Time `json:"cached_at"`
+	AccessToken    string    `json:"access_token"`
+	OIDCToken      string    `json:"oidc_token"`
+	Username       string    `json:"username"`
+	AccessCachedAt time.Time `json:"access_cached_at"`
+	OIDCCachedAt   time.Time `json:"oidc_cached_at"`
 }
 
 // tokenCachePath returns the path to the token cache file.
@@ -36,7 +39,7 @@ func (c *TokenCache) AccessTokenValid() bool {
 	if c.AccessToken == "" {
 		return false
 	}
-	return time.Since(c.CachedAt) < AccessTokenTTL
+	return time.Since(c.AccessCachedAt) < AccessTokenTTL
 }
 
 // OIDCTokenValid returns true if the cached OIDC token is still within its TTL.
@@ -44,7 +47,7 @@ func (c *TokenCache) OIDCTokenValid() bool {
 	if c.OIDCToken == "" {
 		return false
 	}
-	return time.Since(c.CachedAt) < OIDCTokenTTL
+	return time.Since(c.OIDCCachedAt) < OIDCTokenTTL
 }
 
 // LoadTokenCache reads the token cache from disk. Returns nil, nil if the file
@@ -69,9 +72,10 @@ func LoadTokenCache() (*TokenCache, error) {
 
 // SaveTokenCache writes the token cache to disk with 0600 permissions.
 // Creates the cache directory if needed.
+// Callers are responsible for setting AccessCachedAt and/or OIDCCachedAt
+// before calling this function. This ensures that refreshing one token
+// does not reset the other's TTL.
 func SaveTokenCache(cache *TokenCache) error {
-	cache.CachedAt = time.Now()
-
 	if err := config.EnsureDir(config.CacheDir()); err != nil {
 		return err
 	}
