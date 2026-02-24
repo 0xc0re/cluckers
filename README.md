@@ -14,6 +14,8 @@ Native launcher for Realm Royale on the Project Crown private server, for Linux 
 - Launches Realm Royale (via Wine/Proton-GE on Linux, directly on Windows)
 - Stores credentials encrypted on disk (no system keyring needed)
 - Self-updates the launcher binary from GitHub Releases
+- Includes a graphical interface (GUI) -- release binaries open the GUI when
+  double-clicked or run without arguments on a desktop
 - Works on desktop Linux, Steam Deck, and Windows
 
 ## Prerequisites
@@ -96,7 +98,16 @@ x86_64-w64-mingw32-gcc -o assets/shm_launcher.exe tools/shm_launcher.c -municode
 go build -o cluckers ./cmd/cluckers
 ```
 
-To build for Windows from Linux:
+To build with the GUI (requires CGO and platform graphics libraries):
+
+```bash
+CGO_ENABLED=1 go build -tags gui -o cluckers ./cmd/cluckers
+```
+
+Without the `gui` build tag, the binary is CLI-only (no graphical interface).
+Release binaries from GitHub are always built with the `gui` tag.
+
+To cross-compile a CLI-only Windows binary from Linux:
 
 ```bash
 GOOS=windows go build -o cluckers.exe ./cmd/cluckers
@@ -134,10 +145,23 @@ Remove saved credentials and cached tokens.
 
 ### `cluckers steam add`
 
-Add Cluckers as a non-Steam game in your Steam library. On Linux, creates a
-`.desktop` file (useful for launching from Gaming Mode on Steam Deck). On
-Windows, prints step-by-step instructions for adding `cluckers.exe` directly
-to Steam with `launch` as the launch option.
+Add Cluckers as a non-Steam game in your Steam library.
+
+**Linux / Steam Deck:** Creates a `.desktop` file at
+`~/.local/share/applications/cluckers.desktop`. The `.desktop` file includes
+`launch` in its Exec line, so no additional launch options are needed in Steam.
+After running the command, open Steam in Desktop Mode, go to Games > Add a
+Non-Steam Game, and select "Realm Royale (Cluckers)" from the list. On Steam
+Deck, switch back to Game Mode afterwards -- the game appears in the Non-Steam
+section.
+
+**Windows:** Prints step-by-step instructions and shows the exact path to
+`cluckers.exe`. The default install location is
+`%LOCALAPPDATA%\cluckers\bin\cluckers.exe`. In Steam, browse to and add the
+executable, then right-click the entry in your library, open Properties, and set
+**Launch Options** to: `launch`. Without this launch option, opening the entry
+in Steam will show the GUI instead of launching the game directly. Optionally
+rename the entry to "Realm Royale" in Properties.
 
 ### `cluckers --version`
 
@@ -215,12 +239,42 @@ Created at runtime:
         GameVersion.dat  # local version marker
 ```
 
+## Adding to Steam
+
+### Linux / Steam Deck
+
+1. Run `cluckers steam add` -- this creates a `.desktop` file at
+   `~/.local/share/applications/cluckers.desktop`
+2. Open Steam in Desktop Mode
+3. Go to Games > Add a Non-Steam Game to My Library
+4. Select "Realm Royale (Cluckers)" from the list and click Add
+5. (Steam Deck) Switch back to Game Mode -- the game appears in the Non-Steam
+   section of your library
+
+No launch option is needed on Linux. The `.desktop` file already includes the
+`launch` command.
+
+### Windows
+
+1. Run `cluckers steam add` to see the exact path to your `cluckers.exe`
+   (default: `%LOCALAPPDATA%\cluckers\bin\cluckers.exe`)
+2. Open Steam > Games > Add a Non-Steam Game to My Library
+3. Click Browse, change the file filter to "All Files (\*.\*)"
+4. Navigate to the cluckers.exe location, select it, and click Open
+5. Click "Add Selected Programs"
+6. Right-click "cluckers" in your library > Properties
+7. Set **Launch Options** to: `launch`
+8. (Optional) Rename the entry to "Realm Royale" in Properties
+
+**Important:** The `launch` option in step 7 is required. Without it, opening
+the entry in Steam will show the graphical settings UI instead of launching the
+game directly, because release binaries include the GUI.
+
 ## Steam Deck
 
-1. Install via the quick install script (works in Desktop Mode terminal or SSH)
-2. Install Proton-GE via ProtonUp-Qt from the Discover store
-3. Run `cluckers steam add` to add it to your Steam library
-4. In Steam, find "Realm Royale (Cluckers)" and launch it
+The quick install script works in Desktop Mode terminal or SSH. After
+installing, set up Proton-GE via ProtonUp-Qt from the Discover store, then
+follow the "Adding to Steam" steps above.
 
 The launcher auto-detects Steam Deck and configures display settings (fullscreen
 1280x800). Proton-GE is auto-detected from Steam's `compatibilitytools.d`
@@ -236,8 +290,12 @@ The launcher handles authentication, game downloads, and updates the same way as
 on Linux. After downloading game files, the launcher automatically configures
 borderless fullscreen and makes game settings writable so in-game changes persist.
 
-Run `cluckers steam add` to get instructions for adding the game to your Steam
-library.
+Double-clicking `cluckers.exe` opens the graphical interface where you can log
+in, adjust settings, and launch the game. All CLI commands (`cluckers launch`,
+`cluckers update`, etc.) still work from a terminal.
+
+To add the game to Steam, see the "Adding to Steam" section above or run
+`cluckers steam add` for step-by-step instructions.
 
 ## License
 
