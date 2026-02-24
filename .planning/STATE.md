@@ -1,6 +1,6 @@
 # Project State
 
-Last activity: 2026-02-24 - Completed quick task 16: Implement self-update command for launcher binary replacement via GitHub releases
+Last activity: 2026-02-24 - Completed quick task 17: Split token cache into independent per-token TTL timestamps
 
 ### Quick Tasks Completed
 
@@ -12,3 +12,4 @@ Last activity: 2026-02-24 - Completed quick task 16: Implement self-update comma
 | 14 | Launch-readiness code review: remove committed binary, fix docs, deduplicate isSteamDeck | 2026-02-24 | 7db50fd | [14-perform-a-thorough-review-of-the-code-an](./quick/14-perform-a-thorough-review-of-the-code-an/) |
 | 15 | Add Windows build target with cross-platform code split | 2026-02-24 | 8cdd503 | [15-make-a-windows-version-no-wine-needed-ju](./quick/15-make-a-windows-version-no-wine-needed-ju/) |
 | 16 | Implement self-update command for launcher binary replacement via GitHub releases | 2026-02-24 | a534a0c | [16-implement-self-update-we-have-update-for](./quick/16-implement-self-update-we-have-update-for/) |
+| 17 | Split token cache into independent per-token TTL timestamps | 2026-02-24 | e3f7dec | [17-login-and-launch-should-refresh-oidc-tok](./quick/17-login-and-launch-should-refresh-oidc-tok/) |
