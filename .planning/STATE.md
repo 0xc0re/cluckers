@@ -1,14 +1,14 @@
 # Project State
 
-Last activity: 2026-02-24 - Completed quick task 26: Review and update README documentation
+Last activity: 2026-02-24 - Completed quick task 27: Fix bot name setting authentication
 
 ## Current Phase Execution
 
 - **Phase:** 04-cross-platform-gui (COMPLETE - 5/5 plans)
 - **Current Plan:** Not started
 - **Last Completed:** 04-05-PLAN.md (CI/CD updates: goreleaser dual-build, workflow changes, human verification)
-- **Last Session:** 2026-02-24T20:55:11.525Z
-- **Stopped At:** Completed Quick Task 26: Review and update README documentation
+- **Last Session:** 2026-02-24T21:21:31.631Z
+- **Stopped At:** Completed Quick Task 27: Fix bot name setting authentication
 
 ### Quick Tasks Completed
 
@@ -29,6 +29,7 @@ Last activity: 2026-02-24 - Completed quick task 26: Review and update README do
 | 24 | Fix self-update on Windows (platform-specific binary replacement) | 2026-02-24 | 888303b | [24-cluckers-self-update-does-not-work-on-wi](./quick/24-cluckers-self-update-does-not-work-on-wi/) |
 | 25 | Update GUI URLs, icon, settings cleanup, two bot name fields | 2026-02-24 | 2635841 | [25-update-gui-support-url-discord-link-remo](./quick/25-update-gui-support-url-discord-link-remo/) |
 | 26 | Review and update README documentation with Steam integration instructions | 2026-02-24 | f760143 | [26-review-then-update-documentation-add-ins](./quick/26-review-then-update-documentation-add-ins/) |
+| 27 | Fix bot name setting: inline auth fallback and improved error display | 2026-02-24 | 7bfc93a | [27-setting-bot-names-fails](./quick/27-setting-bot-names-fails/) |
 
 ## Accumulated Context
 
@@ -67,3 +68,4 @@ Last activity: 2026-02-24 - Completed quick task 26: Review and update README do
 - [Quick 25]: Game Server (hostx) removed from settings UI but default retained in config.go
 - [Quick 25]: Settings form wrapped in 440px GridWrap for wider input fields
 - [Phase quick-26]: Restructured Steam integration into dedicated 'Adding to Steam' section with platform subsections
+- [Phase quick-27]: Bot name handler authenticates inline via auth.Login() fallback when no cached token exists
