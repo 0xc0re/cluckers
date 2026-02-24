@@ -88,11 +88,11 @@ int wmain(int argc, wchar_t *argv[]) {
     int pos = 0;
 
     /* Quote the exe path */
-    pos += swprintf(cmdline + pos, sizeof(cmdline)/sizeof(wchar_t) - pos, L"\"%s\"", game_exe);
+    pos += swprintf(cmdline + pos, sizeof(cmdline)/sizeof(wchar_t) - pos, L"\"%ls\"", game_exe);
 
     /* Append remaining args */
     for (int i = 4; i < argc; i++) {
-        pos += swprintf(cmdline + pos, sizeof(cmdline)/sizeof(wchar_t) - pos, L" %s", argv[i]);
+        pos += swprintf(cmdline + pos, sizeof(cmdline)/sizeof(wchar_t) - pos, L" %ls", argv[i]);
     }
 
     printf("[shm_launcher] Launching: %ls\n", cmdline);
