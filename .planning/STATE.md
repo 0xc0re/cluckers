@@ -1,14 +1,14 @@
 # Project State
 
-Last activity: 2026-02-24 - Completed Phase 04 Plan 02: Login Screen & Progress Reporter
+Last activity: 2026-02-24 - Completed Phase 04 Plan 04: Settings Screen, Bot Name, Steam Deck Fullscreen
 
 ## Current Phase Execution
 
 - **Phase:** 04-cross-platform-gui
-- **Current Plan:** 3 of 5
-- **Last Completed:** 04-02-PLAN.md (Login screen & progress reporter)
-- **Last Session:** 2026-02-24T16:01:21.797Z
-- **Stopped At:** Completed 04-02-PLAN.md
+- **Current Plan:** 5 of 5
+- **Last Completed:** 04-04-PLAN.md (Settings screen, bot name, Steam Deck fullscreen)
+- **Last Session:** 2026-02-24T16:06:27.478Z
+- **Stopped At:** Completed 04-04-PLAN.md
 
 ### Quick Tasks Completed
 
@@ -40,3 +40,7 @@ Last activity: 2026-02-24 - Completed Phase 04 Plan 02: Login Screen & Progress 
 - Saved credentials checked at startup to skip login for returning users
 - [Phase 04]: ProgressReporter interface stored on LaunchState; Step.Fn simplified to (ctx, state) signature
 - [Phase 04]: Login screen uses fyne.Do() for goroutine-to-UI updates per Fyne v2.6+ threading model
+- [Phase 04]: Settings uses widget.NewForm with runtime.GOOS for platform-conditional Wine fields
+- [Phase 04]: Config persistence via viper.Set + viper.WriteConfigAs to TOML file
+- [Phase 04]: Bot name field is placeholder until gateway endpoint documented
+- [Phase 04]: Main view extracted from app.go to screens/main.go following screens package pattern

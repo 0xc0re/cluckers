@@ -100,12 +100,12 @@ Deferred to future release. Tracked but not in current roadmap.
 - [x] **GUI-02**: Login-first screen with username/password fields
 - [ ] **GUI-03**: Main view with launch button, Discord link, donate/support, verify/repair, bot name
 - [x] **GUI-04**: Step-by-step launch progress with checkmarks
-- [ ] **GUI-05**: Fullscreen on Steam Deck, windowed on desktop
+- [x] **GUI-05**: Fullscreen on Steam Deck, windowed on desktop
 - [x] **GUI-06**: Headless environments automatically fall back to CLI mode
-- [ ] **GUI-07**: CLI subcommands continue working unchanged
+- [x] **GUI-07**: CLI subcommands continue working unchanged
 - [ ] **GUI-08**: Launcher closes when game launches
 - [ ] **GUI-09**: Cross-platform build (Linux + Windows amd64)
-- [ ] **GUI-10**: Settings accessible from GUI
+- [x] **GUI-10**: Settings accessible from GUI
 
 ## Out of Scope
 
@@ -168,12 +168,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | GUI-02 | Phase 4 | Complete |
 | GUI-03 | Phase 4 | Pending |
 | GUI-04 | Phase 4 | Complete |
-| GUI-05 | Phase 4 | Pending |
+| GUI-05 | Phase 4 | Complete |
 | GUI-06 | Phase 4 | Complete |
-| GUI-07 | Phase 4 | Pending |
+| GUI-07 | Phase 4 | Complete |
 | GUI-08 | Phase 4 | Pending |
 | GUI-09 | Phase 4 | Pending |
-| GUI-10 | Phase 4 | Pending |
+| GUI-10 | Phase 4 | Complete |
 
 **Coverage:**
 - v1 requirements: 37 total
