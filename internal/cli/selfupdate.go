@@ -13,6 +13,11 @@ var selfUpdateCmd = &cobra.Command{
 	Short: "Update the cluckers launcher to the latest version",
 	Long:  "Checks GitHub releases for a newer version of cluckers and downloads it, replacing the current binary.",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		// Clean up any leftover .old binary from a previous self-update.
+		// On Windows, the .old file cannot be deleted during the update
+		// because the process is still running. Non-fatal if it fails.
+		_ = selfupdate.CleanupOldBinary()
+
 		// Extract the version part before the first space.
 		// versionStr format: "0.4.1 (commit abc, built 2026-02-24)" or "dev (commit none, built unknown)"
 		currentVersion := versionStr

@@ -34,3 +34,9 @@ func replaceBinary(tmpBin, execPath string) error {
 
 	return nil
 }
+
+// CleanupOldBinary is a no-op on Linux. Linux uses atomic rename which never
+// leaves .old files behind.
+func CleanupOldBinary() error {
+	return nil
+}

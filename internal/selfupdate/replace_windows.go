@@ -3,6 +3,7 @@ package selfupdate
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/0xc0re/cluckers/internal/ui"
 )
@@ -58,6 +59,29 @@ func replaceBinary(tmpBin, execPath string) error {
 		// Expected on Windows -- the .old file will be cleaned up on the
 		// next self-update run via CleanupOldBinary().
 		fmt.Printf("Note: %s will be cleaned up on next run.\n", oldPath)
+	}
+
+	return nil
+}
+
+// CleanupOldBinary removes a leftover .old file from a previous self-update.
+// On Windows, the .old file cannot be deleted during the update because the
+// process is still running from it. This function should be called at the
+// start of the next self-update to clean it up.
+func CleanupOldBinary() error {
+	execPath, err := os.Executable()
+	if err != nil {
+		return nil // Non-fatal: silently ignore.
+	}
+	execPath, err = filepath.EvalSymlinks(execPath)
+	if err != nil {
+		return nil // Non-fatal: silently ignore.
+	}
+
+	oldPath := execPath + ".old"
+	if err := os.Remove(oldPath); err != nil && !os.IsNotExist(err) {
+		// Non-fatal: could not remove, but that is okay.
+		return nil
 	}
 
 	return nil
