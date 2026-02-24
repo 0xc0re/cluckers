@@ -28,11 +28,17 @@ jobs:
       - name: Build shm_launcher.exe from source
         run: x86_64-w64-mingw32-gcc -o assets/shm_launcher.exe tools/shm_launcher.c -municode
 
-      - name: Build
+      - name: Build (Linux)
         run: go build -o /dev/null ./cmd/cluckers
+
+      - name: Build (Windows)
+        run: GOOS=windows go build -o /dev/null ./cmd/cluckers
 
       - name: Test
         run: go test ./...
 
-      - name: Vet
+      - name: Vet (Linux)
         run: go vet ./...
+
+      - name: Vet (Windows)
+        run: GOOS=windows go vet ./...
