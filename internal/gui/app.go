@@ -70,6 +70,10 @@ func showMainView(w fyne.Window, cfg *config.Config, username, password string) 
 			_ = auth.ClearTokenCache()
 			showLoginScreen(w, cfg)
 		},
+		func() {
+			// onSettings: navigate to settings screen.
+			showSettingsView(w, cfg, username, password)
+		},
 	)
 	w.SetContent(content)
 }

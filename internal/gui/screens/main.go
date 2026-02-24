@@ -31,7 +31,7 @@ import (
 //   - username, password: authenticated credentials for pipeline use
 //   - onLaunch: called when the user clicks the Launch button
 //   - onLogout: called when the user clicks Logout
-func MakeMainView(w fyne.Window, cfg *config.Config, username, password string, onLaunch func(), onLogout func()) fyne.CanvasObject {
+func MakeMainView(w fyne.Window, cfg *config.Config, username, password string, onLaunch func(), onLogout func(), onSettings func()) fyne.CanvasObject {
 	// Logo (smaller for main view).
 	logo := canvas.NewImageFromResource(guiassets.LogoResource())
 	logo.FillMode = canvas.ImageFillContain
@@ -205,6 +205,24 @@ func MakeMainView(w fyne.Window, cfg *config.Config, username, password string, 
 
 	gameManagementGrid := container.NewGridWithColumns(3, verifyBtn, updateBtn, repairBtn)
 
+	// ---- Supporter Features: Bot Name ----
+	botNameEntry := widget.NewEntry()
+	botNameEntry.PlaceHolder = "Set bot name (supporters only)"
+
+	botSetBtn := widget.NewButton("Set", nil)
+	botSetBtn.OnTapped = func() {
+		// TODO: Implement bot name API call when gateway endpoint is documented
+		dialog.ShowInformation("Bot Name", "Bot name feature coming soon.", w)
+	}
+
+	botNameRow := container.NewBorder(nil, nil, nil, botSetBtn, botNameEntry)
+	botNameSection := container.NewVBox(
+		widget.NewLabelWithStyle("Supporter Features", fyne.TextAlignCenter, fyne.TextStyle{Italic: true}),
+		container.NewCenter(
+			container.NewGridWrap(fyne.NewSize(300, 36), botNameRow),
+		),
+	)
+
 	// ---- Links section ----
 	discordURL, _ := url.Parse("https://discord.gg/projectcrown")
 	discordLink := widget.NewHyperlink("Discord", discordURL)
@@ -223,7 +241,7 @@ func MakeMainView(w fyne.Window, cfg *config.Config, username, password string, 
 	// ---- Bottom row: Settings + Logout ----
 	settingsBtn := widget.NewButtonWithIcon("Settings", theme.SettingsIcon(), nil)
 	settingsBtn.OnTapped = func() {
-		dialog.ShowInformation("Settings", "Settings will be available in a future update.", w)
+		onSettings()
 	}
 
 	logoutBtn := widget.NewButtonWithIcon("Logout", theme.LogoutIcon(), nil)
@@ -247,6 +265,8 @@ func MakeMainView(w fyne.Window, cfg *config.Config, username, password string, 
 		launchBtnRow,
 		widget.NewSeparator(),
 		container.NewCenter(gameManagementGrid),
+		widget.NewSeparator(),
+		botNameSection,
 		widget.NewSeparator(),
 		linksRow,
 		bottomRow,
