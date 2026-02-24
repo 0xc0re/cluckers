@@ -91,6 +91,7 @@ func (c *Client) Post(ctx context.Context, command string, body interface{}, res
 	}
 
 	if c.verbose {
+		ui.Verbose(fmt.Sprintf("Gateway %s request: %s", command, string(payload)), true)
 		ui.Verbose(fmt.Sprintf("Gateway %s response: %s", command, string(respBody)), true)
 	}
 
