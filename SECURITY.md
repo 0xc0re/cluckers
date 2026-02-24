@@ -1,6 +1,6 @@
 # Security Policy
 
-Cluckers is a native Linux CLI launcher for Realm Royale on the Project Crown private server. While this is a game launcher and not a financial or enterprise application, we take security seriously. User credentials and network communication are protected with industry-standard cryptographic primitives.
+Cluckers is a native CLI launcher for Realm Royale on the Project Crown private server, supporting Linux and Windows. While this is a game launcher and not a financial or enterprise application, we take security seriously. User credentials and network communication are protected with industry-standard cryptographic primitives.
 
 ## Reporting a Vulnerability
 
@@ -45,13 +45,13 @@ User credentials are encrypted at rest using **NaCl secretbox** (XSalsa20-Poly13
 
 ### No System Keyring Dependency
 
-Cluckers deliberately avoids D-Bus and system keyring integrations. This is a design choice to ensure compatibility with **Steam Deck Gaming Mode** and other headless Linux environments where D-Bus services may not be available.
+Cluckers deliberately avoids system keyring integrations on both platforms. On Linux, this avoids D-Bus dependency for compatibility with **Steam Deck Gaming Mode** and other headless environments where D-Bus services may not be available. On Windows, this avoids Windows Credential Manager dependency for portability and simplicity.
 
 ### Embedded Binaries
 
 Two assets are **embedded in the Go binary at build time** via `go:embed`. They are not downloaded at runtime, eliminating a class of supply-chain and tampering risks.
 
-- **`shm_launcher.exe`** -- Win32 helper for named shared memory under Wine. Built from source (`tools/shm_launcher.c`) in CI/release workflows via mingw-w64. The C source is available in the repository for audit.
+- **`shm_launcher.exe`** -- Win32 helper for named shared memory. On Linux it runs under Wine; on Windows it runs natively. Both platforms use the same embedded binary. Built from source (`tools/shm_launcher.c`) in CI/release workflows via mingw-w64. The C source is available in the repository for audit.
 - **`controller_neptune_config.vdf`** -- Steam Deck controller layout configuration for Realm Royale. A plain-text Valve Data Format file.
 
 ### Access Tokens
@@ -74,7 +74,7 @@ The following areas are within the security scope of the Cluckers project:
 The following are managed by other parties and are outside the scope of this project:
 
 - **Game server security** -- managed by the Project Crown team
-- **Wine/Proton vulnerabilities** -- managed by the Wine and Proton-GE projects
+- **Wine/Proton vulnerabilities** (Linux only) -- managed by the Wine and Proton-GE projects
 - **Cloudflare configuration** -- managed by the Project Crown infrastructure team
 
 If you discover a vulnerability in one of these out-of-scope areas, please report it to the responsible party directly.
