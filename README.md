@@ -2,6 +2,11 @@
 
 Native Linux launcher for Realm Royale on the Project Crown private server.
 
+> **Note:** Cluckers is a community project and is not developed or maintained by
+> the Project Crown team. It relies on Project Crown's public gateway API, which
+> may change without notice. If the API changes, Cluckers may stop working until
+> it is updated to match.
+
 ## What It Does
 
 - Authenticates with the Project Crown gateway
