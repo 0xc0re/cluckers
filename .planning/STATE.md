@@ -1,6 +1,14 @@
 # Project State
 
-Last activity: 2026-02-24 - Completed quick task 20: Resolve code scanning alert (add CI workflow permissions)
+Last activity: 2026-02-24 - Completed Phase 04 Plan 05: CI/CD for GUI and CLI-only Dual-Build (Phase 04 COMPLETE)
+
+## Current Phase Execution
+
+- **Phase:** 04-cross-platform-gui (COMPLETE - 5/5 plans)
+- **Current Plan:** Not started
+- **Last Completed:** 04-05-PLAN.md (CI/CD updates: goreleaser dual-build, workflow changes, human verification)
+- **Last Session:** 2026-02-24T16:35:54.680Z
+- **Stopped At:** Completed 04-05-PLAN.md (Phase 04 complete)
 
 ### Quick Tasks Completed
 
@@ -20,3 +28,26 @@ Last activity: 2026-02-24 - Completed quick task 20: Resolve code scanning alert
 
 ### Roadmap Evolution
 - Phase 4 added: cross platform gui
+
+### Decisions
+- All GUI package files use //go:build gui tag to keep CLI-only build path clean (CGO_ENABLED=0)
+- Steam Deck detection in GUI package is independent of wine package (uses DMI board vendor)
+- GUI binary: CGO_ENABLED=1 go build -tags gui; CLI-only binary: CGO_ENABLED=0 go build (unchanged)
+- Fyne v2.7.3 selected as GUI framework (most mature Go GUI, cross-platform, works on SteamOS)
+- ProgressReporter interface stored on LaunchState; Step.Fn simplified to (ctx, state) signature
+- Login screen uses fyne.Do() for goroutine-to-UI updates per Fyne v2.6+ threading model
+- Screen navigation via w.SetContent() swapping between login and main view
+- Saved credentials checked at startup to skip login for returning users
+- [Phase 04]: ProgressReporter interface stored on LaunchState; Step.Fn simplified to (ctx, state) signature
+- [Phase 04]: Login screen uses fyne.Do() for goroutine-to-UI updates per Fyne v2.6+ threading model
+- [Phase 04]: Settings uses widget.NewForm with runtime.GOOS for platform-conditional Wine fields
+- [Phase 04]: Config persistence via viper.Set + viper.WriteConfigAs to TOML file
+- [Phase 04]: Bot name field is placeholder until gateway endpoint documented
+- [Phase 04]: Main view extracted from app.go to screens/main.go following screens package pattern
+- [Phase 04]: StepListWidget uses container-based composition, not widget.BaseWidget, exposing layout via GetContainer()
+- [Phase 04]: RunWithReporterAndCreds uses context cancellation (no os.Signal), stepAuthenticate detects pre-populated credentials
+- [Phase 04]: buildSteps extracted as shared helper for DRY step construction across CLI and GUI pipelines
+- [Phase 04]: Per-step CGO_ENABLED in CI (no job-level env) for mixed GUI+CLI builds
+- [Phase 04]: Windows GUI uses CGO_ENABLED=0 (Fyne does not need CGO on Windows)
+- [Phase 04]: goreleaser uses 3 build IDs (cluckers-cli, cluckers-gui-linux, cluckers-gui-windows) for per-target CGO
+- [Phase 04]: Settings screen deferred to future release per user decision

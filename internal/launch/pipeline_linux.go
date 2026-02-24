@@ -30,7 +30,7 @@ func platformPostSteps(_ *LaunchState) []Step {
 }
 
 // stepDetectWine finds a suitable Wine binary.
-func stepDetectWine(_ context.Context, state *LaunchState, _ *ui.StepSpinner) error {
+func stepDetectWine(_ context.Context, state *LaunchState) error {
 	winePath, err := wine.FindWine(state.Config.WinePath)
 	if err != nil {
 		return err
@@ -41,7 +41,7 @@ func stepDetectWine(_ context.Context, state *LaunchState, _ *ui.StepSpinner) er
 }
 
 // stepEnsurePrefix ensures the Wine prefix exists, creating it if needed.
-func stepEnsurePrefix(_ context.Context, state *LaunchState, _ *ui.StepSpinner) error {
+func stepEnsurePrefix(_ context.Context, state *LaunchState) error {
 	// Determine prefix path: config override or default.
 	prefixPath := state.Config.WinePrefix
 	if prefixPath == "" {
@@ -65,7 +65,7 @@ func stepEnsurePrefix(_ context.Context, state *LaunchState, _ *ui.StepSpinner) 
 }
 
 // stepVerifyPrefix checks that all required DLLs exist in the Wine prefix.
-func stepVerifyPrefix(_ context.Context, state *LaunchState, _ *ui.StepSpinner) error {
+func stepVerifyPrefix(_ context.Context, state *LaunchState) error {
 	healthy, missing := wine.VerifyPrefix(state.PrefixPath)
 	if !healthy {
 		return &ui.UserError{
@@ -80,6 +80,6 @@ func stepVerifyPrefix(_ context.Context, state *LaunchState, _ *ui.StepSpinner) 
 
 // stepDeckConfig patches game settings for Steam Deck (fullscreen, resolution).
 // Skips silently on non-Deck systems or if already configured.
-func stepDeckConfig(_ context.Context, state *LaunchState, _ *ui.StepSpinner) error {
+func stepDeckConfig(_ context.Context, state *LaunchState) error {
 	return PatchDeckConfig(state.GameDir)
 }
