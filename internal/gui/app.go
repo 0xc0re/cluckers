@@ -5,9 +5,6 @@ package gui
 import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
-	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/layout"
-	"fyne.io/fyne/v2/widget"
 
 	"github.com/0xc0re/cluckers/internal/auth"
 	"github.com/0xc0re/cluckers/internal/config"
@@ -58,43 +55,28 @@ func showLoginScreen(w fyne.Window, cfg *config.Config) {
 	w.SetContent(loginContent)
 }
 
-// showMainView sets the window content to the main application view.
-// This is a stub that will be fully implemented in plan 03.
+// showMainView sets the window content to the main application view with
+// launch button, bot name field, settings navigation, and logout.
 func showMainView(w fyne.Window, cfg *config.Config, username, password string) {
-	_ = cfg // Will be used in plan 03 for launch pipeline integration.
-
-	welcomeLabel := widget.NewLabelWithStyle(
-		"Welcome, "+username,
-		fyne.TextAlignCenter,
-		fyne.TextStyle{Bold: true},
+	content := screens.MakeMainView(w, cfg, username,
+		func() {
+			// onLogout: return to login screen.
+			showLoginScreen(w, cfg)
+		},
+		func() {
+			// onSettings: navigate to settings view.
+			showSettingsView(w, cfg, username, password)
+		},
 	)
+	w.SetContent(content)
+}
 
-	launchBtn := widget.NewButton("Launch", nil)
-	launchBtn.Importance = widget.HighImportance
-	launchBtn.OnTapped = func() {
-		// Stub: plan 03 will implement the full launch flow with ProgressReporter.
-		launchBtn.SetText("Launching...")
-		launchBtn.Disable()
-	}
-
-	logoutBtn := widget.NewButton("Logout", nil)
-	logoutBtn.OnTapped = func() {
-		_ = auth.DeleteCredentials()
-		_ = auth.ClearTokenCache()
-		showLoginScreen(w, cfg)
-	}
-
-	content := container.NewVBox(
-		layout.NewSpacer(),
-		container.NewCenter(welcomeLabel),
-		container.NewCenter(
-			container.NewGridWrap(fyne.NewSize(300, 40), launchBtn),
-		),
-		container.NewCenter(
-			container.NewGridWrap(fyne.NewSize(300, 40), logoutBtn),
-		),
-		layout.NewSpacer(),
-	)
-
+// showSettingsView sets the window content to the settings screen.
+// Back button returns to the main view.
+func showSettingsView(w fyne.Window, cfg *config.Config, username, password string) {
+	content := screens.MakeSettingsView(w, cfg, func() {
+		// onBack: return to main view.
+		showMainView(w, cfg, username, password)
+	})
 	w.SetContent(content)
 }
