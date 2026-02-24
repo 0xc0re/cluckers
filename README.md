@@ -13,9 +13,8 @@ Native Linux launcher for Realm Royale on the Project Crown private server.
 
 ## Prerequisites
 
-- Go 1.25+ (build only)
 - Wine or Proton-GE (runtime)
-- winetricks (for prefix setup)
+- winetricks (for prefix setup with system Wine; not needed with Proton-GE)
 - A Project Crown account
 
 ## Install
@@ -54,15 +53,22 @@ mv cluckers ~/.local/bin/  # or wherever you prefer
 
 ### Build from source
 
-Requires Go 1.25+:
+Requires Go 1.25+ and mingw-w64 (for cross-compiling the embedded SHM helper):
 
 ```bash
 git clone https://github.com/0xc0re/cluckers.git
 cd cluckers
+x86_64-w64-mingw32-gcc -o assets/shm_launcher.exe tools/shm_launcher.c -municode
 go build -o cluckers ./cmd/cluckers
 ```
 
 ## Usage
+
+### `cluckers login`
+
+Authenticate with the Project Crown gateway and save credentials for future
+launches. Uses saved credentials if available, otherwise prompts for username
+and password.
 
 ### `cluckers launch`
 
@@ -129,17 +135,11 @@ Created at runtime:
 3. Run `cluckers steam add` to add it to your Steam library
 4. In Steam, find "Realm Royale (Cluckers)" and launch it
 
-**Controller input:** Controller support works automatically. The launcher deploys
-an XInput proxy DLL that fixes a UE3/Wine index mismatch (UE3 reserves XInput
-index 0 for the keyboard, but Wine assigns the controller to index 0).
-
-For Steam Deck:
-
-1. In Steam, right-click "Realm Royale (Cluckers)" > Properties > Controller
-2. Select the **"Gamepad with Joystick Trackpad"** template (NOT the default template)
-3. In the game's config files, ensure these INI values are set:
-   - `c_bUseServerBindings=false` in both `DefaultInput.ini` and `RealmInput.ini`
-   - `DisableJoystickInput=false` in `DefaultInput.ini`
+**Controller input:** Controller support on Steam Deck works automatically. The
+launcher patches game configuration files to prevent input mode auto-switching
+and deploys a Steam controller layout. On first launch, right-click "Realm Royale
+(Cluckers)" in Steam > Properties > Controller and select the **"Gamepad with
+Joystick Trackpad"** template.
 
 Do NOT set `STEAM_INPUT_DISABLE=1` or other SDL environment variables. Steam Input
 must remain active to forward controller inputs to the virtual Xbox 360 pad that

@@ -47,9 +47,12 @@ User credentials are encrypted at rest using **NaCl secretbox** (XSalsa20-Poly13
 
 Cluckers deliberately avoids D-Bus and system keyring integrations. This is a design choice to ensure compatibility with **Steam Deck Gaming Mode** and other headless Linux environments where D-Bus services may not be available.
 
-### Embedded Binary
+### Embedded Binaries
 
-The `shm_launcher.exe` helper (used for Win32 named shared memory under Wine) is **embedded in the Go binary at build time** via `go:embed`. It is not downloaded at runtime, eliminating a class of supply-chain and tampering risks.
+Two assets are **embedded in the Go binary at build time** via `go:embed`. They are not downloaded at runtime, eliminating a class of supply-chain and tampering risks.
+
+- **`shm_launcher.exe`** -- Win32 helper for named shared memory under Wine. Built from source (`tools/shm_launcher.c`) in CI/release workflows via mingw-w64. The C source is available in the repository for audit.
+- **`controller_neptune_config.vdf`** -- Steam Deck controller layout configuration for Realm Royale. A plain-text Valve Data Format file.
 
 ### Access Tokens
 

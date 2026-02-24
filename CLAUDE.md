@@ -20,10 +20,10 @@
 - **Game**: UE3-based Win64 binary (`ShippingPC-RealmGameNoEditor.exe`), runs under Wine/Proton-GE
 - **Launch pipeline**: Sequential steps with spinner UI: health check -> auth -> OIDC token -> content bootstrap -> detect Wine -> ensure prefix -> verify prefix -> check version -> download game -> deck config -> launch game
 - **Shared memory**: Game reads content bootstrap via Win32 named shared memory (`OpenFileMapping`). `shm_launcher.exe` (embedded, compiled from C) creates the mapping and launches game as child process.
-- **XInput proxy**: `xinput1_3_remap.dll` (embedded) fixes UE3/Wine controller index mismatch. UE3 polls indices 1-3, Wine assigns controller to index 0. Proxy remaps N -> N-1.
 
 ## 3. CLI Commands
 
+- `cluckers login` -- Authenticate with gateway, save credentials and cache tokens
 - `cluckers launch` -- Full pipeline: auth, tokens, bootstrap, Wine setup, game launch
 - `cluckers update` -- Check remote version, download if needed, verify BLAKE3, extract
 - `cluckers status` -- Show Wine, prefix, game, server, gateway status (compact + verbose modes)
@@ -39,6 +39,7 @@ Entry point. Sets version string from ldflags (`version`, `commit`, `date`), cal
 ### `internal/cli/`
 Cobra command definitions.
 - `root.go`: Root command, persistent flags (`--verbose`, `--gateway`), loads config in PersistentPreRunE. Package-level `Cfg *config.Config`.
+- `login.go`: `login` subcommand, authenticates with gateway, saves credentials and caches tokens. Uses saved credentials if available, otherwise prompts for username/password.
 - `launch.go`: `launch` subcommand, delegates to `launch.Run()`.
 - `status.go`: `status` subcommand, non-fatal status checks (Wine, prefix, game, gateway), compact + verbose display with color output.
 - `update.go`: `update` subcommand, version check + download + extract pipeline.
@@ -68,10 +69,9 @@ NaCl secretbox encryption.
 ### `internal/launch/`
 Game launch orchestration.
 - `pipeline.go`: `LaunchState` struct (accumulated state across steps), `Step` struct (name + function), `Run()` orchestrates all steps with spinner UI. Signal handling (SIGINT/SIGTERM) with forced exit goroutine.
-- `process.go`: `LaunchConfig` struct, `LaunchGame()` builds Wine command with game args (`-user`, `-token`, `-eac_oidc_token_file`, `-hostx`, `-Language=INT`, `-dx11`, `-content_bootstrap_shm`, etc.). Env: `WINEPREFIX`, `WINEFSYNC=1` (Proton-GE only), `WINEDLLOVERRIDES=dxgi,xinput1_3=n`. Deploys XInput proxy before launch.
+- `process.go`: `LaunchConfig` struct, `LaunchGame()` builds Wine command with game args (`-user`, `-token`, `-eac_oidc_token_file`, `-hostx`, `-Language=INT`, `-dx11`, `-content_bootstrap_shm`, etc.). Env: `WINEPREFIX`, `WINEFSYNC=1` (Proton-GE only), `WINEDLLOVERRIDES=dxgi=n`.
 - `shm.go`: `ExtractSHMLauncher()` (writes embedded exe to temp), `WriteBootstrapFile()` (writes bootstrap bytes to temp with 0600 perms).
-- `xinput.go`: `DeployXInputProxy()` copies embedded `xinput1_3_remap.dll` to `<gameDir>/Realm-Royale/Binaries/Win64/xinput1_3.dll`. Idempotent (skips if same size).
-- `deckconfig.go`: `PatchDeckConfig()` detects Steam Deck, patches `RealmSystemSettings.ini` (fullscreen=true, 1280x800). Idempotent. `isSteamDeck()` checks distro ID + /home/deck.
+- `deckconfig.go`: `PatchDeckConfig()` detects Steam Deck, patches display (fullscreen 1280x800) and input config. `PatchDeckInputConfig()` removes Count bXAxis/bYAxis commands, sets bUsingGamepad=True. `deployDeckControllerLayout()` deploys embedded Steam Deck controller layout VDF. Idempotent.
 
 ### `internal/game/`
 Game file management.
@@ -94,14 +94,14 @@ Terminal output helpers.
 
 ### `assets/`
 Embedded binary assets.
-- `embed.go`: `//go:embed shm_launcher.exe` and `//go:embed xinput1_3_remap.dll`. Two embedded assets: the SHM launcher helper and the XInput remap proxy DLL.
-- `shm_launcher.c`: C source for the SHM launcher. Moved to `tools/shm_launcher.c` (C source in Go package dirs breaks `CGO_ENABLED=0` builds). Build: `x86_64-w64-mingw32-gcc -o assets/shm_launcher.exe tools/shm_launcher.c -municode`
+- `embed.go`: `//go:embed shm_launcher.exe` and `//go:embed controller_neptune_config.vdf`. Two embedded assets: the SHM launcher helper and the Steam Deck controller layout VDF.
+- `controller_neptune_config.vdf`: Steam Deck (Neptune) controller layout for Realm Royale.
 
 ### `tools/`
 Build-time source files (not embedded directly).
 - `shm_launcher.c`: C source for the SHM launcher. Build: `x86_64-w64-mingw32-gcc -o assets/shm_launcher.exe tools/shm_launcher.c -municode`
-- `xinput_remap.c`: XInput proxy DLL source. Build: `x86_64-w64-mingw32-gcc -shared -o assets/xinput1_3_remap.dll tools/xinput_remap.c tools/xinput1_3.def -lkernel32`
-- `xinput1_3.def`: DEF file for xinput DLL exports.
+- `xinput_remap.c`: XInput proxy DLL source (historical -- proxy was removed from the launcher; source retained for reference).
+- `xinput1_3.def`: DEF file for xinput DLL exports (historical).
 
 ## 5. Key Dependencies
 
@@ -119,7 +119,7 @@ Build-time source files (not embedded directly).
 
 - **Error handling**: Use `*ui.UserError` for user-facing errors (Message + Detail + Suggestion). Return `fmt.Errorf` wrapping for internal errors. All gateway errors are wrapped as UserError with suggestions.
 - **Verbose output**: Gated by `Config.Verbose` / `-v` flag. Use `ui.Verbose(msg, isVerbose)`.
-- **Idempotent operations**: Prefix creation, XInput proxy deployment, deck config patching all check current state before acting.
+- **Idempotent operations**: Prefix creation, deck config patching, and controller layout deployment all check current state before acting.
 - **Graceful degradation**: Health check warns but continues. Missing bootstrap warns but continues. Token cache failures are non-fatal.
 - **File permissions**: Credentials and token cache use 0600. Directories use 0700 (EnsureDir) or 0755.
 - **Path resolution**: `config.DataDir()` respects `CLUCKERS_HOME` env var. Default: `~/.cluckers/`.
@@ -141,7 +141,6 @@ Build-time source files (not embedded directly).
       Binaries/
         Win64/
           ShippingPC-RealmGameNoEditor.exe
-          xinput1_3.dll  # Deployed XInput proxy
         GameVersion.dat  # Local version marker
       RealmGame/
         Config/
@@ -152,14 +151,12 @@ Build-time source files (not embedded directly).
 ## 8. Build Instructions
 
 ```bash
-# Standard build
-go build -o cluckers ./cmd/cluckers
-
-# Build shm_launcher.exe (requires mingw-w64)
+# Build shm_launcher.exe from source (requires mingw-w64)
+# NOTE: shm_launcher.exe is not committed to git. Build it before running go build.
 x86_64-w64-mingw32-gcc -o assets/shm_launcher.exe tools/shm_launcher.c -municode
 
-# Build XInput proxy DLL (requires mingw-w64)
-x86_64-w64-mingw32-gcc -shared -o assets/xinput1_3_remap.dll tools/xinput_remap.c tools/xinput1_3.def -lkernel32
+# Standard build
+go build -o cluckers ./cmd/cluckers
 
 # Run tests
 go test ./...
@@ -172,10 +169,8 @@ go vet ./...
 
 - **Content bootstrap**: Comes from `LAUNCHER_CONTENT_BOOTSTRAP` endpoint (NOT from login response PORTAL_INFO_1 which is a cosmetics list). 136 bytes with BPS1 magic header, base64-encoded.
 - **Shared memory requirement**: Game uses `OpenFileMapping()`. Passing a file path does NOT work. Must use `CreateFileMappingW(INVALID_HANDLE_VALUE, ...)` via shm_launcher.exe.
-- **XInput index mismatch**: UE3 reserves index 0 for keyboard, polls 1-3. Wine assigns controller to index 0. Proxy DLL remaps N -> N-1.
 - **Proton-GE prefix creation**: Copy default_pfx template, create dosdevices symlinks (c: and z:), then wineboot --init. NEVER run winetricks on Proton-GE prefixes.
-- **DllMain rule**: Never call LoadLibrary from DllMain (loader lock deadlock). XInput proxy uses lazy init from first XInput call.
-- **Steam Deck**: Do NOT set `STEAM_INPUT_DISABLE=1`. Steam Input must stay active for virtual Xbox 360 pad forwarding. Use "Gamepad with Joystick Trackpad" controller template.
+- **Steam Deck controller**: Controller input on Steam Deck is handled via INI patching (removing Count bXAxis/bYAxis to prevent input mode auto-switching) and a deployed Steam Input controller layout VDF. Do NOT set `STEAM_INPUT_DISABLE=1`. Steam Input must stay active for virtual Xbox 360 pad forwarding.
 - **`-hostx` flag**: Required game arg pointing to MCTS game server IP (157.90.131.105), NOT the gateway.
 
 ## 10. Security Notes
