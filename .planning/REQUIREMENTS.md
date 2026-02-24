@@ -97,9 +97,9 @@ Deferred to future release. Tracked but not in current roadmap.
 ### GUI
 
 - [x] **GUI-01**: Running `cluckers` with no subcommand opens a GUI window when a display is available
-- [ ] **GUI-02**: Login-first screen with username/password fields
+- [x] **GUI-02**: Login-first screen with username/password fields
 - [ ] **GUI-03**: Main view with launch button, Discord link, donate/support, verify/repair, bot name
-- [ ] **GUI-04**: Step-by-step launch progress with checkmarks
+- [x] **GUI-04**: Step-by-step launch progress with checkmarks
 - [ ] **GUI-05**: Fullscreen on Steam Deck, windowed on desktop
 - [x] **GUI-06**: Headless environments automatically fall back to CLI mode
 - [ ] **GUI-07**: CLI subcommands continue working unchanged
@@ -165,9 +165,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ERR-02 | Phase 1 | Complete |
 | ERR-03 | Phase 1 | Complete |
 | GUI-01 | Phase 4 | Complete |
-| GUI-02 | Phase 4 | Pending |
+| GUI-02 | Phase 4 | Complete |
 | GUI-03 | Phase 4 | Pending |
-| GUI-04 | Phase 4 | Pending |
+| GUI-04 | Phase 4 | Complete |
 | GUI-05 | Phase 4 | Pending |
 | GUI-06 | Phase 4 | Complete |
 | GUI-07 | Phase 4 | Pending |

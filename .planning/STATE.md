@@ -1,14 +1,14 @@
 # Project State
 
-Last activity: 2026-02-24 - Completed Phase 04 Plan 01: Fyne GUI Foundation
+Last activity: 2026-02-24 - Completed Phase 04 Plan 02: Login Screen & Progress Reporter
 
 ## Current Phase Execution
 
 - **Phase:** 04-cross-platform-gui
-- **Current Plan:** 2 of 5
-- **Last Completed:** 04-01-PLAN.md (Fyne GUI foundation)
-- **Last Session:** 2026-02-24T15:51:58Z
-- **Stopped At:** Completed 04-01-PLAN.md
+- **Current Plan:** 3 of 5
+- **Last Completed:** 04-02-PLAN.md (Login screen & progress reporter)
+- **Last Session:** 2026-02-24T16:01:21.797Z
+- **Stopped At:** Completed 04-02-PLAN.md
 
 ### Quick Tasks Completed
 
@@ -34,3 +34,9 @@ Last activity: 2026-02-24 - Completed Phase 04 Plan 01: Fyne GUI Foundation
 - Steam Deck detection in GUI package is independent of wine package (uses DMI board vendor)
 - GUI binary: CGO_ENABLED=1 go build -tags gui; CLI-only binary: CGO_ENABLED=0 go build (unchanged)
 - Fyne v2.7.3 selected as GUI framework (most mature Go GUI, cross-platform, works on SteamOS)
+- ProgressReporter interface stored on LaunchState; Step.Fn simplified to (ctx, state) signature
+- Login screen uses fyne.Do() for goroutine-to-UI updates per Fyne v2.6+ threading model
+- Screen navigation via w.SetContent() swapping between login and main view
+- Saved credentials checked at startup to skip login for returning users
+- [Phase 04]: ProgressReporter interface stored on LaunchState; Step.Fn simplified to (ctx, state) signature
+- [Phase 04]: Login screen uses fyne.Do() for goroutine-to-UI updates per Fyne v2.6+ threading model
