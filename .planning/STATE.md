@@ -1,14 +1,14 @@
 # Project State
 
-Last activity: 2026-02-24 - Completed quick task 27: Fix bot name setting authentication
+Last activity: 2026-02-24 - Completed quick task 28: Dependabot and repo maintenance automation
 
 ## Current Phase Execution
 
 - **Phase:** 04-cross-platform-gui (COMPLETE - 5/5 plans)
 - **Current Plan:** Not started
 - **Last Completed:** 04-05-PLAN.md (CI/CD updates: goreleaser dual-build, workflow changes, human verification)
-- **Last Session:** 2026-02-24T21:21:31.631Z
-- **Stopped At:** Completed Quick Task 27: Fix bot name setting authentication
+- **Last Session:** 2026-02-24T21:27:31Z
+- **Stopped At:** Completed Quick Task 28: Dependabot and repo maintenance automation
 
 ### Quick Tasks Completed
 
@@ -30,6 +30,7 @@ Last activity: 2026-02-24 - Completed quick task 27: Fix bot name setting authen
 | 25 | Update GUI URLs, icon, settings cleanup, two bot name fields | 2026-02-24 | 2635841 | [25-update-gui-support-url-discord-link-remo](./quick/25-update-gui-support-url-discord-link-remo/) |
 | 26 | Review and update README documentation with Steam integration instructions | 2026-02-24 | f760143 | [26-review-then-update-documentation-add-ins](./quick/26-review-then-update-documentation-add-ins/) |
 | 27 | Fix bot name setting: inline auth fallback and improved error display | 2026-02-24 | 7bfc93a | [27-setting-bot-names-fails](./quick/27-setting-bot-names-fails/) |
+| 28 | Dependabot and repo maintenance automation | 2026-02-24 | 06fae6c | [28-implement-github-dependabot-version-upda](./quick/28-implement-github-dependabot-version-upda/) |
 
 ## Accumulated Context
 
@@ -69,3 +70,5 @@ Last activity: 2026-02-24 - Completed quick task 27: Fix bot name setting authen
 - [Quick 25]: Settings form wrapped in 440px GridWrap for wider input fields
 - [Phase quick-26]: Restructured Steam integration into dedicated 'Adding to Steam' section with platform subsections
 - [Phase quick-27]: Bot name handler authenticates inline via auth.Login() fallback when no cached token exists
+- [Quick 28]: Grouped Dependabot updates for golang.org/* and fyne.io/* to reduce PR noise
+- [Quick 28]: Stale thresholds: 60/30 days (issue/PR) with 14/7 day close grace period
