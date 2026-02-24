@@ -31,10 +31,17 @@ var rootCmd = &cobra.Command{
 
 func init() {
 	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "Enable verbose output (debug details, API responses, timing)")
-	rootCmd.PersistentFlags().String("gateway", "https://gateway-dev.project-crown.com", "Gateway API base URL")
+	rootCmd.PersistentFlags().String("gateway", config.DefaultGateway(), "Gateway API base URL")
 
 	_ = viper.BindPFlag("verbose", rootCmd.PersistentFlags().Lookup("verbose"))
 	_ = viper.BindPFlag("gateway", rootCmd.PersistentFlags().Lookup("gateway"))
+}
+
+// InitFlags re-applies flag defaults that depend on build-time values.
+// Called from main() after config.SetBuildDefaults() so that --help
+// reflects the injected gateway URL rather than the compiled-in fallback.
+func InitFlags() {
+	rootCmd.PersistentFlags().Lookup("gateway").DefValue = config.DefaultGateway()
 }
 
 // SetVersion sets the version string displayed by --version.
