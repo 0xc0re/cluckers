@@ -136,7 +136,8 @@ Remove saved credentials and cached tokens.
 
 Add Cluckers as a non-Steam game in your Steam library. On Linux, creates a
 `.desktop` file (useful for launching from Gaming Mode on Steam Deck). On
-Windows, creates a `.bat` launcher and prints instructions for adding it to Steam.
+Windows, prints step-by-step instructions for adding `cluckers.exe` directly
+to Steam with `launch` as the launch option.
 
 ### `cluckers --version`
 
@@ -232,8 +233,11 @@ supported. Keyboard and mouse work normally.
 
 On Windows, Realm Royale runs natively without Wine or any compatibility layer.
 The launcher handles authentication, game downloads, and updates the same way as
-on Linux. `cluckers steam add` creates a `.bat` launcher for adding the game to
-your Steam library on Windows.
+on Linux. After downloading game files, the launcher automatically configures
+borderless fullscreen and makes game settings writable so in-game changes persist.
+
+Run `cluckers steam add` to get instructions for adding the game to your Steam
+library.
 
 ## License
 
