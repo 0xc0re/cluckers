@@ -31,17 +31,26 @@ type LaunchState struct {
 	VersionInfo   *game.VersionInfo
 	NeedsDownload bool
 	TokenCache    *auth.TokenCache
+	Reporter      ProgressReporter
 }
 
 // Step represents a single step in the launch pipeline.
 type Step struct {
 	Name string
-	Fn   func(ctx context.Context, state *LaunchState, spinner *ui.StepSpinner) error
+	Fn   func(ctx context.Context, state *LaunchState) error
 }
 
 // Run orchestrates the full launch pipeline: health check, auth, OIDC, bootstrap, game launch.
 // Each step shows a spinner while active and a checkmark on completion.
+// This is a convenience wrapper that uses CLIReporter for terminal output.
 func Run(ctx context.Context, cfg *config.Config) error {
+	return RunWithReporter(ctx, cfg, NewCLIReporter())
+}
+
+// RunWithReporter orchestrates the full launch pipeline using the provided ProgressReporter
+// for step progress callbacks. This allows both CLI (spinners) and GUI (step list) to
+// receive pipeline progress updates.
+func RunWithReporter(ctx context.Context, cfg *config.Config, reporter ProgressReporter) error {
 	// Set up signal handling for clean shutdown.
 	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 	defer cancel()
@@ -57,8 +66,9 @@ func Run(ctx context.Context, cfg *config.Config) error {
 	client := gateway.NewClient(cfg.Gateway, cfg.Verbose)
 
 	state := &LaunchState{
-		Config: cfg,
-		Client: client,
+		Config:   cfg,
+		Client:   client,
+		Reporter: reporter,
 	}
 
 	steps := []Step{
@@ -76,15 +86,15 @@ func Run(ctx context.Context, cfg *config.Config) error {
 	steps = append(steps, Step{Name: "Launching game", Fn: stepLaunchGame})
 
 	for _, step := range steps {
-		spinner := ui.StartStep(step.Name)
+		reporter.StepStarted(step.Name)
 
-		if err := step.Fn(ctx, state, spinner); err != nil {
-			spinner.Fail()
+		if err := step.Fn(ctx, state); err != nil {
+			reporter.StepFailed(step.Name, err)
 			ui.Error(ui.FormatError(err, cfg.Verbose))
 			return err
 		}
 
-		spinner.Success()
+		reporter.StepCompleted(step.Name)
 	}
 
 	return nil
@@ -92,7 +102,7 @@ func Run(ctx context.Context, cfg *config.Config) error {
 
 // stepHealthCheck verifies the gateway is reachable. Warns but continues on failure
 // (matching POC behavior -- gateway might be flaky but login still works).
-func stepHealthCheck(ctx context.Context, state *LaunchState, _ *ui.StepSpinner) error {
+func stepHealthCheck(ctx context.Context, state *LaunchState) error {
 	if err := state.Client.HealthCheck(ctx); err != nil {
 		// Warn but continue -- gateway might be flaky.
 		ui.Warn("Gateway health check failed, continuing anyway...")
@@ -104,7 +114,7 @@ func stepHealthCheck(ctx context.Context, state *LaunchState, _ *ui.StepSpinner)
 // stepAuthenticate loads saved credentials or prompts for new ones, then logs in.
 // On saved credential failure, re-prompts once before returning an error.
 // Checks the token cache first to skip the API call when a valid cached token exists.
-func stepAuthenticate(ctx context.Context, state *LaunchState, spinner *ui.StepSpinner) error {
+func stepAuthenticate(ctx context.Context, state *LaunchState) error {
 	// Load token cache for potential reuse.
 	cache, err := auth.LoadTokenCache()
 	if err != nil {
@@ -148,13 +158,13 @@ func stepAuthenticate(ctx context.Context, state *LaunchState, spinner *ui.StepS
 			ui.Verbose("Logged in with saved credentials", state.Config.Verbose)
 			return nil
 		}
-		// Saved credentials failed -- re-prompt once.
-		spinner.Stop()
+		// Saved credentials failed -- pause spinner so prompt is visible.
+		state.Reporter.StepPaused("Authenticating")
 		ui.Warn("Saved credentials failed, please re-enter.")
 		ui.Verbose(fmt.Sprintf("Saved login error: %s", err), state.Config.Verbose)
 	} else {
-		// No saved creds -- stop spinner so prompt is visible.
-		spinner.Stop()
+		// No saved creds -- pause spinner so prompt is visible.
+		state.Reporter.StepPaused("Authenticating")
 	}
 
 	// Prompt for credentials.
@@ -197,7 +207,7 @@ func stepAuthenticate(ctx context.Context, state *LaunchState, spinner *ui.StepS
 
 // stepOIDCToken retrieves an EAC OIDC JWT token from the gateway.
 // Checks the token cache first to skip the API call when a valid cached OIDC token exists.
-func stepOIDCToken(ctx context.Context, state *LaunchState, _ *ui.StepSpinner) error {
+func stepOIDCToken(ctx context.Context, state *LaunchState) error {
 	// Check cache for a valid OIDC token.
 	if state.TokenCache != nil && state.TokenCache.OIDCTokenValid() {
 		state.OIDCToken = state.TokenCache.OIDCToken
@@ -230,7 +240,7 @@ func stepOIDCToken(ctx context.Context, state *LaunchState, _ *ui.StepSpinner) e
 
 // stepBootstrap retrieves the content bootstrap from the gateway.
 // Nil bootstrap is OK -- the game can launch without it.
-func stepBootstrap(ctx context.Context, state *LaunchState, _ *ui.StepSpinner) error {
+func stepBootstrap(ctx context.Context, state *LaunchState) error {
 	data, err := auth.GetContentBootstrap(ctx, state.Client, state.Username, state.AccessToken)
 	if err != nil {
 		return err
@@ -245,7 +255,7 @@ func stepBootstrap(ctx context.Context, state *LaunchState, _ *ui.StepSpinner) e
 }
 
 // stepCheckVersion checks the remote game version and determines if a download is needed.
-func stepCheckVersion(ctx context.Context, state *LaunchState, _ *ui.StepSpinner) error {
+func stepCheckVersion(ctx context.Context, state *LaunchState) error {
 	// Resolve game directory.
 	gameDir := state.Config.GameDir
 	if gameDir == "" {
@@ -280,14 +290,14 @@ func stepCheckVersion(ctx context.Context, state *LaunchState, _ *ui.StepSpinner
 
 // stepDownloadGame downloads and extracts the game update if needed.
 // This step is a no-op when the game is already up to date.
-func stepDownloadGame(ctx context.Context, state *LaunchState, spinner *ui.StepSpinner) error {
+func stepDownloadGame(ctx context.Context, state *LaunchState) error {
 	if !state.NeedsDownload {
 		ui.Verbose("Game files up to date, skipping download", state.Config.Verbose)
 		return nil
 	}
 
-	// Stop the spinner -- the progress bar handles visual feedback during download.
-	spinner.Stop()
+	// Pause the reporter -- the progress bar handles visual feedback during download.
+	state.Reporter.StepPaused("Downloading game update")
 
 	if err := config.EnsureDir(state.GameDir); err != nil {
 		return fmt.Errorf("creating game directory: %w", err)
@@ -315,7 +325,7 @@ func stepDownloadGame(ctx context.Context, state *LaunchState, spinner *ui.StepS
 }
 
 // stepLaunchGame writes temp files and launches the game.
-func stepLaunchGame(ctx context.Context, state *LaunchState, _ *ui.StepSpinner) error {
+func stepLaunchGame(ctx context.Context, state *LaunchState) error {
 	// Write OIDC token to temp file.
 	oidcPath, oidcCleanup, err := writeOIDCTokenFile(state.OIDCToken)
 	if err != nil {
