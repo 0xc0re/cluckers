@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -223,19 +224,50 @@ func MakeMainView(w fyne.Window, cfg *config.Config, username, password string, 
 		}
 		botSetBtn.Disable()
 		go func() {
-			// Load cached access token.
+			var accessToken string
+
+			// Fast path: try cached access token first.
 			cache, err := auth.LoadTokenCache()
-			if err != nil || cache == nil || !cache.AccessTokenValid() {
-				fyne.Do(func() {
-					dialog.ShowError(fmt.Errorf("no valid session found -- please launch the game once first to authenticate"), w)
-					botSetBtn.Enable()
-				})
-				return
+			if err == nil && cache != nil && cache.AccessTokenValid() {
+				accessToken = cache.AccessToken
+				fmt.Println("[bot-names] Using cached access token for", username)
 			}
+
+			// Fallback: authenticate inline using available credentials.
+			if accessToken == "" {
+				fmt.Println("[bot-names] No cached token, authenticating inline for", username)
+				client := gateway.NewClient(cfg.Gateway, cfg.Verbose)
+				result, loginErr := auth.Login(context.Background(), client, username, password)
+				if loginErr != nil {
+					fyne.Do(func() {
+						dialog.ShowError(fmt.Errorf("could not authenticate: %s", loginErr), w)
+						botSetBtn.Enable()
+					})
+					return
+				}
+				accessToken = result.AccessToken
+
+				// Cache the fresh token so subsequent calls are fast.
+				now := time.Now()
+				newCache := &auth.TokenCache{
+					AccessToken:    accessToken,
+					Username:       username,
+					AccessCachedAt: now,
+				}
+				// Preserve existing OIDC token if present.
+				if cache != nil {
+					newCache.OIDCToken = cache.OIDCToken
+					newCache.OIDCCachedAt = cache.OIDCCachedAt
+				}
+				if saveErr := auth.SaveTokenCache(newCache); saveErr != nil {
+					fmt.Println("[bot-names] Warning: could not save token cache:", saveErr)
+				}
+			}
+
 			client := gateway.NewClient(cfg.Gateway, cfg.Verbose)
 			req := gateway.BotNameRequest{
 				UserName:    username,
-				AccessToken: cache.AccessToken,
+				AccessToken: accessToken,
 				BotName1:    name1,
 				BotName2:    name2,
 			}
@@ -250,10 +282,12 @@ func MakeMainView(w fyne.Window, cfg *config.Config, username, password string, 
 			if !bool(resp.Success) {
 				msg := resp.TextValue
 				if msg == "" {
-					msg = "Unknown error"
+					msg = "Server rejected request (no details provided). Try launching the game first to verify your account works."
+				} else {
+					msg = "Server rejected request: " + msg
 				}
 				fyne.Do(func() {
-					dialog.ShowError(fmt.Errorf("failed to set bot names: %s", msg), w)
+					dialog.ShowError(fmt.Errorf("failed to set bot names: %s\n\n(SUCCESS=%v)", msg, resp.Success), w)
 					botSetBtn.Enable()
 				})
 				return
