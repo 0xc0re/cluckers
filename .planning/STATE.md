@@ -1,14 +1,14 @@
 # Project State
 
-Last activity: 2026-02-24 - Completed Quick Task 21: Fix Windows launch issues (zip removal, Steam add, display config)
+Last activity: 2026-02-24 - Completed Quick Task 22: Merge GUI and CLI into single release archive
 
 ## Current Phase Execution
 
 - **Phase:** 04-cross-platform-gui (COMPLETE - 5/5 plans)
 - **Current Plan:** Not started
 - **Last Completed:** 04-05-PLAN.md (CI/CD updates: goreleaser dual-build, workflow changes, human verification)
-- **Last Session:** 2026-02-24T16:57:43Z
-- **Stopped At:** Completed Quick Task 21: Fix Windows launch issues
+- **Last Session:** 2026-02-24T19:39:26Z
+- **Stopped At:** Completed Quick Task 22: Merge GUI and CLI into single release archive
 
 ### Quick Tasks Completed
 
@@ -24,6 +24,7 @@ Last activity: 2026-02-24 - Completed Quick Task 21: Fix Windows launch issues (
 | 19 | Update docs and install script for Windows support | 2026-02-24 | 6f943ae | [19-implement-windows-builds-and-releases-up](./quick/19-implement-windows-builds-and-releases-up/) |
 | 20 | Resolve code scanning alert (add CI workflow permissions) | 2026-02-24 | e5ec06c | [20-resolve-code-scanning-results-from-githu](./quick/20-resolve-code-scanning-results-from-githu/) |
 | 21 | Fix Windows launch issues: zip removal, Steam add, display config | 2026-02-24 | dbf09a4 | [21-fix-windows-launch-issues-zip-removal-af](./quick/21-fix-windows-launch-issues-zip-removal-af/) |
+| 22 | Merge GUI and CLI into single release archive | 2026-02-24 | 29878b7 | [22-gui-and-cli-were-supposed-to-be-a-single](./quick/22-gui-and-cli-were-supposed-to-be-a-single/) |
 
 ## Accumulated Context
 
@@ -52,3 +53,6 @@ Last activity: 2026-02-24 - Completed Quick Task 21: Fix Windows launch issues (
 - [Phase 04]: Windows GUI uses CGO_ENABLED=0 (Fyne does not need CGO on Windows)
 - [Phase 04]: goreleaser uses 3 build IDs (cluckers-cli, cluckers-gui-linux, cluckers-gui-windows) for per-target CGO
 - [Phase 04]: Settings screen deferred to future release per user decision
+- [Quick 22]: Single goreleaser archive per platform replacing separate CLI and GUI archives
+- [Quick 22]: Install script asset regex anchored to ^cluckers_ to avoid ambiguous matching
+- [Quick 22]: Fixed irm -> iwr in install.ps1 usage comment (irm auto-parses, breaks pipe to iex)
