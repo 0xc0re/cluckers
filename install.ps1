@@ -55,7 +55,6 @@ if (-not (Test-Path $InstallDir)) {
 }
 
 $InstallPath = Join-Path $InstallDir "cluckers.exe"
-$GuiInstallPath = Join-Path $InstallDir "cluckers-gui.exe"
 
 # --------------------------------------------------------------------------- #
 #  Discover latest release
@@ -169,23 +168,15 @@ try {
     $ExtractDir = Join-Path $TempDir "extracted"
     Expand-Archive -Path $ZipPath -DestinationPath $ExtractDir -Force
 
-    $CliBinary = Get-ChildItem -Path $ExtractDir -Recurse -Filter "cluckers.exe" | Where-Object { $_.Name -eq "cluckers.exe" } | Select-Object -First 1
-    $GuiBinary = Get-ChildItem -Path $ExtractDir -Recurse -Filter "cluckers-gui.exe" | Select-Object -First 1
+    $Binary = Get-ChildItem -Path $ExtractDir -Recurse -Filter "cluckers.exe" | Select-Object -First 1
 
-    if (-not $CliBinary) {
-        Write-Err "CLI binary (cluckers.exe) not found in archive."
+    if (-not $Binary) {
+        Write-Err "Binary not found in archive."
         Get-ChildItem -Path $ExtractDir -Recurse | ForEach-Object { Write-Host "  $_" }
         exit 1
     }
 
-    Copy-Item -Path $CliBinary.FullName -Destination $InstallPath -Force
-
-    if ($GuiBinary) {
-        Copy-Item -Path $GuiBinary.FullName -Destination $GuiInstallPath -Force
-        Write-Success "Installed cluckers-gui.exe"
-    } else {
-        Write-Warn "GUI binary (cluckers-gui.exe) not found in archive; CLI-only install."
-    }
+    Copy-Item -Path $Binary.FullName -Destination $InstallPath -Force
 
 } finally {
     # Clean up temp directory.
@@ -220,9 +211,6 @@ Write-Host "  Cluckers installed successfully" -ForegroundColor White
 Write-Host "================================================" -ForegroundColor White
 Write-Host ""
 Write-Host "  Location:  $InstallPath"
-if (Test-Path $GuiInstallPath) {
-    Write-Host "  GUI:       $GuiInstallPath"
-}
 Write-Host "  Version:   $LatestVersion"
 Write-Host ""
 
@@ -233,11 +221,9 @@ if ($PathAdded) {
 }
 
 Write-Host "  Next steps:"
-Write-Host "    cluckers launch        Start playing (CLI)"
-if (Test-Path $GuiInstallPath) {
-    Write-Host "    cluckers-gui           Start playing (GUI)"
-}
-Write-Host "    cluckers status        Check system readiness"
+Write-Host "    cluckers            Launch GUI"
+Write-Host "    cluckers launch     Launch game (CLI)"
+Write-Host "    cluckers status     Check system readiness"
 Write-Host ""
 Write-Host "  On first launch, cluckers will prompt for your Project Crown"
 Write-Host "  credentials."

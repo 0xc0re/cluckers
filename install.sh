@@ -94,7 +94,6 @@ fi
 mkdir -p "$INSTALL_DIR"
 
 INSTALL_PATH="$INSTALL_DIR/cluckers"
-GUI_INSTALL_PATH="$INSTALL_DIR/cluckers-gui"
 
 # --------------------------------------------------------------------------- #
 #  Download tool detection
@@ -225,24 +224,14 @@ fi
 step "Installing to $INSTALL_DIR..."
 tar xzf "$TMPDIR/cluckers.tar.gz" -C "$TMPDIR"
 
-# Install CLI binary (required).
 if [ -f "$TMPDIR/cluckers" ]; then
     mv "$TMPDIR/cluckers" "$INSTALL_PATH"
 else
-    error "CLI binary (cluckers) not found in archive. Contents:"
+    error "Binary not found in archive. Contents:"
     ls -la "$TMPDIR" >&2
     exit 1
 fi
 chmod +x "$INSTALL_PATH"
-
-# Install GUI binary (optional -- may not exist in all releases).
-if [ -f "$TMPDIR/cluckers-gui" ]; then
-    mv "$TMPDIR/cluckers-gui" "$GUI_INSTALL_PATH"
-    chmod +x "$GUI_INSTALL_PATH"
-    success "Installed cluckers-gui"
-else
-    warn "GUI binary (cluckers-gui) not found in archive; CLI-only install."
-fi
 
 # Verify the installed binary.
 INSTALLED_VERSION=$("$INSTALL_PATH" --version 2>/dev/null | head -1 || printf '')
@@ -354,9 +343,6 @@ printf '%s  Cluckers installed successfully%s\n' "$BOLD" "$RESET"
 printf '%s%s%s\n' "$BOLD" "================================================" "$RESET"
 printf "\n"
 printf '  %sLocation:%s  %s\n' "$BOLD" "$RESET" "$INSTALL_PATH"
-if [ -f "$GUI_INSTALL_PATH" ]; then
-    printf '  %sGUI:%s       %s\n' "$BOLD" "$RESET" "$GUI_INSTALL_PATH"
-fi
 printf '  %sVersion:%s   %s\n' "$BOLD" "$RESET" "$LATEST_VERSION"
 
 if [ "$WINE_STATUS" = "not found" ]; then
@@ -409,11 +395,9 @@ fi
 
 # Next steps.
 printf '  %sNext steps:%s\n' "$BOLD" "$RESET"
-printf "    cluckers launch        Start playing (CLI)\n"
-if [ -f "$GUI_INSTALL_PATH" ]; then
-    printf "    cluckers-gui           Start playing (GUI)\n"
-fi
-printf "    cluckers status        Check system readiness\n"
+printf "    cluckers            Launch GUI\n"
+printf "    cluckers launch     Launch game (CLI)\n"
+printf "    cluckers status     Check system readiness\n"
 printf "\n"
 printf "  On first launch, cluckers will prompt for your Project Crown\n"
 printf "  credentials and set up the Wine prefix automatically.\n"
