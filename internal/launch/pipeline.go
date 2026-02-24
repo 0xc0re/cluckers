@@ -71,19 +71,7 @@ func RunWithReporter(ctx context.Context, cfg *config.Config, reporter ProgressR
 		Reporter: reporter,
 	}
 
-	steps := []Step{
-		{Name: "Checking gateway", Fn: stepHealthCheck},
-		{Name: "Authenticating", Fn: stepAuthenticate},
-		{Name: "Requesting OIDC token", Fn: stepOIDCToken},
-		{Name: "Requesting content bootstrap", Fn: stepBootstrap},
-	}
-	steps = append(steps, platformSteps(state)...)
-	steps = append(steps,
-		Step{Name: "Checking game version", Fn: stepCheckVersion},
-		Step{Name: "Downloading game update", Fn: stepDownloadGame},
-	)
-	steps = append(steps, platformPostSteps(state)...)
-	steps = append(steps, Step{Name: "Launching game", Fn: stepLaunchGame})
+	steps := buildSteps(state)
 
 	for _, step := range steps {
 		reporter.StepStarted(step.Name)
@@ -100,6 +88,74 @@ func RunWithReporter(ctx context.Context, cfg *config.Config, reporter ProgressR
 	return nil
 }
 
+// RunWithReporterAndCreds orchestrates the full launch pipeline with pre-populated
+// credentials. This is used by the GUI where the user has already authenticated via
+// the login screen. The credentials are set on the launch state so that stepAuthenticate
+// can use them directly without prompting.
+func RunWithReporterAndCreds(ctx context.Context, cfg *config.Config, reporter ProgressReporter, username, password string) error {
+	// Create gateway client.
+	client := gateway.NewClient(cfg.Gateway, cfg.Verbose)
+
+	state := &LaunchState{
+		Config:   cfg,
+		Client:   client,
+		Reporter: reporter,
+		Username: username,
+		Password: password,
+	}
+
+	steps := buildSteps(state)
+
+	for _, step := range steps {
+		// Check for context cancellation before starting each step.
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+
+		reporter.StepStarted(step.Name)
+
+		if err := step.Fn(ctx, state); err != nil {
+			reporter.StepFailed(step.Name, err)
+			return err
+		}
+
+		reporter.StepCompleted(step.Name)
+	}
+
+	return nil
+}
+
+// StepNames returns the ordered list of pipeline step names for display.
+// This is used by the GUI to create the step list widget before the pipeline runs.
+func StepNames(cfg *config.Config) []string {
+	// Build a temporary state to get platform steps.
+	state := &LaunchState{Config: cfg}
+	steps := buildSteps(state)
+	names := make([]string, len(steps))
+	for i, s := range steps {
+		names[i] = s.Name
+	}
+	return names
+}
+
+// buildSteps constructs the ordered list of pipeline steps including platform-specific steps.
+func buildSteps(state *LaunchState) []Step {
+	steps := []Step{
+		{Name: "Checking gateway", Fn: stepHealthCheck},
+		{Name: "Authenticating", Fn: stepAuthenticate},
+		{Name: "Requesting OIDC token", Fn: stepOIDCToken},
+		{Name: "Requesting content bootstrap", Fn: stepBootstrap},
+	}
+	steps = append(steps, platformSteps(state)...)
+	steps = append(steps,
+		Step{Name: "Checking game version", Fn: stepCheckVersion},
+		Step{Name: "Downloading game update", Fn: stepDownloadGame},
+	)
+	steps = append(steps, platformPostSteps(state)...)
+	steps = append(steps, Step{Name: "Launching game", Fn: stepLaunchGame})
+	return steps
+}
+
 // stepHealthCheck verifies the gateway is reachable. Warns but continues on failure
 // (matching POC behavior -- gateway might be flaky but login still works).
 func stepHealthCheck(ctx context.Context, state *LaunchState) error {
@@ -114,6 +170,7 @@ func stepHealthCheck(ctx context.Context, state *LaunchState) error {
 // stepAuthenticate loads saved credentials or prompts for new ones, then logs in.
 // On saved credential failure, re-prompts once before returning an error.
 // Checks the token cache first to skip the API call when a valid cached token exists.
+// When Username and Password are pre-populated on state (GUI mode), uses them directly.
 func stepAuthenticate(ctx context.Context, state *LaunchState) error {
 	// Load token cache for potential reuse.
 	cache, err := auth.LoadTokenCache()
@@ -121,29 +178,48 @@ func stepAuthenticate(ctx context.Context, state *LaunchState) error {
 		ui.Verbose(fmt.Sprintf("Could not load token cache: %s", err), state.Config.Verbose)
 	}
 
-	// Try saved credentials first.
-	creds, err := auth.LoadCredentials()
-	if err != nil {
-		ui.Verbose(fmt.Sprintf("Could not load saved credentials: %s", err), state.Config.Verbose)
+	// Determine credentials source: pre-populated (GUI) or saved/prompted (CLI).
+	username := state.Username
+	password := state.Password
+
+	if username == "" || password == "" {
+		// CLI path: try saved credentials.
+		creds, err := auth.LoadCredentials()
+		if err != nil {
+			ui.Verbose(fmt.Sprintf("Could not load saved credentials: %s", err), state.Config.Verbose)
+		}
+
+		// If cache has a valid access token for the same user, use it directly.
+		if cache != nil && cache.AccessTokenValid() && creds != nil && cache.Username == creds.Username {
+			state.Username = cache.Username
+			state.AccessToken = cache.AccessToken
+			state.Password = creds.Password
+			state.TokenCache = cache
+			ui.Verbose("Using cached access token (still valid)", state.Config.Verbose)
+			return nil
+		}
+
+		if creds != nil {
+			username = creds.Username
+			password = creds.Password
+		}
+	} else {
+		// GUI path: credentials pre-populated. Check cache for same user.
+		if cache != nil && cache.AccessTokenValid() && cache.Username == username {
+			state.AccessToken = cache.AccessToken
+			state.TokenCache = cache
+			ui.Verbose("Using cached access token (still valid)", state.Config.Verbose)
+			return nil
+		}
 	}
 
-	// If cache has a valid access token for the same user, use it directly.
-	if cache != nil && cache.AccessTokenValid() && creds != nil && cache.Username == creds.Username {
-		state.Username = cache.Username
-		state.AccessToken = cache.AccessToken
-		state.Password = creds.Password
-		state.TokenCache = cache
-		ui.Verbose("Using cached access token (still valid)", state.Config.Verbose)
-		return nil
-	}
-
-	if creds != nil {
-		// Try login with saved credentials.
-		result, err := auth.Login(ctx, state.Client, creds.Username, creds.Password)
+	if username != "" && password != "" {
+		// Try login with available credentials.
+		result, err := auth.Login(ctx, state.Client, username, password)
 		if err == nil {
 			state.Username = result.Username
 			state.AccessToken = result.AccessToken
-			state.Password = creds.Password
+			state.Password = password
 
 			// Cache the access token for future launches.
 			state.TokenCache = &auth.TokenCache{
@@ -155,9 +231,15 @@ func stepAuthenticate(ctx context.Context, state *LaunchState) error {
 				ui.Verbose(fmt.Sprintf("Could not save token cache: %s", saveErr), state.Config.Verbose)
 			}
 
-			ui.Verbose("Logged in with saved credentials", state.Config.Verbose)
+			ui.Verbose("Logged in with credentials", state.Config.Verbose)
 			return nil
 		}
+
+		// If credentials were pre-populated (GUI), don't fall through to prompts.
+		if state.Username != "" {
+			return err
+		}
+
 		// Saved credentials failed -- pause spinner so prompt is visible.
 		state.Reporter.StepPaused("Authenticating")
 		ui.Warn("Saved credentials failed, please re-enter.")
@@ -167,28 +249,28 @@ func stepAuthenticate(ctx context.Context, state *LaunchState) error {
 		state.Reporter.StepPaused("Authenticating")
 	}
 
-	// Prompt for credentials.
-	username, err := ui.PromptUsername()
+	// Prompt for credentials (CLI only -- GUI never reaches here).
+	promptedUsername, err := ui.PromptUsername()
 	if err != nil {
 		return err
 	}
 
-	password, err := ui.PromptPassword()
+	promptedPassword, err := ui.PromptPassword()
 	if err != nil {
 		return err
 	}
 
-	result, err := auth.Login(ctx, state.Client, username, password)
+	result, err := auth.Login(ctx, state.Client, promptedUsername, promptedPassword)
 	if err != nil {
 		return err
 	}
 
 	state.Username = result.Username
 	state.AccessToken = result.AccessToken
-	state.Password = password
+	state.Password = promptedPassword
 
 	// Save credentials for future launches.
-	if saveErr := auth.SaveCredentials(username, password); saveErr != nil {
+	if saveErr := auth.SaveCredentials(promptedUsername, promptedPassword); saveErr != nil {
 		ui.Warn(fmt.Sprintf("Could not save credentials: %s", saveErr))
 	}
 

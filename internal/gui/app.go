@@ -5,6 +5,7 @@ package gui
 import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
+	"fyne.io/fyne/v2/dialog"
 
 	"github.com/0xc0re/cluckers/internal/auth"
 	"github.com/0xc0re/cluckers/internal/config"
@@ -56,16 +57,36 @@ func showLoginScreen(w fyne.Window, cfg *config.Config) {
 }
 
 // showMainView sets the window content to the main application view with
-// launch button, bot name field, settings navigation, and logout.
+// launch button, game management, links, and navigation.
 func showMainView(w fyne.Window, cfg *config.Config, username, password string) {
-	content := screens.MakeMainView(w, cfg, username,
+	content := screens.MakeMainView(w, cfg, username, password,
 		func() {
-			// onLogout: return to login screen.
-			showLoginScreen(w, cfg)
+			// onLaunch: transition to launch progress view.
+			showLaunchProgress(w, cfg, username, password)
 		},
 		func() {
-			// onSettings: navigate to settings view.
-			showSettingsView(w, cfg, username, password)
+			// onLogout: clear credentials and return to login screen.
+			_ = auth.DeleteCredentials()
+			_ = auth.ClearTokenCache()
+			showLoginScreen(w, cfg)
+		},
+	)
+	w.SetContent(content)
+}
+
+// showLaunchProgress sets the window content to the launch progress view.
+// On successful pipeline completion, the window closes (launcher exits when game launches).
+// On error, an error dialog is shown and the user returns to the main view.
+func showLaunchProgress(w fyne.Window, cfg *config.Config, username, password string) {
+	content := screens.MakeLaunchProgressView(w, cfg, username, password,
+		func() {
+			// onComplete: close the launcher window (game has launched).
+			w.Close()
+		},
+		func(err error) {
+			// onError: show error dialog, then return to main view.
+			dialog.ShowError(err, w)
+			showMainView(w, cfg, username, password)
 		},
 	)
 	w.SetContent(content)
