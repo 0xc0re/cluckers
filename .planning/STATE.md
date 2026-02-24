@@ -1,14 +1,14 @@
 # Project State
 
-Last activity: 2026-02-24 - Completed Phase 04 Plan 05: CI/CD for GUI and CLI-only Dual-Build (Phase 04 COMPLETE)
+Last activity: 2026-02-24 - Completed Quick Task 21: Fix Windows launch issues (zip removal, Steam add, display config)
 
 ## Current Phase Execution
 
 - **Phase:** 04-cross-platform-gui (COMPLETE - 5/5 plans)
 - **Current Plan:** Not started
 - **Last Completed:** 04-05-PLAN.md (CI/CD updates: goreleaser dual-build, workflow changes, human verification)
-- **Last Session:** 2026-02-24T16:35:54.680Z
-- **Stopped At:** Completed 04-05-PLAN.md (Phase 04 complete)
+- **Last Session:** 2026-02-24T16:57:43Z
+- **Stopped At:** Completed Quick Task 21: Fix Windows launch issues
 
 ### Quick Tasks Completed
 
@@ -23,6 +23,7 @@ Last activity: 2026-02-24 - Completed Phase 04 Plan 05: CI/CD for GUI and CLI-on
 | 17 | Split token cache into independent per-token TTL timestamps | 2026-02-24 | e3f7dec | [17-login-and-launch-should-refresh-oidc-tok](./quick/17-login-and-launch-should-refresh-oidc-tok/) |
 | 19 | Update docs and install script for Windows support | 2026-02-24 | 6f943ae | [19-implement-windows-builds-and-releases-up](./quick/19-implement-windows-builds-and-releases-up/) |
 | 20 | Resolve code scanning alert (add CI workflow permissions) | 2026-02-24 | e5ec06c | [20-resolve-code-scanning-results-from-githu](./quick/20-resolve-code-scanning-results-from-githu/) |
+| 21 | Fix Windows launch issues: zip removal, Steam add, display config | 2026-02-24 | dbf09a4 | [21-fix-windows-launch-issues-zip-removal-af](./quick/21-fix-windows-launch-issues-zip-removal-af/) |
 
 ## Accumulated Context
 
