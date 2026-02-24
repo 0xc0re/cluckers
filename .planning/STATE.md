@@ -1,14 +1,14 @@
 # Project State
 
-Last activity: 2026-02-24 - Completed Quick Task 24: Fix self-update on Windows (platform-specific binary replacement)
+Last activity: 2026-02-24 - Completed Quick Task 25: Update GUI URLs, icon, settings, bot names
 
 ## Current Phase Execution
 
 - **Phase:** 04-cross-platform-gui (COMPLETE - 5/5 plans)
 - **Current Plan:** Not started
 - **Last Completed:** 04-05-PLAN.md (CI/CD updates: goreleaser dual-build, workflow changes, human verification)
-- **Last Session:** 2026-02-24T20:12:30Z
-- **Stopped At:** Completed Quick Task 24: Fix self-update on Windows
+- **Last Session:** 2026-02-24T20:23:09Z
+- **Stopped At:** Completed Quick Task 25: Update GUI URLs, icon, settings, bot names
 
 ### Quick Tasks Completed
 
@@ -27,6 +27,7 @@ Last activity: 2026-02-24 - Completed Quick Task 24: Fix self-update on Windows 
 | 22 | Merge GUI and CLI into single release archive | 2026-02-24 | 29878b7 | [22-gui-and-cli-were-supposed-to-be-a-single](./quick/22-gui-and-cli-were-supposed-to-be-a-single/) |
 | 23 | Single binary with GUI merge (no separate cluckers-gui) | 2026-02-24 | f2d4904 | [23-single-windows-binary-with-gui-merge-clu](./quick/23-single-windows-binary-with-gui-merge-clu/) |
 | 24 | Fix self-update on Windows (platform-specific binary replacement) | 2026-02-24 | 888303b | [24-cluckers-self-update-does-not-work-on-wi](./quick/24-cluckers-self-update-does-not-work-on-wi/) |
+| 25 | Update GUI URLs, icon, settings cleanup, two bot name fields | 2026-02-24 | 2635841 | [25-update-gui-support-url-discord-link-remo](./quick/25-update-gui-support-url-discord-link-remo/) |
 
 ## Accumulated Context
 
@@ -61,3 +62,6 @@ Last activity: 2026-02-24 - Completed Quick Task 24: Fix self-update on Windows 
 - [Phase quick-23]: Windows Fyne build requires CGO_ENABLED=1 + mingw (go-gl/gl needs CGO on all platforms)
 - [Quick 24]: Windows binary replacement uses rename-swap strategy (rename running exe, place new, cleanup old on next run)
 - [Quick 24]: CleanupOldBinary called at start of self-update command only, not on every app startup
+- [Quick 25]: Bot name API uses cached access token via auth.LoadTokenCache() rather than re-authenticating
+- [Quick 25]: Game Server (hostx) removed from settings UI but default retained in config.go
+- [Quick 25]: Settings form wrapped in 440px GridWrap for wider input fields
