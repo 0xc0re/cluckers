@@ -29,7 +29,7 @@ var deckPatches = []struct {
 // for fullscreen 1280x800. Only patches the first occurrence of each setting
 // (the first [SystemSettings] block). Idempotent — skips if already patched.
 func PatchDeckConfig(gameDir string) error {
-	if !isSteamDeck() {
+	if !wine.IsSteamDeck() {
 		return nil
 	}
 
@@ -374,17 +374,6 @@ func patchCountCommands(iniPath string) error {
 
 	ensureWritable(iniPath)
 	return os.WriteFile(iniPath, []byte(output), 0644)
-}
-
-// isSteamDeck returns true if running on a Steam Deck.
-func isSteamDeck() bool {
-	if wine.DetectDistro() == "steamos" {
-		return true
-	}
-	if _, err := os.Stat("/home/deck"); err == nil {
-		return true
-	}
-	return false
 }
 
 // deployDeckControllerLayout deploys the embedded Steam Deck controller layout

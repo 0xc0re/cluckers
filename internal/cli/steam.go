@@ -78,7 +78,7 @@ func runSteamAdd() error {
 	fmt.Println()
 
 	// Detect Steam Deck for tailored instructions.
-	isSteamDeck := detectSteamDeck()
+	isSteamDeck := wine.IsSteamDeck()
 
 	fmt.Println("  Next steps:")
 	fmt.Println()
@@ -98,14 +98,3 @@ func runSteamAdd() error {
 	return nil
 }
 
-// detectSteamDeck returns true if running on a Steam Deck.
-func detectSteamDeck() bool {
-	distro := wine.DetectDistro()
-	if distro == "steamos" {
-		return true
-	}
-	if _, err := os.Stat("/home/deck"); err == nil {
-		return true
-	}
-	return false
-}

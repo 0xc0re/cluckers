@@ -255,6 +255,17 @@ func WineInstallInstructions(distro string) string {
 	}
 }
 
+// IsSteamDeck returns true if running on a Steam Deck.
+func IsSteamDeck() bool {
+	if DetectDistro() == "steamos" {
+		return true
+	}
+	if _, err := os.Stat("/home/deck"); err == nil {
+		return true
+	}
+	return false
+}
+
 // userHome returns the user's home directory, falling back to /tmp if unavailable.
 func userHome() string {
 	home, err := os.UserHomeDir()
