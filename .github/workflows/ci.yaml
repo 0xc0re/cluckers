@@ -51,8 +51,9 @@ jobs:
 
       - name: Build GUI (Windows cross-compile)
         env:
-          CGO_ENABLED: '0'
+          CGO_ENABLED: '1'
           GOOS: windows
+          CC: x86_64-w64-mingw32-gcc
         run: go build -tags gui -o /dev/null ./cmd/cluckers
 
       - name: Test
@@ -78,6 +79,7 @@ jobs:
 
       - name: Vet GUI (Windows)
         env:
-          CGO_ENABLED: '0'
+          CGO_ENABLED: '1'
           GOOS: windows
+          CC: x86_64-w64-mingw32-gcc
         run: go vet -tags gui ./...
