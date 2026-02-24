@@ -2,11 +2,14 @@ package launch
 
 import (
 	"bufio"
+	"bytes"
+	"encoding/binary"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/0xc0re/cluckers/assets"
 	"github.com/0xc0re/cluckers/internal/ui"
 	"github.com/0xc0re/cluckers/internal/wine"
 )
@@ -37,6 +40,8 @@ func PatchDeckConfig(gameDir string) error {
 	if err := PatchDeckInputConfig(gameDir); err != nil {
 		return err
 	}
+
+	deployDeckControllerLayout()
 
 	return nil
 }
@@ -70,6 +75,9 @@ func patchDeckDisplay(gameDir string) error {
 	}
 
 	output := patchINILines(original, deckPatches)
+
+	// Ensure file is writable before writing — game zip extracts as 0444.
+	ensureWritable(iniPath)
 
 	if err := os.WriteFile(iniPath, []byte(output), 0644); err != nil {
 		return fmt.Errorf("writing RealmSystemSettings.ini: %w", err)
@@ -124,17 +132,29 @@ var deckInputTargetSections = []string{
 // warping constantly trigger this counter, causing the controller to stop
 // working in-match even though it was detected at startup.
 //
-// Fix: Remove the Count commands from mouse bindings in [TgGame.TgPlayerInput].
+// Fix: Remove ALL Count commands from mouse bindings globally. UE3 coalescing
+// can create duplicate entries from base templates, so we replace every
+// occurrence (not just the first). Additionally, DefaultInput.ini gets UE3
+// removal directives (-Bindings=...) to prevent coalescing from re-adding
+// Count entries from the engine's BaseInput.ini template.
+//
 // Also make INI files writable (0644) so the game can persist user controller
 // preferences across sessions.
 //
 // Idempotent: skips files that are already patched or missing.
 func PatchDeckInputConfig(gameDir string) error {
 	configDir := filepath.Join(gameDir, "Realm-Royale", "RealmGame", "Config")
+	engineConfigDir := filepath.Join(gameDir, "Realm-Royale", "Engine", "Config")
 
-	// Patch both DefaultInput.ini and RealmInput.ini.
-	// DefaultInput.ini has +Bindings= (UE3 append syntax).
-	// RealmInput.ini has Bindings= (coalesced result, no prefix).
+	// Patch BaseInput.ini first — this is the engine template that UE3 uses
+	// to regenerate RealmInput.ini. Without patching the source, the Count
+	// commands get re-added whenever UE3 coalesces INI files.
+	baseInputPath := filepath.Join(engineConfigDir, "BaseInput.ini")
+	if err := patchCountCommands(baseInputPath); err != nil {
+		return err
+	}
+
+	// Then patch DefaultInput.ini and RealmInput.ini.
 	inputFiles := []string{"DefaultInput.ini", "RealmInput.ini"}
 
 	for _, filename := range inputFiles {
@@ -150,37 +170,55 @@ func PatchDeckInputConfig(gameDir string) error {
 		}
 
 		original := string(data)
+		output := original
 
-		// Build the full patch set including +Bindings= variants for DefaultInput.ini.
-		patches := make([]struct{ old, new string }, 0, len(deckInputPatches)*2)
+		// Replace ALL occurrences of Count patterns globally. UE3 coalescing
+		// can produce duplicate entries from base templates, and section-aware
+		// first-only replacement misses the duplicates.
 		for _, p := range deckInputPatches {
-			patches = append(patches, p)
-			// Also match the UE3 append syntax (+Bindings=) used in Default*.ini files.
+			output = strings.ReplaceAll(output, p.old, p.new)
+			// Also handle UE3 append syntax (+Bindings=) in Default*.ini.
 			if strings.HasPrefix(p.old, "Bindings=") {
-				patches = append(patches, struct{ old, new string }{
-					old: "+" + p.old,
-					new: "+" + p.new,
-				})
+				output = strings.ReplaceAll(output, "+"+p.old, "+"+p.new)
 			}
 		}
 
-		// Check if already patched.
-		alreadyPatched := true
-		for _, p := range patches {
-			if strings.Contains(original, p.old) {
-				alreadyPatched = false
-				break
+		// For DefaultInput.ini, add UE3 removal directives (-Bindings=...) to
+		// strip Count entries from the engine's BaseInput.ini during coalescing.
+		// This prevents the game from re-adding Count entries when it regenerates
+		// RealmInput.ini (e.g., when the user changes settings in-game).
+		if filename == "DefaultInput.ini" {
+			for _, p := range deckInputPatches {
+				removeLine := "-" + p.old
+				if !strings.Contains(output, removeLine) {
+					// Insert removal directive before the corresponding +Bindings= line.
+					addLine := "+" + p.new
+					idx := strings.Index(output, addLine)
+					if idx > 0 {
+						output = output[:idx] + removeLine + "\n" + output[idx:]
+					}
+				}
 			}
 		}
-		if alreadyPatched {
+
+		// Force gamepad mode: set bUsingGamepad=True in both PlayerInput
+		// sections. UE3 reads config properties when creating a new
+		// PlayerInput (including after ServerTravel). Without this, the
+		// new PlayerInput may default to KB/M mode on Wine because the
+		// one-time HID enumeration at startup doesn't re-fire.
+		output = strings.ReplaceAll(output, "bUsingGamepad=False", "bUsingGamepad=True")
+		output = strings.ReplaceAll(output, "bUsingGamepad=false", "bUsingGamepad=True")
+		if !strings.Contains(output, "bUsingGamepad=True") {
+			output += "\n[Engine.PlayerInput]\nbUsingGamepad=True\n\n[TgGame.TgPlayerInput]\nbUsingGamepad=True\n"
+		}
+
+		if output == original {
 			ui.Verbose(filename+" input patches already applied, skipping", true)
-			// Still ensure the file is writable.
 			ensureWritable(iniPath)
 			continue
 		}
 
-		// Apply patches within target input sections only.
-		output := multiSectionINIPatch(original, deckInputTargetSections, patches)
+		ensureWritable(iniPath)
 
 		if err := os.WriteFile(iniPath, []byte(output), 0644); err != nil {
 			return fmt.Errorf("writing %s: %w", filename, err)
@@ -312,6 +350,32 @@ func makeINIsWritable(configDir string) {
 	}
 }
 
+// patchCountCommands removes all "Count bXAxis |" and "Count bYAxis |" patterns
+// from an INI file using global replacement. Idempotent — skips if not found or
+// file doesn't exist.
+func patchCountCommands(iniPath string) error {
+	data, err := os.ReadFile(iniPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("reading %s: %w", iniPath, err)
+	}
+
+	original := string(data)
+	output := original
+	for _, p := range deckInputPatches {
+		output = strings.ReplaceAll(output, p.old, p.new)
+	}
+
+	if output == original {
+		return nil
+	}
+
+	ensureWritable(iniPath)
+	return os.WriteFile(iniPath, []byte(output), 0644)
+}
+
 // isSteamDeck returns true if running on a Steam Deck.
 func isSteamDeck() bool {
 	if wine.DetectDistro() == "steamos" {
@@ -321,4 +385,99 @@ func isSteamDeck() bool {
 		return true
 	}
 	return false
+}
+
+// deployDeckControllerLayout deploys the embedded Steam Deck controller layout
+// to the user's Steam controller config directory. Only deploys if no config
+// exists yet (preserves user customizations). Best-effort — failures are silent.
+func deployDeckControllerLayout() {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return
+	}
+
+	// Find shortcuts.vdf files in Steam userdata directories.
+	pattern := filepath.Join(home, ".local", "share", "Steam", "userdata", "*", "config", "shortcuts.vdf")
+	matches, err := filepath.Glob(pattern)
+	if err != nil || len(matches) == 0 {
+		return
+	}
+
+	for _, shortcutsPath := range matches {
+		data, err := os.ReadFile(shortcutsPath)
+		if err != nil {
+			continue
+		}
+
+		appID := findCluckersAppID(data)
+		if appID == 0 {
+			continue
+		}
+
+		// Build deploy path: userdata/<id>/config/controller_configs/apps/<appid>/
+		userdataDir := filepath.Dir(filepath.Dir(shortcutsPath))
+		deployDir := filepath.Join(userdataDir, "config", "controller_configs", "apps", fmt.Sprintf("%d", appID))
+		deployPath := filepath.Join(deployDir, "controller_neptune_config.vdf")
+
+		// Don't overwrite existing config — user may have customized it.
+		if _, err := os.Stat(deployPath); err == nil {
+			ui.Verbose("Controller layout already exists, skipping", true)
+			continue
+		}
+
+		if err := os.MkdirAll(deployDir, 0755); err != nil {
+			continue
+		}
+
+		if err := os.WriteFile(deployPath, assets.ControllerLayout, 0644); err != nil {
+			continue
+		}
+
+		ui.Verbose("Deployed Steam Deck controller layout for app "+fmt.Sprintf("%d", appID), true)
+	}
+}
+
+// findCluckersAppID searches a binary VDF shortcuts.vdf for a shortcut whose
+// exe field contains "cluckers" and returns its app ID. Returns 0 if not found.
+//
+// Binary VDF field types: \x01 = string (key\x00 + value\x00),
+// \x02 = int32 (key\x00 + 4 bytes LE).
+func findCluckersAppID(data []byte) uint32 {
+	exeField := []byte("\x01exe\x00")
+	appIDField := []byte("\x02appid\x00")
+
+	offset := 0
+	for {
+		idx := bytes.Index(data[offset:], exeField)
+		if idx < 0 {
+			return 0
+		}
+
+		strStart := offset + idx + len(exeField)
+		if strStart >= len(data) {
+			return 0
+		}
+
+		// Read null-terminated exe path string.
+		strEnd := bytes.IndexByte(data[strStart:], 0x00)
+		if strEnd < 0 {
+			return 0
+		}
+
+		exePath := strings.ToLower(string(data[strStart : strStart+strEnd]))
+
+		if strings.Contains(exePath, "cluckers") {
+			// Found our shortcut. Search backward for the appid field.
+			region := data[:offset+idx]
+			aidIdx := bytes.LastIndex(region, appIDField)
+			if aidIdx >= 0 {
+				valStart := aidIdx + len(appIDField)
+				if valStart+4 <= len(data) {
+					return binary.LittleEndian.Uint32(data[valStart : valStart+4])
+				}
+			}
+		}
+
+		offset = strStart + strEnd + 1
+	}
 }

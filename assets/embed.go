@@ -9,10 +9,9 @@ import _ "embed"
 //go:embed shm_launcher.exe
 var SHMLauncherExe []byte
 
-// XInputRemapDLL is an XInput index remapping proxy DLL for UE3 on Wine.
-// UE3 reserves XInput index 0 for the keyboard and polls indices 1-3.
-// Wine assigns the controller to index 0. This proxy remaps game index N
-// to real index N-1, bridging the mismatch.
+// ControllerLayout is the Steam Deck (Neptune) controller layout VDF for
+// Realm Royale. Maps Deck controls to keyboard/mouse bindings so the game
+// works without native XInput controller support.
 //
-//go:embed xinput1_3_remap.dll
-var XInputRemapDLL []byte
+//go:embed controller_neptune_config.vdf
+var ControllerLayout []byte

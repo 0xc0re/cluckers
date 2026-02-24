@@ -3,6 +3,7 @@ package launch
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 
@@ -95,11 +96,6 @@ func LaunchGame(ctx context.Context, cfg *LaunchConfig) error {
 		args = append(args, gameArgs...)
 	}
 
-	// Deploy XInput remap proxy for controller support on Linux/Wine.
-	if err := DeployXInputProxy(cfg.GameDir); err != nil {
-		return fmt.Errorf("deploy xinput proxy: %w", err)
-	}
-
 	// Set up environment.
 	env := os.Environ()
 	if cfg.WinePrefix != "" {
@@ -108,7 +104,7 @@ func LaunchGame(ctx context.Context, cfg *LaunchConfig) error {
 	if wine.IsProtonGE(cfg.WinePath) {
 		env = append(env, "WINEFSYNC=1")
 	}
-	env = append(env, "WINEDLLOVERRIDES=dxgi=n,xinput1_3=n")
+	env = append(env, "WINEDLLOVERRIDES=dxgi=n")
 
 	if cfg.Verbose {
 		ui.Verbose(fmt.Sprintf("Wine command: %v", args), true)
@@ -120,7 +116,14 @@ func LaunchGame(ctx context.Context, cfg *LaunchConfig) error {
 	cmd.Dir = cfg.GameDir
 	cmd.Stdout = os.Stdout
 
-	cmd.Stderr = os.Stderr
+	// Tee Wine stderr to a log file for diagnostics (DLL loading, errors).
+	wineLog, wineLogErr := os.Create("/tmp/cluckers_wine.log")
+	if wineLogErr == nil {
+		cmd.Stderr = io.MultiWriter(os.Stderr, wineLog)
+		cleanups = append(cleanups, func() { wineLog.Close() })
+	} else {
+		cmd.Stderr = os.Stderr
+	}
 
 	if err := cmd.Run(); err != nil {
 		// If context was cancelled (Ctrl+C), don't treat as an error.
