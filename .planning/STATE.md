@@ -1,6 +1,6 @@
 # Project State
 
-Last activity: 2026-02-24 - Completed quick task 19: Update docs and install script for Windows support
+Last activity: 2026-02-24 - Completed quick task 20: Resolve code scanning alert (add CI workflow permissions)
 
 ### Quick Tasks Completed
 
@@ -14,3 +14,4 @@ Last activity: 2026-02-24 - Completed quick task 19: Update docs and install scr
 | 16 | Implement self-update command for launcher binary replacement via GitHub releases | 2026-02-24 | a534a0c | [16-implement-self-update-we-have-update-for](./quick/16-implement-self-update-we-have-update-for/) |
 | 17 | Split token cache into independent per-token TTL timestamps | 2026-02-24 | e3f7dec | [17-login-and-launch-should-refresh-oidc-tok](./quick/17-login-and-launch-should-refresh-oidc-tok/) |
 | 19 | Update docs and install script for Windows support | 2026-02-24 | 6f943ae | [19-implement-windows-builds-and-releases-up](./quick/19-implement-windows-builds-and-releases-up/) |
+| 20 | Resolve code scanning alert (add CI workflow permissions) | 2026-02-24 | e5ec06c | [20-resolve-code-scanning-results-from-githu](./quick/20-resolve-code-scanning-results-from-githu/) |
