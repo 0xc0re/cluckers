@@ -98,12 +98,12 @@ Deferred to future release. Tracked but not in current roadmap.
 
 - [x] **GUI-01**: Running `cluckers` with no subcommand opens a GUI window when a display is available
 - [x] **GUI-02**: Login-first screen with username/password fields
-- [ ] **GUI-03**: Main view with launch button, Discord link, donate/support, verify/repair, bot name
+- [x] **GUI-03**: Main view with launch button, Discord link, donate/support, verify/repair, bot name
 - [x] **GUI-04**: Step-by-step launch progress with checkmarks
 - [x] **GUI-05**: Fullscreen on Steam Deck, windowed on desktop
 - [x] **GUI-06**: Headless environments automatically fall back to CLI mode
 - [x] **GUI-07**: CLI subcommands continue working unchanged
-- [ ] **GUI-08**: Launcher closes when game launches
+- [x] **GUI-08**: Launcher closes when game launches
 - [ ] **GUI-09**: Cross-platform build (Linux + Windows amd64)
 - [x] **GUI-10**: Settings accessible from GUI
 
@@ -166,12 +166,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ERR-03 | Phase 1 | Complete |
 | GUI-01 | Phase 4 | Complete |
 | GUI-02 | Phase 4 | Complete |
-| GUI-03 | Phase 4 | Pending |
+| GUI-03 | Phase 4 | Complete |
 | GUI-04 | Phase 4 | Complete |
 | GUI-05 | Phase 4 | Complete |
 | GUI-06 | Phase 4 | Complete |
 | GUI-07 | Phase 4 | Complete |
-| GUI-08 | Phase 4 | Pending |
+| GUI-08 | Phase 4 | Complete |
 | GUI-09 | Phase 4 | Pending |
 | GUI-10 | Phase 4 | Complete |
 

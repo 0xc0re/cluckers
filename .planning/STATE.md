@@ -7,8 +7,8 @@ Last activity: 2026-02-24 - Completed Phase 04 Plan 04: Settings Screen, Bot Nam
 - **Phase:** 04-cross-platform-gui
 - **Current Plan:** 5 of 5
 - **Last Completed:** 04-04-PLAN.md (Settings screen, bot name, Steam Deck fullscreen)
-- **Last Session:** 2026-02-24T16:06:27.478Z
-- **Stopped At:** Completed 04-04-PLAN.md
+- **Last Session:** 2026-02-24T16:09:36.872Z
+- **Stopped At:** Completed 04-03-PLAN.md
 
 ### Quick Tasks Completed
 
@@ -44,3 +44,6 @@ Last activity: 2026-02-24 - Completed Phase 04 Plan 04: Settings Screen, Bot Nam
 - [Phase 04]: Config persistence via viper.Set + viper.WriteConfigAs to TOML file
 - [Phase 04]: Bot name field is placeholder until gateway endpoint documented
 - [Phase 04]: Main view extracted from app.go to screens/main.go following screens package pattern
+- [Phase 04]: StepListWidget uses container-based composition, not widget.BaseWidget, exposing layout via GetContainer()
+- [Phase 04]: RunWithReporterAndCreds uses context cancellation (no os.Signal), stepAuthenticate detects pre-populated credentials
+- [Phase 04]: buildSteps extracted as shared helper for DRY step construction across CLI and GUI pipelines
