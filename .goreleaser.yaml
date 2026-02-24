@@ -1,7 +1,7 @@
 version: 2
 
 builds:
-  - id: cluckers
+  - id: cluckers-cli
     main: ./cmd/cluckers
     binary: cluckers
     env:
@@ -14,9 +14,50 @@ builds:
     ldflags:
       - -s -w -X main.version={{.Version}} -X main.commit={{.ShortCommit}} -X main.date={{.Date}}
 
+  - id: cluckers-gui-linux
+    main: ./cmd/cluckers
+    binary: cluckers-gui
+    env:
+      - CGO_ENABLED=1
+    goos:
+      - linux
+    goarch:
+      - amd64
+    tags:
+      - gui
+    ldflags:
+      - -s -w -X main.version={{.Version}} -X main.commit={{.ShortCommit}} -X main.date={{.Date}}
+
+  - id: cluckers-gui-windows
+    main: ./cmd/cluckers
+    binary: cluckers-gui
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - windows
+    goarch:
+      - amd64
+    tags:
+      - gui
+    ldflags:
+      - -s -w -X main.version={{.Version}} -X main.commit={{.ShortCommit}} -X main.date={{.Date}}
+
 archives:
-  - format: tar.gz
+  - id: cli
+    builds:
+      - cluckers-cli
+    format: tar.gz
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        format: zip
+
+  - id: gui
+    builds:
+      - cluckers-gui-linux
+      - cluckers-gui-windows
+    format: tar.gz
+    name_template: "{{ .ProjectName }}-gui_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     format_overrides:
       - goos: windows
         format: zip
