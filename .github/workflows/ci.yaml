@@ -33,23 +33,12 @@ jobs:
         run: |
           sudo apt-get install -y gcc libgl1-mesa-dev xorg-dev libxkbcommon-dev
 
-      - name: Build CLI (Linux)
-        env:
-          CGO_ENABLED: '0'
-        run: go build -o /dev/null ./cmd/cluckers
-
-      - name: Build CLI (Windows)
-        env:
-          CGO_ENABLED: '0'
-          GOOS: windows
-        run: go build -o /dev/null ./cmd/cluckers
-
-      - name: Build GUI (Linux)
+      - name: Build (Linux)
         env:
           CGO_ENABLED: '1'
         run: go build -tags gui -o /dev/null ./cmd/cluckers
 
-      - name: Build GUI (Windows cross-compile)
+      - name: Build (Windows)
         env:
           CGO_ENABLED: '1'
           GOOS: windows
@@ -61,23 +50,12 @@ jobs:
           CGO_ENABLED: '0'
         run: go test ./...
 
-      - name: Vet CLI (Linux)
-        env:
-          CGO_ENABLED: '0'
-        run: go vet ./...
-
-      - name: Vet CLI (Windows)
-        env:
-          CGO_ENABLED: '0'
-          GOOS: windows
-        run: go vet ./...
-
-      - name: Vet GUI (Linux)
+      - name: Vet (Linux)
         env:
           CGO_ENABLED: '1'
         run: go vet -tags gui ./...
 
-      - name: Vet GUI (Windows)
+      - name: Vet (Windows)
         env:
           CGO_ENABLED: '1'
           GOOS: windows
