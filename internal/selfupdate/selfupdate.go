@@ -232,26 +232,9 @@ func DownloadAndReplace(ctx context.Context, asset *Asset, checksumsAsset *Asset
 		return err
 	}
 
-	// Set executable permissions.
-	if err := os.Chmod(tmpBin, 0755); err != nil {
-		os.Remove(tmpBin)
-		return &ui.UserError{
-			Message:    "Failed to set permissions on new binary.",
-			Detail:     err.Error(),
-			Suggestion: "Check filesystem permissions.",
-			Err:        err,
-		}
-	}
-
-	// Atomic rename: replace the current executable.
-	if err := os.Rename(tmpBin, execPath); err != nil {
-		os.Remove(tmpBin)
-		return &ui.UserError{
-			Message:    "Failed to replace the current binary.",
-			Detail:     err.Error(),
-			Suggestion: "Ensure you have write permission to " + execDir + ".",
-			Err:        err,
-		}
+	// Replace the running binary (platform-specific strategy).
+	if err := replaceBinary(tmpBin, execPath); err != nil {
+		return err
 	}
 
 	return nil
