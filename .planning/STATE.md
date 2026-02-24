@@ -1,14 +1,14 @@
 # Project State
 
-Last activity: 2026-02-24 - Completed quick task 28: Dependabot and repo maintenance automation
+Last activity: 2026-02-24 - Completed quick task 29: Build-time endpoint configuration via ldflags
 
 ## Current Phase Execution
 
 - **Phase:** 04-cross-platform-gui (COMPLETE - 5/5 plans)
 - **Current Plan:** Not started
 - **Last Completed:** 04-05-PLAN.md (CI/CD updates: goreleaser dual-build, workflow changes, human verification)
-- **Last Session:** 2026-02-24T21:27:31Z
-- **Stopped At:** Completed Quick Task 28: Dependabot and repo maintenance automation
+- **Last Session:** 2026-02-24T21:37:31Z
+- **Stopped At:** Completed Quick Task 29: Build-time endpoint configuration via ldflags
 
 ### Quick Tasks Completed
 
@@ -31,6 +31,7 @@ Last activity: 2026-02-24 - Completed quick task 28: Dependabot and repo mainten
 | 26 | Review and update README documentation with Steam integration instructions | 2026-02-24 | f760143 | [26-review-then-update-documentation-add-ins](./quick/26-review-then-update-documentation-add-ins/) |
 | 27 | Fix bot name setting: inline auth fallback and improved error display | 2026-02-24 | 7bfc93a | [27-setting-bot-names-fails](./quick/27-setting-bot-names-fails/) |
 | 28 | Dependabot and repo maintenance automation | 2026-02-24 | 06fae6c | [28-implement-github-dependabot-version-upda](./quick/28-implement-github-dependabot-version-upda/) |
+| 29 | Build-time endpoint configuration via ldflags | 2026-02-24 | db390d9 | [29-implement-changes-that-will-make-it-easi](./quick/29-implement-changes-that-will-make-it-easi/) |
 
 ## Accumulated Context
 
@@ -72,3 +73,6 @@ Last activity: 2026-02-24 - Completed quick task 28: Dependabot and repo mainten
 - [Phase quick-27]: Bot name handler authenticates inline via auth.Login() fallback when no cached token exists
 - [Quick 28]: Grouped Dependabot updates for golang.org/* and fyne.io/* to reduce PR noise
 - [Quick 28]: Stale thresholds: 60/30 days (issue/PR) with 14/7 day close grace period
+- [Quick 29]: Build-time ldflags inject gateway URL and hostx IP; SetBuildDefaults pattern with InitFlags() for CLI help text
+- [Quick 29]: GitHub repo variables (vars.*) used for endpoint config, not secrets (URLs are not sensitive)
+- [Quick 29]: Fallback defaults via || syntax in release workflow so builds work without repo variables
