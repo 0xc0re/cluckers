@@ -55,6 +55,7 @@ if (-not (Test-Path $InstallDir)) {
 }
 
 $InstallPath = Join-Path $InstallDir "cluckers.exe"
+$GuiInstallPath = Join-Path $InstallDir "cluckers-gui.exe"
 
 # --------------------------------------------------------------------------- #
 #  Discover latest release
@@ -85,7 +86,7 @@ if ([string]::IsNullOrEmpty($LatestVersion)) {
 }
 
 # Find the windows_amd64 zip asset.
-$ZipAsset = $release.assets | Where-Object { $_.name -match "windows_amd64\.zip$" } | Select-Object -First 1
+$ZipAsset = $release.assets | Where-Object { $_.name -match "^cluckers_.*windows_amd64\.zip$" } | Select-Object -First 1
 $ChecksumsAsset = $release.assets | Where-Object { $_.name -eq "checksums.txt" } | Select-Object -First 1
 
 if (-not $ZipAsset) {
@@ -138,7 +139,7 @@ try {
             Invoke-WebRequest -Uri $ChecksumsAsset.browser_download_url -OutFile $ChecksumsPath -UseBasicParsing
 
             $checksumLines = Get-Content $ChecksumsPath
-            $expectedLine = $checksumLines | Where-Object { $_ -match "windows_amd64\.zip" } | Select-Object -First 1
+            $expectedLine = $checksumLines | Where-Object { $_ -match "^[a-f0-9]+\s+cluckers_.*windows_amd64\.zip" } | Select-Object -First 1
             if ($expectedLine) {
                 $expectedHash = ($expectedLine -split "\s+")[0]
                 $actualHash = (Get-FileHash -Path $ZipPath -Algorithm SHA256).Hash.ToLower()
@@ -168,14 +169,23 @@ try {
     $ExtractDir = Join-Path $TempDir "extracted"
     Expand-Archive -Path $ZipPath -DestinationPath $ExtractDir -Force
 
-    $Binary = Get-ChildItem -Path $ExtractDir -Recurse -Filter "cluckers.exe" | Select-Object -First 1
-    if (-not $Binary) {
-        Write-Err "Binary not found in archive."
+    $CliBinary = Get-ChildItem -Path $ExtractDir -Recurse -Filter "cluckers.exe" | Where-Object { $_.Name -eq "cluckers.exe" } | Select-Object -First 1
+    $GuiBinary = Get-ChildItem -Path $ExtractDir -Recurse -Filter "cluckers-gui.exe" | Select-Object -First 1
+
+    if (-not $CliBinary) {
+        Write-Err "CLI binary (cluckers.exe) not found in archive."
         Get-ChildItem -Path $ExtractDir -Recurse | ForEach-Object { Write-Host "  $_" }
         exit 1
     }
 
-    Copy-Item -Path $Binary.FullName -Destination $InstallPath -Force
+    Copy-Item -Path $CliBinary.FullName -Destination $InstallPath -Force
+
+    if ($GuiBinary) {
+        Copy-Item -Path $GuiBinary.FullName -Destination $GuiInstallPath -Force
+        Write-Success "Installed cluckers-gui.exe"
+    } else {
+        Write-Warn "GUI binary (cluckers-gui.exe) not found in archive; CLI-only install."
+    }
 
 } finally {
     # Clean up temp directory.
@@ -210,6 +220,9 @@ Write-Host "  Cluckers installed successfully" -ForegroundColor White
 Write-Host "================================================" -ForegroundColor White
 Write-Host ""
 Write-Host "  Location:  $InstallPath"
+if (Test-Path $GuiInstallPath) {
+    Write-Host "  GUI:       $GuiInstallPath"
+}
 Write-Host "  Version:   $LatestVersion"
 Write-Host ""
 
@@ -220,8 +233,11 @@ if ($PathAdded) {
 }
 
 Write-Host "  Next steps:"
-Write-Host "    cluckers launch    Start playing Realm Royale"
-Write-Host "    cluckers status    Check system readiness"
+Write-Host "    cluckers launch        Start playing (CLI)"
+if (Test-Path $GuiInstallPath) {
+    Write-Host "    cluckers-gui           Start playing (GUI)"
+}
+Write-Host "    cluckers status        Check system readiness"
 Write-Host ""
 Write-Host "  On first launch, cluckers will prompt for your Project Crown"
 Write-Host "  credentials."
