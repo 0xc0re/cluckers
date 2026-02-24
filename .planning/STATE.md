@@ -15,3 +15,8 @@ Last activity: 2026-02-24 - Completed quick task 20: Resolve code scanning alert
 | 17 | Split token cache into independent per-token TTL timestamps | 2026-02-24 | e3f7dec | [17-login-and-launch-should-refresh-oidc-tok](./quick/17-login-and-launch-should-refresh-oidc-tok/) |
 | 19 | Update docs and install script for Windows support | 2026-02-24 | 6f943ae | [19-implement-windows-builds-and-releases-up](./quick/19-implement-windows-builds-and-releases-up/) |
 | 20 | Resolve code scanning alert (add CI workflow permissions) | 2026-02-24 | e5ec06c | [20-resolve-code-scanning-results-from-githu](./quick/20-resolve-code-scanning-results-from-githu/) |
+
+## Accumulated Context
+
+### Roadmap Evolution
+- Phase 4 added: cross platform gui
