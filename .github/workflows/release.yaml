@@ -38,3 +38,7 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Server endpoints — update these repo variables and cut a new tag to change endpoints.
+          # Set in: GitHub repo > Settings > Secrets and variables > Actions > Variables tab
+          GATEWAY_URL: ${{ vars.GATEWAY_URL || 'https://gateway-dev.project-crown.com' }}
+          HOSTX_IP: ${{ vars.HOSTX_IP || '157.90.131.105' }}

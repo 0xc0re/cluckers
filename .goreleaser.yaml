@@ -13,7 +13,7 @@ builds:
     tags:
       - gui
     ldflags:
-      - -s -w -X main.version={{.Version}} -X main.commit={{.ShortCommit}} -X main.date={{.Date}}
+      - -s -w -X main.version={{.Version}} -X main.commit={{.ShortCommit}} -X main.date={{.Date}} -X main.gatewayURL={{ .Env.GATEWAY_URL }} -X main.hostxIP={{ .Env.HOSTX_IP }}
 
   - id: cluckers-windows
     main: ./cmd/cluckers
@@ -28,7 +28,7 @@ builds:
     tags:
       - gui
     ldflags:
-      - -s -w -X main.version={{.Version}} -X main.commit={{.ShortCommit}} -X main.date={{.Date}}
+      - -s -w -X main.version={{.Version}} -X main.commit={{.ShortCommit}} -X main.date={{.Date}} -X main.gatewayURL={{ .Env.GATEWAY_URL }} -X main.hostxIP={{ .Env.HOSTX_IP }}
 
 archives:
   - id: default
