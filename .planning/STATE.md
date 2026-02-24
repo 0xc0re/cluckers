@@ -1,6 +1,14 @@
 # Project State
 
-Last activity: 2026-02-24 - Completed quick task 20: Resolve code scanning alert (add CI workflow permissions)
+Last activity: 2026-02-24 - Completed Phase 04 Plan 01: Fyne GUI Foundation
+
+## Current Phase Execution
+
+- **Phase:** 04-cross-platform-gui
+- **Current Plan:** 2 of 5
+- **Last Completed:** 04-01-PLAN.md (Fyne GUI foundation)
+- **Last Session:** 2026-02-24T15:51:58Z
+- **Stopped At:** Completed 04-01-PLAN.md
 
 ### Quick Tasks Completed
 
@@ -20,3 +28,9 @@ Last activity: 2026-02-24 - Completed quick task 20: Resolve code scanning alert
 
 ### Roadmap Evolution
 - Phase 4 added: cross platform gui
+
+### Decisions
+- All GUI package files use //go:build gui tag to keep CLI-only build path clean (CGO_ENABLED=0)
+- Steam Deck detection in GUI package is independent of wine package (uses DMI board vendor)
+- GUI binary: CGO_ENABLED=1 go build -tags gui; CLI-only binary: CGO_ENABLED=0 go build (unchanged)
+- Fyne v2.7.3 selected as GUI framework (most mature Go GUI, cross-platform, works on SteamOS)
