@@ -1,14 +1,14 @@
 # Project State
 
-Last activity: 2026-02-24 - Completed Quick Task 22: Merge GUI and CLI into single release archive
+Last activity: 2026-02-24 - Completed Quick Task 23: Single Windows binary with GUI merge
 
 ## Current Phase Execution
 
 - **Phase:** 04-cross-platform-gui (COMPLETE - 5/5 plans)
 - **Current Plan:** Not started
 - **Last Completed:** 04-05-PLAN.md (CI/CD updates: goreleaser dual-build, workflow changes, human verification)
-- **Last Session:** 2026-02-24T19:39:26Z
-- **Stopped At:** Completed Quick Task 22: Merge GUI and CLI into single release archive
+- **Last Session:** 2026-02-24T20:01:17.754Z
+- **Stopped At:** Completed Quick Task 23: Single Windows binary with GUI merge
 
 ### Quick Tasks Completed
 
@@ -25,6 +25,7 @@ Last activity: 2026-02-24 - Completed Quick Task 22: Merge GUI and CLI into sing
 | 20 | Resolve code scanning alert (add CI workflow permissions) | 2026-02-24 | e5ec06c | [20-resolve-code-scanning-results-from-githu](./quick/20-resolve-code-scanning-results-from-githu/) |
 | 21 | Fix Windows launch issues: zip removal, Steam add, display config | 2026-02-24 | dbf09a4 | [21-fix-windows-launch-issues-zip-removal-af](./quick/21-fix-windows-launch-issues-zip-removal-af/) |
 | 22 | Merge GUI and CLI into single release archive | 2026-02-24 | 29878b7 | [22-gui-and-cli-were-supposed-to-be-a-single](./quick/22-gui-and-cli-were-supposed-to-be-a-single/) |
+| 23 | Single binary with GUI merge (no separate cluckers-gui) | 2026-02-24 | f2d4904 | [23-single-windows-binary-with-gui-merge-clu](./quick/23-single-windows-binary-with-gui-merge-clu/) |
 
 ## Accumulated Context
 
@@ -56,3 +57,4 @@ Last activity: 2026-02-24 - Completed Quick Task 22: Merge GUI and CLI into sing
 - [Quick 22]: Single goreleaser archive per platform replacing separate CLI and GUI archives
 - [Quick 22]: Install script asset regex anchored to ^cluckers_ to avoid ambiguous matching
 - [Quick 22]: Fixed irm -> iwr in install.ps1 usage comment (irm auto-parses, breaks pipe to iex)
+- [Phase quick-23]: Windows Fyne build requires CGO_ENABLED=1 + mingw (go-gl/gl needs CGO on all platforms)
