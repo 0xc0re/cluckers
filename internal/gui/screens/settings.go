@@ -40,17 +40,11 @@ func MakeSettingsView(w fyne.Window, cfg *config.Config, onBack func()) fyne.Can
 		gameDirEntry.PlaceHolder = "%LOCALAPPDATA%\\cluckers\\game (default)"
 	}
 
-	// Host X (game server IP).
-	hostXEntry := widget.NewEntry()
-	hostXEntry.SetText(cfg.HostX)
-	hostXEntry.PlaceHolder = "157.90.131.105"
-
 	// Build form items. Start with common fields.
 	formItems := []*widget.FormItem{
 		widget.NewFormItem("Gateway URL", gatewayEntry),
 		widget.NewFormItem("Verbose", verboseCheck),
 		widget.NewFormItem("Game Directory", gameDirEntry),
-		widget.NewFormItem("Game Server", hostXEntry),
 	}
 
 	// Wine entries (Linux only).
@@ -80,7 +74,6 @@ func MakeSettingsView(w fyne.Window, cfg *config.Config, onBack func()) fyne.Can
 		viper.Set("gateway", gatewayEntry.Text)
 		viper.Set("verbose", verboseCheck.Checked)
 		viper.Set("game_dir", gameDirEntry.Text)
-		viper.Set("hostx", hostXEntry.Text)
 
 		if runtime.GOOS == "linux" && winePathEntry != nil {
 			viper.Set("wine_path", winePathEntry.Text)
@@ -103,7 +96,6 @@ func MakeSettingsView(w fyne.Window, cfg *config.Config, onBack func()) fyne.Can
 		cfg.Gateway = gatewayEntry.Text
 		cfg.Verbose = verboseCheck.Checked
 		cfg.GameDir = gameDirEntry.Text
-		cfg.HostX = hostXEntry.Text
 		if runtime.GOOS == "linux" && winePathEntry != nil {
 			cfg.WinePath = winePathEntry.Text
 			cfg.WinePrefix = winePrefixEntry.Text
@@ -126,7 +118,7 @@ func MakeSettingsView(w fyne.Window, cfg *config.Config, onBack func()) fyne.Can
 		container.NewGridWrap(fyne.NewSize(btnWidth, btnHeight), backBtn),
 	)
 
-	// Full layout.
+	// Full layout with wider form area for comfortable label + input display.
 	content := container.NewVBox(
 		container.NewCenter(title),
 		widget.NewSeparator(),
@@ -137,7 +129,9 @@ func MakeSettingsView(w fyne.Window, cfg *config.Config, onBack func()) fyne.Can
 
 	return container.NewVBox(
 		layout.NewSpacer(),
-		container.NewCenter(content),
+		container.NewCenter(
+			container.NewGridWrap(fyne.NewSize(440, 0), content),
+		),
 		layout.NewSpacer(),
 	)
 }

@@ -9,6 +9,7 @@ import (
 
 	"github.com/0xc0re/cluckers/internal/auth"
 	"github.com/0xc0re/cluckers/internal/config"
+	guiassets "github.com/0xc0re/cluckers/internal/gui/assets"
 	"github.com/0xc0re/cluckers/internal/gui/screens"
 	"github.com/0xc0re/cluckers/internal/ui"
 )
@@ -18,6 +19,7 @@ import (
 // directly to the main view.
 func Run(cfg *config.Config) error {
 	a := app.New()
+	a.SetIcon(guiassets.LogoResource())
 	a.Settings().SetTheme(NewCluckersTheme())
 
 	w := a.NewWindow("Cluckers")
@@ -40,7 +42,7 @@ func Run(cfg *config.Config) error {
 	if isSteamDeck() {
 		w.SetFullScreen(true)
 	} else {
-		w.Resize(fyne.NewSize(480, 640))
+		w.Resize(fyne.NewSize(560, 640))
 	}
 
 	w.ShowAndRun()

@@ -224,10 +224,10 @@ func MakeMainView(w fyne.Window, cfg *config.Config, username, password string, 
 	)
 
 	// ---- Links section ----
-	discordURL, _ := url.Parse("https://discord.gg/projectcrown")
+	discordURL, _ := url.Parse("https://discord.gg/RealmRoyale")
 	discordLink := widget.NewHyperlink("Discord", discordURL)
 
-	supportURL, _ := url.Parse("https://projectcrown.com/donate")
+	supportURL, _ := url.Parse("https://ko-fi.com/projectcrown/tiers")
 	supportLink := widget.NewHyperlink("Support", supportURL)
 
 	linksRow := container.NewHBox(
