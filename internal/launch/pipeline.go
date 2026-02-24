@@ -7,6 +7,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"syscall"
+	"time"
 
 	"github.com/0xc0re/cluckers/internal/auth"
 	"github.com/0xc0re/cluckers/internal/config"
@@ -136,8 +137,9 @@ func stepAuthenticate(ctx context.Context, state *LaunchState, spinner *ui.StepS
 
 			// Cache the access token for future launches.
 			state.TokenCache = &auth.TokenCache{
-				Username:    result.Username,
-				AccessToken: result.AccessToken,
+				Username:       result.Username,
+				AccessToken:    result.AccessToken,
+				AccessCachedAt: time.Now(),
 			}
 			if saveErr := auth.SaveTokenCache(state.TokenCache); saveErr != nil {
 				ui.Verbose(fmt.Sprintf("Could not save token cache: %s", saveErr), state.Config.Verbose)
@@ -182,8 +184,9 @@ func stepAuthenticate(ctx context.Context, state *LaunchState, spinner *ui.StepS
 
 	// Cache the access token for future launches.
 	state.TokenCache = &auth.TokenCache{
-		Username:    result.Username,
-		AccessToken: result.AccessToken,
+		Username:       result.Username,
+		AccessToken:    result.AccessToken,
+		AccessCachedAt: time.Now(),
 	}
 	if saveErr := auth.SaveTokenCache(state.TokenCache); saveErr != nil {
 		ui.Verbose(fmt.Sprintf("Could not save token cache: %s", saveErr), state.Config.Verbose)
@@ -211,11 +214,13 @@ func stepOIDCToken(ctx context.Context, state *LaunchState, _ *ui.StepSpinner) e
 	// Update the token cache with the fresh OIDC token.
 	if state.TokenCache == nil {
 		state.TokenCache = &auth.TokenCache{
-			Username:    state.Username,
-			AccessToken: state.AccessToken,
+			Username:       state.Username,
+			AccessToken:    state.AccessToken,
+			AccessCachedAt: time.Now(),
 		}
 	}
 	state.TokenCache.OIDCToken = token
+	state.TokenCache.OIDCCachedAt = time.Now()
 	if saveErr := auth.SaveTokenCache(state.TokenCache); saveErr != nil {
 		ui.Verbose(fmt.Sprintf("Could not save token cache: %s", saveErr), state.Config.Verbose)
 	}

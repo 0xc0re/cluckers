@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/0xc0re/cluckers/internal/auth"
 	"github.com/0xc0re/cluckers/internal/gateway"
@@ -68,9 +69,21 @@ var loginCmd = &cobra.Command{
 
 		// Cache tokens.
 		cache := &auth.TokenCache{
-			Username:    result.Username,
-			AccessToken: result.AccessToken,
+			Username:       result.Username,
+			AccessToken:    result.AccessToken,
+			AccessCachedAt: time.Now(),
 		}
+
+		// Also fetch OIDC token so cache is warm for next launch.
+		oidcToken, err := auth.GetOIDCToken(cmd.Context(), client, result.Username, result.AccessToken)
+		if err != nil {
+			// Non-fatal -- OIDC will be fetched at launch time.
+			ui.Verbose(fmt.Sprintf("Could not pre-fetch OIDC token: %s", err), Cfg.Verbose)
+		} else {
+			cache.OIDCToken = oidcToken
+			cache.OIDCCachedAt = time.Now()
+		}
+
 		if err := auth.SaveTokenCache(cache); err != nil {
 			ui.Warn(fmt.Sprintf("Could not save token cache: %s", err))
 		}
