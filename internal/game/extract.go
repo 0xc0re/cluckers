@@ -23,7 +23,6 @@ func ExtractZip(zipPath string, destDir string) error {
 			Err:        err,
 		}
 	}
-	defer reader.Close()
 
 	totalFiles := len(reader.File)
 
@@ -56,6 +55,12 @@ func ExtractZip(zipPath string, destDir string) error {
 
 	// Newline after progress indicator.
 	fmt.Println()
+
+	// Close the zip reader before removing the file. On Windows, os.Remove fails
+	// if the file handle is still open ("The process cannot access the file").
+	if err := reader.Close(); err != nil {
+		ui.Warn(fmt.Sprintf("Could not close archive handle: %s", err))
+	}
 
 	// Remove the zip file to reclaim disk space (~5.3 GB).
 	if err := os.Remove(zipPath); err != nil {
