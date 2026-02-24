@@ -18,7 +18,7 @@ Native Linux launcher for Realm Royale on the Project Crown private server.
 
 ## Prerequisites
 
-- Wine or Proton-GE (runtime)
+- Wine or Proton-GE
 - winetricks (for prefix setup with system Wine; not needed with Proton-GE)
 - A Project Crown account
 
@@ -69,16 +69,15 @@ go build -o cluckers ./cmd/cluckers
 
 ## Usage
 
-### `cluckers login`
-
-Authenticate with the Project Crown gateway and save credentials for future
-launches. Uses saved credentials if available, otherwise prompts for username
-and password.
-
 ### `cluckers launch`
 
 Authenticate and launch the game. Prompts for credentials on first run, saves
 them for future use.
+
+### `cluckers login`
+
+Authenticate with the Project Crown gateway and save credentials without
+launching the game.
 
 ### `cluckers update`
 
@@ -91,7 +90,7 @@ output with additional details.
 
 ### `cluckers logout`
 
-Remove saved credentials.
+Remove saved credentials and cached tokens.
 
 ### `cluckers steam add`
 
@@ -108,7 +107,6 @@ Config file: `~/.cluckers/config/settings.toml` (optional, created manually).
 
 ```toml
 gateway = "https://gateway-dev.project-crown.com"
-hostx = "your.server.ip"
 wine_path = ""       # auto-detected if empty
 wine_prefix = ""     # defaults to ~/.cluckers/prefix/
 game_dir = ""        # defaults to ~/.cluckers/game/
@@ -129,6 +127,8 @@ Created at runtime:
   config/
     settings.toml        # optional config
     credentials.enc      # encrypted login credentials
+  cache/
+    tokens.json          # cached auth tokens
   game/                  # game files (managed by update command)
   prefix/                # Wine prefix (auto-created on launch)
 ```
@@ -140,17 +140,12 @@ Created at runtime:
 3. Run `cluckers steam add` to add it to your Steam library
 4. In Steam, find "Realm Royale (Cluckers)" and launch it
 
-**Controller input:** Controller support on Steam Deck works automatically. The
-launcher patches game configuration files to prevent input mode auto-switching
-and deploys a Steam controller layout. On first launch, right-click "Realm Royale
-(Cluckers)" in Steam > Properties > Controller and select the **"Gamepad with
-Joystick Trackpad"** template.
+The launcher auto-detects Steam Deck and configures display settings (fullscreen
+1280x800). Proton-GE is auto-detected from Steam's `compatibilitytools.d`
+directory.
 
-Do NOT set `STEAM_INPUT_DISABLE=1` or other SDL environment variables. Steam Input
-must remain active to forward controller inputs to the virtual Xbox 360 pad that
-Wine reads via XInput.
-
-Proton-GE is auto-detected from Steam's `compatibilitytools.d` directory.
+**Controller support:** Controller input on Steam Deck is not currently
+supported. Keyboard and mouse work normally.
 
 ## License
 
