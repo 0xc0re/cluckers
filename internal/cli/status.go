@@ -4,12 +4,10 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/0xc0re/cluckers/internal/game"
 	"github.com/0xc0re/cluckers/internal/gateway"
-	"github.com/0xc0re/cluckers/internal/wine"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )
@@ -17,20 +15,19 @@ import (
 var statusCmd = &cobra.Command{
 	Use:   "status",
 	Short: "Show launcher status and system info",
-	Long:  "Displays Wine detection, prefix health, game version, server version, and gateway connectivity. Use -v for verbose details.",
+	Long:  "Displays system info, game version, server version, and gateway connectivity. Use -v for verbose details.",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		verbose := Cfg.Verbose
 
 		// Collect all status checks (non-fatal -- gather results then display).
-		wineStatus := checkWineStatus()
-		prefixStatus := checkPrefixStatus()
+		ws, ps := platformStatusCheck()
 		gameStatus := checkGameStatus(cmd.Context())
 		gatewayStatus := checkGatewayStatus(cmd.Context())
 
 		if verbose {
-			printVerboseStatus(wineStatus, prefixStatus, gameStatus, gatewayStatus)
+			printVerboseStatus(ws, ps, gameStatus, gatewayStatus)
 		} else {
-			printCompactStatus(wineStatus, prefixStatus, gameStatus, gatewayStatus)
+			printCompactStatus(ws, ps, gameStatus, gatewayStatus)
 		}
 
 		return nil
@@ -51,9 +48,10 @@ type wineStatusResult struct {
 }
 
 type prefixStatusResult struct {
-	path    string
-	healthy bool
-	missing []string
+	path        string
+	healthy     bool
+	missing     []string
+	requiredDLLs []string // DLL paths for verbose display.
 }
 
 type gameStatusResult struct {
@@ -66,34 +64,12 @@ type gameStatusResult struct {
 }
 
 type gatewayStatusResult struct {
-	url     string
-	online  bool
-	err     error
+	url    string
+	online bool
+	err    error
 }
 
 // Status check functions with short timeouts.
-
-func checkWineStatus() wineStatusResult {
-	path, err := wine.FindWine(Cfg.WinePath)
-	if err != nil {
-		return wineStatusResult{found: false, err: err}
-	}
-	wineType := "System Wine"
-	if wine.IsProtonGE(path) {
-		wineType = "Proton-GE"
-	}
-	return wineStatusResult{found: true, path: path, wineType: wineType}
-}
-
-func checkPrefixStatus() prefixStatusResult {
-	prefixPath := Cfg.WinePrefix
-	if prefixPath == "" {
-		prefixPath = wine.PrefixPath()
-	}
-
-	healthy, missing := wine.VerifyPrefix(prefixPath)
-	return prefixStatusResult{path: prefixPath, healthy: healthy, missing: missing}
-}
 
 func checkGameStatus(ctx context.Context) gameStatusResult {
 	gameDir := Cfg.GameDir
@@ -145,7 +121,7 @@ func checkGatewayStatus(ctx context.Context) gatewayStatusResult {
 
 // Compact (default) output.
 
-func printCompactStatus(ws wineStatusResult, ps prefixStatusResult, gs gameStatusResult, gws gatewayStatusResult) {
+func printCompactStatus(ws *wineStatusResult, ps *prefixStatusResult, gs gameStatusResult, gws gatewayStatusResult) {
 	green := color.New(color.FgGreen).SprintFunc()
 	red := color.New(color.FgRed).SprintFunc()
 	yellow := color.New(color.FgYellow).SprintFunc()
@@ -154,22 +130,26 @@ func printCompactStatus(ws wineStatusResult, ps prefixStatusResult, gs gameStatu
 	fmt.Println(bold("Cluckers Status"))
 	fmt.Println()
 
-	// Wine
-	if ws.found {
-		label := truncatePath(ws.path, 40)
-		fmt.Printf("  %-10s %-45s %s\n", "Wine:", ws.wineType+" ("+label+")", green("[OK]"))
-	} else {
-		fmt.Printf("  %-10s %-45s %s\n", "Wine:", "", red("[NOT FOUND]"))
+	// Wine (Linux only)
+	if ws != nil {
+		if ws.found {
+			label := truncatePath(ws.path, 40)
+			fmt.Printf("  %-10s %-45s %s\n", "Wine:", ws.wineType+" ("+label+")", green("[OK]"))
+		} else {
+			fmt.Printf("  %-10s %-45s %s\n", "Wine:", "", red("[NOT FOUND]"))
+		}
 	}
 
-	// Prefix
-	if ps.healthy {
-		fmt.Printf("  %-10s %-45s %s\n", "Prefix:", truncatePath(ps.path, 40), green("[OK]"))
-	} else if len(ps.missing) > 0 {
-		detail := fmt.Sprintf("%d missing DLLs", len(ps.missing))
-		fmt.Printf("  %-10s %-45s %s\n", "Prefix:", truncatePath(ps.path, 40), red("["+detail+"]"))
-	} else {
-		fmt.Printf("  %-10s %-45s %s\n", "Prefix:", truncatePath(ps.path, 40), red("[not created]"))
+	// Prefix (Linux only)
+	if ps != nil {
+		if ps.healthy {
+			fmt.Printf("  %-10s %-45s %s\n", "Prefix:", truncatePath(ps.path, 40), green("[OK]"))
+		} else if len(ps.missing) > 0 {
+			detail := fmt.Sprintf("%d missing DLLs", len(ps.missing))
+			fmt.Printf("  %-10s %-45s %s\n", "Prefix:", truncatePath(ps.path, 40), red("["+detail+"]"))
+		} else {
+			fmt.Printf("  %-10s %-45s %s\n", "Prefix:", truncatePath(ps.path, 40), red("[not created]"))
+		}
 	}
 
 	// Game
@@ -204,7 +184,7 @@ func printCompactStatus(ws wineStatusResult, ps prefixStatusResult, gs gameStatu
 
 // Verbose output.
 
-func printVerboseStatus(ws wineStatusResult, ps prefixStatusResult, gs gameStatusResult, gws gatewayStatusResult) {
+func printVerboseStatus(ws *wineStatusResult, ps *prefixStatusResult, gs gameStatusResult, gws gatewayStatusResult) {
 	green := color.New(color.FgGreen).SprintFunc()
 	red := color.New(color.FgRed).SprintFunc()
 	yellow := color.New(color.FgYellow).SprintFunc()
@@ -213,49 +193,51 @@ func printVerboseStatus(ws wineStatusResult, ps prefixStatusResult, gs gameStatu
 	fmt.Println(bold("Cluckers Status (verbose)"))
 	fmt.Println()
 
-	// Wine
-	fmt.Println(bold("Wine:"))
-	if ws.found {
-		fmt.Printf("  Binary:  %s\n", ws.path)
-		fmt.Printf("  Type:    %s\n", ws.wineType)
-	} else {
-		fmt.Printf("  Status:  %s\n", red("Not found"))
+	// Wine (Linux only)
+	if ws != nil {
+		fmt.Println(bold("Wine:"))
+		if ws.found {
+			fmt.Printf("  Binary:  %s\n", ws.path)
+			fmt.Printf("  Type:    %s\n", ws.wineType)
+		} else {
+			fmt.Printf("  Status:  %s\n", red("Not found"))
+		}
+		fmt.Println()
 	}
-	fmt.Println()
 
-	// Prefix
-	fmt.Println(bold("Prefix:"))
-	fmt.Printf("  Path:    %s\n", ps.path)
-	if ps.healthy {
-		fmt.Printf("  DLLs:    ")
-		for i, dll := range wine.RequiredDLLs {
-			name := filepath.Base(dll)
-			if i > 0 {
-				fmt.Print("  ")
+	// Prefix (Linux only)
+	if ps != nil {
+		fmt.Println(bold("Prefix:"))
+		fmt.Printf("  Path:    %s\n", ps.path)
+		if ps.healthy && len(ps.requiredDLLs) > 0 {
+			fmt.Printf("  DLLs:    ")
+			for i, dll := range ps.requiredDLLs {
+				if i > 0 {
+					fmt.Print("  ")
+				}
+				fmt.Printf("%s %s", dll, green("[OK]"))
 			}
-			fmt.Printf("%s %s", name, green("[OK]"))
-		}
-		fmt.Println()
-	} else {
-		fmt.Printf("  DLLs:    ")
-		missingSet := make(map[string]bool)
-		for _, m := range ps.missing {
-			missingSet[m] = true
-		}
-		for i, dll := range wine.RequiredDLLs {
-			name := filepath.Base(dll)
-			if i > 0 {
-				fmt.Print("  ")
+			fmt.Println()
+		} else if len(ps.missing) > 0 && len(ps.requiredDLLs) > 0 {
+			fmt.Printf("  DLLs:    ")
+			missingSet := make(map[string]bool)
+			for _, m := range ps.missing {
+				missingSet[m] = true
 			}
-			if missingSet[name] {
-				fmt.Printf("%s %s", name, red("[MISSING]"))
-			} else {
-				fmt.Printf("%s %s", name, green("[OK]"))
+			for i, dll := range ps.requiredDLLs {
+				if i > 0 {
+					fmt.Print("  ")
+				}
+				if missingSet[dll] {
+					fmt.Printf("%s %s", dll, red("[MISSING]"))
+				} else {
+					fmt.Printf("%s %s", dll, green("[OK]"))
+				}
 			}
+			fmt.Println()
 		}
 		fmt.Println()
 	}
-	fmt.Println()
 
 	// Game
 	fmt.Println(bold("Game:"))
@@ -302,11 +284,11 @@ func printVerboseStatus(ws wineStatusResult, ps prefixStatusResult, gs gameStatu
 }
 
 // printHints shows actionable fix suggestions for detected problems.
-func printHints(ws wineStatusResult, ps prefixStatusResult, gs gameStatusResult, gws gatewayStatusResult) {
+func printHints(ws *wineStatusResult, ps *prefixStatusResult, gs gameStatusResult, gws gatewayStatusResult) {
 	dim := color.New(color.Faint).SprintFunc()
 	hasHints := false
 
-	if !ws.found {
+	if ws != nil && !ws.found {
 		if !hasHints {
 			fmt.Println(dim("Hints:"))
 			hasHints = true
@@ -314,7 +296,7 @@ func printHints(ws wineStatusResult, ps prefixStatusResult, gs gameStatusResult,
 		fmt.Println(dim("  - Install Wine or Proton-GE for your distribution"))
 	}
 
-	if !ps.healthy && len(ps.missing) > 0 {
+	if ps != nil && !ps.healthy && len(ps.missing) > 0 {
 		if !hasHints {
 			fmt.Println(dim("Hints:"))
 			hasHints = true

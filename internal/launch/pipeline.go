@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"strings"
 	"syscall"
 
 	"github.com/0xc0re/cluckers/internal/auth"
@@ -14,7 +13,6 @@ import (
 	"github.com/0xc0re/cluckers/internal/game"
 	"github.com/0xc0re/cluckers/internal/gateway"
 	"github.com/0xc0re/cluckers/internal/ui"
-	"github.com/0xc0re/cluckers/internal/wine"
 )
 
 // LaunchState holds accumulated state across pipeline steps.
@@ -67,14 +65,14 @@ func Run(ctx context.Context, cfg *config.Config) error {
 		{Name: "Authenticating", Fn: stepAuthenticate},
 		{Name: "Requesting OIDC token", Fn: stepOIDCToken},
 		{Name: "Requesting content bootstrap", Fn: stepBootstrap},
-		{Name: "Detecting Wine", Fn: stepDetectWine},
-		{Name: "Ensuring Wine prefix", Fn: stepEnsurePrefix},
-		{Name: "Verifying Wine prefix", Fn: stepVerifyPrefix},
-		{Name: "Checking game version", Fn: stepCheckVersion},
-		{Name: "Downloading game update", Fn: stepDownloadGame},
-		{Name: "Configuring for Steam Deck", Fn: stepDeckConfig},
-		{Name: "Launching game", Fn: stepLaunchGame},
 	}
+	steps = append(steps, platformSteps(state)...)
+	steps = append(steps,
+		Step{Name: "Checking game version", Fn: stepCheckVersion},
+		Step{Name: "Downloading game update", Fn: stepDownloadGame},
+	)
+	steps = append(steps, platformPostSteps(state)...)
+	steps = append(steps, Step{Name: "Launching game", Fn: stepLaunchGame})
 
 	for _, step := range steps {
 		spinner := ui.StartStep(step.Name)
@@ -241,55 +239,6 @@ func stepBootstrap(ctx context.Context, state *LaunchState, _ *ui.StepSpinner) e
 	return nil
 }
 
-// stepDetectWine finds a suitable Wine binary.
-func stepDetectWine(ctx context.Context, state *LaunchState, _ *ui.StepSpinner) error {
-	winePath, err := wine.FindWine(state.Config.WinePath)
-	if err != nil {
-		return err
-	}
-	state.WinePath = winePath
-	ui.Verbose(fmt.Sprintf("Wine: %s", winePath), state.Config.Verbose)
-	return nil
-}
-
-// stepEnsurePrefix ensures the Wine prefix exists, creating it if needed.
-func stepEnsurePrefix(ctx context.Context, state *LaunchState, _ *ui.StepSpinner) error {
-	// Determine prefix path: config override or default.
-	prefixPath := state.Config.WinePrefix
-	if prefixPath == "" {
-		prefixPath = wine.PrefixPath()
-	}
-
-	// Check if prefix already exists.
-	if _, err := os.Stat(prefixPath); err == nil {
-		ui.Verbose(fmt.Sprintf("Wine prefix exists: %s", prefixPath), state.Config.Verbose)
-		state.PrefixPath = prefixPath
-		return nil
-	}
-
-	// Prefix doesn't exist -- create it.
-	if err := wine.CreatePrefix(prefixPath, state.WinePath, state.Config.Verbose); err != nil {
-		return err
-	}
-
-	state.PrefixPath = prefixPath
-	return nil
-}
-
-// stepVerifyPrefix checks that all required DLLs exist in the Wine prefix.
-func stepVerifyPrefix(ctx context.Context, state *LaunchState, _ *ui.StepSpinner) error {
-	healthy, missing := wine.VerifyPrefix(state.PrefixPath)
-	if !healthy {
-		return &ui.UserError{
-			Message:    "Wine prefix missing required DLLs",
-			Detail:     fmt.Sprintf("Missing: %s", strings.Join(missing, ", ")),
-			Suggestion: wine.RepairInstructions(state.WinePath, missing),
-		}
-	}
-	ui.Verbose(fmt.Sprintf("Prefix verified: %d DLLs present", len(wine.RequiredDLLs)), state.Config.Verbose)
-	return nil
-}
-
 // stepCheckVersion checks the remote game version and determines if a download is needed.
 func stepCheckVersion(ctx context.Context, state *LaunchState, _ *ui.StepSpinner) error {
 	// Resolve game directory.
@@ -360,13 +309,7 @@ func stepDownloadGame(ctx context.Context, state *LaunchState, spinner *ui.StepS
 	return nil
 }
 
-// stepDeckConfig patches game settings for Steam Deck (fullscreen, resolution).
-// Skips silently on non-Deck systems or if already configured.
-func stepDeckConfig(ctx context.Context, state *LaunchState, _ *ui.StepSpinner) error {
-	return PatchDeckConfig(state.GameDir)
-}
-
-// stepLaunchGame writes temp files and launches the game under Wine.
+// stepLaunchGame writes temp files and launches the game.
 func stepLaunchGame(ctx context.Context, state *LaunchState, _ *ui.StepSpinner) error {
 	// Write OIDC token to temp file.
 	oidcPath, oidcCleanup, err := writeOIDCTokenFile(state.OIDCToken)
