@@ -33,6 +33,7 @@ type LaunchState struct {
 	CompatDataPath      string // Path to Proton compatdata directory (Linux only).
 	SteamInstallPath    string // Detected Steam root directory (Linux only). Empty if not found.
 	SteamGameId         string // Non-Steam shortcut app ID for Gamescope tracking (Linux only). "0" if not found.
+	InputProxyCleanup   func() // Cleanup function for input proxy (Linux/Deck only). Nil on Windows.
 	GameDir             string
 	VersionInfo         *game.VersionInfo
 	NeedsDownload       bool
@@ -422,20 +423,21 @@ func stepLaunchGame(ctx context.Context, state *LaunchState) error {
 	defer oidcCleanup()
 
 	return LaunchGame(ctx, &LaunchConfig{
-		WinePath:         state.WinePath,
-		WinePrefix:       state.PrefixPath,
-		ProtonScript:     state.ProtonScript,
-		ProtonDir:        state.ProtonDir,
-		CompatDataPath:   state.CompatDataPath,
-		SteamInstallPath: state.SteamInstallPath,
-		SteamGameId:      state.SteamGameId,
-		GameDir:          state.GameDir,
-		Username:         state.Username,
-		AccessToken:      state.AccessToken,
-		OIDCTokenPath:    oidcPath,
-		ContentBootstrap: state.Bootstrap,
-		HostX:            state.Config.HostX,
-		Verbose:          state.Config.Verbose,
+		WinePath:           state.WinePath,
+		WinePrefix:         state.PrefixPath,
+		ProtonScript:       state.ProtonScript,
+		ProtonDir:          state.ProtonDir,
+		CompatDataPath:     state.CompatDataPath,
+		SteamInstallPath:   state.SteamInstallPath,
+		SteamGameId:        state.SteamGameId,
+		InputProxyCleanup:  state.InputProxyCleanup,
+		GameDir:            state.GameDir,
+		Username:           state.Username,
+		AccessToken:        state.AccessToken,
+		OIDCTokenPath:      oidcPath,
+		ContentBootstrap:   state.Bootstrap,
+		HostX:              state.Config.HostX,
+		Verbose:            state.Config.Verbose,
 	})
 }
 

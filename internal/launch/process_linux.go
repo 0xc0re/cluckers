@@ -33,6 +33,11 @@ func LaunchGame(ctx context.Context, cfg *LaunchConfig) error {
 
 	// Collect cleanup functions to run on exit.
 	var cleanups []func()
+	// Input proxy cleanup runs first (before temp file removal) to stop the
+	// proxy goroutine promptly after the game exits.
+	if cfg.InputProxyCleanup != nil {
+		cleanups = append(cleanups, cfg.InputProxyCleanup)
+	}
 	defer func() {
 		for _, fn := range cleanups {
 			fn()
