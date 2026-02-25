@@ -64,7 +64,10 @@ tools/                Build-time source files (shm_launcher.c)
 ### CI/CD
 
 - CI runs on all branches and PRs: builds Linux + Windows (both with `gui` tag), tests (`CGO_ENABLED=0`), vets both platforms
-- Releases via goreleaser on tag push (`v*`): produces tar.gz (Linux), zip (Windows), and AppImage
+- Releases via goreleaser on tag push (`v*`): produces three artifacts:
+  - `cluckers_*_linux_amd64.tar.gz` -- Linux GUI+CLI binary
+  - `cluckers_*_windows_amd64.zip` -- Windows GUI+CLI binary
+  - `Cluckers-x86_64.AppImage` -- Linux GUI+CLI binary with bundled Proton-GE and graphics libraries
 - Changelog grouped by conventional commit prefix
 
 ### Commit Conventions

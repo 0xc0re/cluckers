@@ -22,11 +22,19 @@ Native launcher for Realm Royale on the Project Crown private server, for Linux 
 
 ### Linux
 
-**AppImage (recommended):** No prerequisites -- Proton-GE is bundled inside the
-AppImage. Just download and run.
+Choose either format -- both include the full GUI + CLI single binary:
 
-**Tarball:** Requires Wine or Proton-GE installed separately, plus winetricks for
-prefix setup with system Wine (not needed with Proton-GE).
+**AppImage:** Self-contained -- bundles Proton-GE and all graphics libraries. No
+prerequisites beyond a Project Crown account. Larger download (~1.5 GB).
+
+**Tarball:** Smaller download. Requires Wine or Proton-GE installed separately,
+plus winetricks for prefix setup with system Wine (not needed with Proton-GE).
+Also requires OpenGL and X11 graphics libraries, which are pre-installed on most
+desktop Linux distributions. If you are on a minimal or server setup, install them:
+
+- **Debian/Ubuntu:** `sudo apt install libgl1-mesa-glx libx11-6 libxrandr2 libxcursor1 libxi6 libxinerama1 libxxf86vm1`
+- **Fedora:** `sudo dnf install mesa-libGL libX11 libXrandr libXcursor libXi libXinerama libXxf86vm`
+- **Arch:** These are typically pre-installed; if not: `sudo pacman -S mesa libx11 libxrandr libxcursor libxi libxinerama libxxf86vm`
 
 Both formats require a Project Crown account.
 
@@ -75,7 +83,8 @@ powershell -ExecutionPolicy Bypass -File install.ps1
 
 Grab the latest release from [GitHub Releases](https://github.com/0xc0re/cluckers/releases).
 
-**AppImage (recommended):** Single file, bundles Proton-GE, no Wine install needed.
+**AppImage:** Single file, bundles Proton-GE and graphics libraries. No Wine or
+system library setup needed.
 
 ```bash
 curl -s https://api.github.com/repos/0xc0re/cluckers/releases/latest \
@@ -86,7 +95,8 @@ chmod +x Cluckers-x86_64.AppImage
 mv Cluckers-x86_64.AppImage ~/.local/bin/cluckers
 ```
 
-**Tarball:** Smaller download, but requires Wine or Proton-GE installed separately.
+**Tarball:** Smaller download. Requires Wine or Proton-GE and graphics libraries
+(OpenGL, X11) installed on the system -- see prerequisites above.
 
 ```bash
 curl -s https://api.github.com/repos/0xc0re/cluckers/releases/latest \
