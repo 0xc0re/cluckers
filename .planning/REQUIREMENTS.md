@@ -46,7 +46,7 @@ Deferred to future release. Tracked but not in current roadmap.
 
 | Feature | Reason |
 |---------|--------|
-| System Wine fallback | Proton-GE required for all Linux — simplifies codebase, eliminates two parallel code paths |
+| System Wine fallback | Proton-GE required for all Linux -- simplifies codebase, eliminates two parallel code paths |
 | Old prefix migration | Proton prefixes are structurally different; no data migration possible. Old prefix silently ignored. |
 | umu-launcher | Direct `proton run` is simpler and works inside AppImage; umu adds Python dependency and downloads Steam Runtime |
 | Proton log rotation | Low value; defer to future if users need debug logging management |
@@ -57,23 +57,23 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PROTON-01 | — | Pending |
-| PROTON-02 | — | Pending |
-| PROTON-03 | — | Pending |
-| PROTON-04 | — | Pending |
-| PROTON-05 | — | Pending |
-| CTRL-01 | — | Pending |
-| CTRL-02 | — | Pending |
-| CTRL-03 | — | Pending |
-| POLISH-01 | — | Pending |
-| POLISH-02 | — | Pending |
-| POLISH-03 | — | Pending |
+| PROTON-01 | Phase 6 | Pending |
+| PROTON-02 | Phase 6 | Pending |
+| PROTON-03 | Phase 6 | Pending |
+| PROTON-04 | Phase 6 | Pending |
+| PROTON-05 | Phase 6 | Pending |
+| CTRL-01 | Phase 7 | Pending |
+| CTRL-02 | Phase 7 | Pending |
+| CTRL-03 | Phase 7 | Pending |
+| POLISH-01 | Phase 8 | Pending |
+| POLISH-02 | Phase 8 | Pending |
+| POLISH-03 | Phase 8 | Pending |
 
 **Coverage:**
 - v1.1 requirements: 11 total
-- Mapped to phases: 0
-- Unmapped: 11 ⚠️
+- Mapped to phases: 11
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-24*
-*Last updated: 2026-02-24 after initial definition*
+*Last updated: 2026-02-24 after roadmap creation*
