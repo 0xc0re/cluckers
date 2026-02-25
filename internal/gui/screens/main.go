@@ -4,6 +4,7 @@ package screens
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"os"
@@ -271,23 +272,41 @@ func MakeMainView(w fyne.Window, cfg *config.Config, username, password string, 
 				BotName1:    name1,
 				BotName2:    name2,
 			}
+
+			// Log the outgoing request for debugging.
+			reqJSON, _ := json.Marshal(req)
+			fmt.Printf("[bot-names] Request JSON: %s\n", string(reqJSON))
+
 			var resp gateway.BotNameResponse
-			if err := client.Post(context.Background(), "LAUNCHER_SET_BOT_NAME", req, &resp); err != nil {
+			var rawResp []byte
+			if err := client.PostWithRaw(context.Background(), "LAUNCHER_SET_BOT_NAME", req, &resp, &rawResp); err != nil {
+				fmt.Printf("[bot-names] Transport/HTTP error: %s\n", err)
 				fyne.Do(func() {
 					dialog.ShowError(fmt.Errorf("failed to set bot names: %s", err), w)
 					botSetBtn.Enable()
 				})
 				return
 			}
+
+			// Always log the raw response so users can report server behavior.
+			fmt.Printf("[bot-names] Raw response: %s\n", string(rawResp))
+			fmt.Printf("[bot-names] Parsed: SUCCESS=%v, TEXT_VALUE=%q\n", resp.Success, resp.TextValue)
+
 			if !bool(resp.Success) {
 				msg := resp.TextValue
 				if msg == "" {
-					msg = "Server rejected request (no details provided). Try launching the game first to verify your account works."
+					// Zero-value TextValue may indicate JSON field mismatch.
+					// Include raw response so the user/developer can diagnose.
+					raw := string(rawResp)
+					if len(raw) > 500 {
+						raw = raw[:500] + "..."
+					}
+					msg = fmt.Sprintf("Server rejected request (no details in TEXT_VALUE).\n\nRaw response: %s", raw)
 				} else {
 					msg = "Server rejected request: " + msg
 				}
 				fyne.Do(func() {
-					dialog.ShowError(fmt.Errorf("failed to set bot names: %s\n\n(SUCCESS=%v)", msg, resp.Success), w)
+					dialog.ShowError(fmt.Errorf("failed to set bot names: %s", msg), w)
 					botSetBtn.Enable()
 				})
 				return

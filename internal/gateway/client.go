@@ -40,6 +40,18 @@ func NewClient(baseURL string, verbose bool) *Client {
 // Post sends a JSON POST to the gateway at /json/<command>, marshalling body
 // and unmarshalling the response into result.
 func (c *Client) Post(ctx context.Context, command string, body interface{}, result interface{}) error {
+	return c.postInternal(ctx, command, body, result, nil)
+}
+
+// PostWithRaw sends a JSON POST like Post, but also returns the raw response
+// body via rawOut (if non-nil). This allows callers to inspect the exact server
+// response for debugging purposes, even when the typed result unmarshals to
+// zero values.
+func (c *Client) PostWithRaw(ctx context.Context, command string, body interface{}, result interface{}, rawOut *[]byte) error {
+	return c.postInternal(ctx, command, body, result, rawOut)
+}
+
+func (c *Client) postInternal(ctx context.Context, command string, body interface{}, result interface{}, rawOut *[]byte) error {
 	url := fmt.Sprintf("%s/json/%s", c.baseURL, command)
 
 	payload, err := json.Marshal(body)
@@ -73,6 +85,11 @@ func (c *Client) Post(ctx context.Context, command string, body interface{}, res
 			Detail:  err.Error(),
 			Err:     err,
 		}
+	}
+
+	// Provide raw response to caller if requested.
+	if rawOut != nil {
+		*rawOut = respBody
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
