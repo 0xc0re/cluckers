@@ -68,6 +68,8 @@ jobs:
       - name: Build AppImage
         env:
           VERSION: ${{ github.ref_name }}
+          # CI runners lack FUSE -- let AppImage tools extract themselves to run.
+          APPIMAGE_EXTRACT_AND_RUN: '1'
         run: |
           # Find the Linux binary from goreleaser output
           BINARY=$(find dist/ -name "cluckers" -path "*cluckers-linux*" -not -path "*/cluckers.exe" -type f | head -1)
