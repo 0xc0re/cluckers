@@ -7,8 +7,8 @@ Last activity: 2026-02-25 - Completed 05-03-PLAN.md: CI/CD integration, AppImage
 - **Phase:** 05-containers-appimage (COMPLETE - 3/3 plans)
 - **Current Plan:** Not started
 - **Last Completed:** 05-03-PLAN.md (CI/CD integration and AppImage-aware self-update)
-- **Last Session:** 2026-02-25T00:56:05.060Z
-- **Stopped At:** Completed 05-03-PLAN.md
+- **Last Session:** 2026-02-25T01:12:15.894Z
+- **Stopped At:** Completed quick task 30: AppImage build verification
 
 ### Quick Tasks Completed
 
@@ -32,6 +32,7 @@ Last activity: 2026-02-25 - Completed 05-03-PLAN.md: CI/CD integration, AppImage
 | 27 | Fix bot name setting: inline auth fallback and improved error display | 2026-02-24 | 7bfc93a | [27-setting-bot-names-fails](./quick/27-setting-bot-names-fails/) |
 | 28 | Dependabot and repo maintenance automation | 2026-02-24 | 06fae6c | [28-implement-github-dependabot-version-upda](./quick/28-implement-github-dependabot-version-upda/) |
 | 29 | Build-time endpoint configuration via ldflags | 2026-02-24 | db390d9 | [29-implement-changes-that-will-make-it-easi](./quick/29-implement-changes-that-will-make-it-easi/) |
+| 30 | Verify AppImage builds locally and in CI, fix strip/FUSE/zsync issues | 2026-02-25 | cea7ee9 | [30-make-sure-appimage-builds-locally-and-in](./quick/30-make-sure-appimage-builds-locally-and-in/) |
 
 ## Accumulated Context
 
@@ -88,3 +89,5 @@ Last activity: 2026-02-25 - Completed 05-03-PLAN.md: CI/CD integration, AppImage
 - [Phase 05-03]: CI uploads AppImage via gh release upload with goreleaser extra_files as backup
 - [Phase 05-03]: Install script prefers AppImage URL; falls back to tar.gz for older releases
 - [Phase 05-03]: Build script RUNTIME_PATH made configurable via env var for CI override
+- [Phase quick-30]: NO_STRIP=true for linuxdeploy: bundled strip too old for .relr.dyn ELF sections on modern distros
+- [Phase quick-30]: APPIMAGE_EXTRACT_AND_RUN=1 for CI: ubuntu-22.04 runners lack FUSE for AppImage tools
