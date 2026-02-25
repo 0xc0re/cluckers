@@ -211,7 +211,12 @@ bundle_libraries() {
 
     # linuxdeploy bundles Fyne/GL/X11 shared library dependencies and patches RPATH.
     # Do NOT use --output appimage; we use appimagetool separately for type2-runtime.
-    "$ld_cmd" --appdir "$APPDIR"
+    #
+    # NO_STRIP=true: linuxdeploy's bundled strip binary is too old to handle
+    # newer ELF section types (.relr.dyn) found on recent distros (Arch, Ubuntu 24+).
+    # Stripping is unnecessary since the Go binary is already built with -s -w ldflags
+    # and the bundled shared libraries are stripped by their package managers.
+    NO_STRIP=true "$ld_cmd" --appdir "$APPDIR"
 
     ok "Shared libraries bundled"
 }
@@ -227,12 +232,14 @@ generate_appimage() {
     local at_cmd
     at_cmd="$(resolve_cmd appimagetool)"
 
-    ARCH=x86_64 "$at_cmd" \
+    # Run appimagetool from OUTPUT_DIR so the zsync file lands next to the AppImage.
+    # appimagetool always writes the zsync file to the current working directory.
+    (cd "$OUTPUT_DIR" && ARCH=x86_64 "$at_cmd" \
         --runtime-file "$RUNTIME_PATH" \
         -u "gh-releases-zsync|0xc0re|cluckers|latest|Cluckers-x86_64.AppImage.zsync" \
         --comp zstd \
         "$APPDIR" \
-        "$OUTPUT_DIR/Cluckers-x86_64.AppImage"
+        "$OUTPUT_DIR/Cluckers-x86_64.AppImage")
 
     ok "AppImage generated"
 }
