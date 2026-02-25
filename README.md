@@ -41,8 +41,11 @@ Both formats require a Project Crown account.
 ### Windows
 
 - A Project Crown account
+- [DirectX 11](https://www.microsoft.com/en-us/download/details.aspx?id=35) — required for rendering
+- [Visual C++ 2015-2022 Redistributable (x64)](https://aka.ms/vs/17/release/vc_redist.x64.exe) — required for game runtime
 
-No additional dependencies are required on Windows. The game runs natively.
+Most Windows 10/11 systems already have both installed. If the game fails to
+launch or shows missing DLL errors, install them from the links above.
 
 ## Install
 
