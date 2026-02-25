@@ -1,6 +1,6 @@
 # Project State
 
-Last activity: 2026-02-25 - Phase 07.1 plan 01 complete (uinput virtual gamepad + Steam Input detection)
+Last activity: 2026-02-25 - Phase 07.1 plan 02 complete (dead reckoning state machine + registry patching)
 
 ## Project Reference
 
@@ -12,11 +12,11 @@ See: .planning/PROJECT.md (updated 2026-02-24)
 ## Current Position
 
 Phase: 7.1 of 8 (Steam Deck Controller Input Proxy)
-Plan: 1 of 4 in current phase
-Status: Executing Phase 7.1 -- plan 01 complete
-Last activity: 2026-02-25 -- Completed 07.1-01 uinput virtual gamepad and Steam Input detection (TDD)
+Plan: 2 of 4 in current phase
+Status: Executing Phase 7.1 -- plan 02 complete
+Last activity: 2026-02-25 -- Completed 07.1-02 dead reckoning state machine and registry patching (TDD)
 
-Progress: [###################░] 95% (v1.0 complete, v1.1 phase 7.1: 1/4 plans, phases 8 remaining)
+Progress: [###################░] 95% (v1.0 complete, v1.1 phase 7.1: 2/4 plans, phases 8 remaining)
 
 ## Performance Metrics
 
@@ -47,6 +47,7 @@ Progress: [###################░] 95% (v1.0 complete, v1.1 phase 7.1: 1/4 plans
 | 7. Controller/Gamescope | 07-02 | 3min | 2 | 8 |
 | 7. Controller/Gamescope | 07-03 | 0min | 1 (checkpoint) | 0 |
 | 7.1 Input Proxy | 07.1-01 | 6min | 2 (TDD) | 6 |
+| 7.1 Input Proxy | 07.1-02 | 7min | 2 (TDD) | 6 |
 
 ## Accumulated Context
 
@@ -75,6 +76,9 @@ Progress: [###################░] 95% (v1.0 complete, v1.1 phase 7.1: 1/4 plans
 - 07.1-01: Raw uinput ioctls via unix.Syscall instead of kenshaw/evdev UserInput (WithAbsoluteTypes is empty/no-op)
 - 07.1-01: kenshaw/evdev for device detection (OpenFile + ID()), not for uinput creation
 - 07.1-01: Button/axis constants as named Go constants in uinput.go for package-wide reuse
+- 07.1-02: hadTrigActivity flag prevents false positive dead reckoning on button-only releases
+- 07.1-02: Button constants (btnA, absZ, etc.) live in uinput.go alongside kernel ABI types
+- 07.1-02: invertY implemented in uinput.go as shared utility
 
 ### Roadmap Evolution
 
@@ -87,5 +91,5 @@ Progress: [###################░] 95% (v1.0 complete, v1.1 phase 7.1: 1/4 plans
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Completed 07.1-01-PLAN.md (uinput virtual gamepad + Steam Input detection)
+Stopped at: Completed 07.1-02-PLAN.md (dead reckoning state machine + registry patching)
 Resume file: None

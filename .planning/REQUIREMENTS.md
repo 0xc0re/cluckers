@@ -19,7 +19,7 @@ Requirements for Proton launch pipeline migration. Each maps to roadmap phases.
 
 - [x] **CTRL-01**: Launcher injects SteamGameId env var for Gamescope window tracking across UE3 ServerTravel
 - [x] **CTRL-02**: Launcher auto-detects Steam installation path for STEAM_COMPAT_CLIENT_INSTALL_PATH (native, Flatpak, Snap)
-- [ ] **CTRL-03**: Controller buttons persist through lobby-to-match transition on Steam Deck (validated on hardware)
+- [x] **CTRL-03**: Controller buttons persist through lobby-to-match transition on Steam Deck (validated on hardware)
 
 ### Cleanup / Polish
 
