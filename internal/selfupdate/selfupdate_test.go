@@ -1,6 +1,8 @@
 package selfupdate
 
 import (
+	"os"
+	"path/filepath"
 	"runtime"
 	"testing"
 )
@@ -158,5 +160,111 @@ func TestParseVersion(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestAssetNameAppImageMode(t *testing.T) {
+	t.Setenv("APPIMAGE", "/tmp/Cluckers-x86_64.AppImage")
+
+	info := &ReleaseInfo{TagName: "v0.5.0"}
+	name := info.assetName()
+
+	if name != "Cluckers-x86_64.AppImage" {
+		t.Errorf("assetName() in AppImage mode = %q, want %q", name, "Cluckers-x86_64.AppImage")
+	}
+}
+
+func TestAssetNameStandardMode(t *testing.T) {
+	// Ensure APPIMAGE is not set (t.Setenv unsets on cleanup).
+	t.Setenv("APPIMAGE", "")
+
+	info := &ReleaseInfo{TagName: "v0.5.0"}
+	name := info.assetName()
+
+	ext := "tar.gz"
+	if runtime.GOOS == "windows" {
+		ext = "zip"
+	}
+	expected := "cluckers_0.5.0_" + runtime.GOOS + "_" + runtime.GOARCH + "." + ext
+
+	if name != expected {
+		t.Errorf("assetName() in standard mode = %q, want %q", name, expected)
+	}
+}
+
+func TestFindAssetAppImageMode(t *testing.T) {
+	t.Setenv("APPIMAGE", "/tmp/Cluckers-x86_64.AppImage")
+
+	info := &ReleaseInfo{
+		TagName: "v0.5.0",
+		Assets: []Asset{
+			{Name: "cluckers_0.5.0_linux_amd64.tar.gz", BrowserDownloadURL: "https://example.com/linux.tar.gz", Size: 5000000},
+			{Name: "Cluckers-x86_64.AppImage", BrowserDownloadURL: "https://example.com/appimage", Size: 200000000},
+			{Name: "checksums.txt", BrowserDownloadURL: "https://example.com/checksums.txt", Size: 256},
+		},
+	}
+
+	archive, checksums, err := FindAsset(info)
+	if err != nil {
+		t.Fatalf("FindAsset() returned unexpected error: %v", err)
+	}
+	if archive == nil {
+		t.Fatal("FindAsset() returned nil archive")
+	}
+	if archive.Name != "Cluckers-x86_64.AppImage" {
+		t.Errorf("FindAsset() in AppImage mode returned %q, want %q", archive.Name, "Cluckers-x86_64.AppImage")
+	}
+	if checksums == nil {
+		t.Error("FindAsset() should return checksums when available")
+	}
+}
+
+func TestReplaceAppImage(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create a fake "downloaded" AppImage.
+	downloadedPath := filepath.Join(tmpDir, "downloaded.AppImage")
+	newContent := []byte("new-appimage-content")
+	if err := os.WriteFile(downloadedPath, newContent, 0644); err != nil {
+		t.Fatalf("failed to write test file: %v", err)
+	}
+
+	// Create a fake "running" AppImage path.
+	appImagePath := filepath.Join(tmpDir, "Cluckers-x86_64.AppImage")
+	if err := os.WriteFile(appImagePath, []byte("old-content"), 0755); err != nil {
+		t.Fatalf("failed to write test file: %v", err)
+	}
+
+	t.Setenv("APPIMAGE", appImagePath)
+
+	if err := replaceAppImage(downloadedPath); err != nil {
+		t.Fatalf("replaceAppImage() returned unexpected error: %v", err)
+	}
+
+	// Verify the AppImage was replaced.
+	data, err := os.ReadFile(appImagePath)
+	if err != nil {
+		t.Fatalf("failed to read replaced AppImage: %v", err)
+	}
+	if string(data) != string(newContent) {
+		t.Errorf("AppImage content = %q, want %q", string(data), string(newContent))
+	}
+
+	// Verify executable permissions.
+	info, err := os.Stat(appImagePath)
+	if err != nil {
+		t.Fatalf("failed to stat replaced AppImage: %v", err)
+	}
+	if info.Mode().Perm()&0111 == 0 {
+		t.Error("replaced AppImage should be executable")
+	}
+}
+
+func TestReplaceAppImageNoEnvVar(t *testing.T) {
+	t.Setenv("APPIMAGE", "")
+
+	err := replaceAppImage("/tmp/fake-download")
+	if err == nil {
+		t.Fatal("replaceAppImage() should return error when APPIMAGE is not set")
 	}
 }

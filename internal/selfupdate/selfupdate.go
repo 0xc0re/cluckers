@@ -18,6 +18,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/0xc0re/cluckers/internal/config"
 	"github.com/0xc0re/cluckers/internal/ui"
 	"github.com/schollz/progressbar/v3"
 )
@@ -146,6 +147,12 @@ func parseVersion(v string) []int {
 
 // assetName returns the expected archive asset name for the current platform.
 func (r *ReleaseInfo) assetName() string {
+	// In AppImage mode, download the AppImage instead of the archive.
+	if config.IsAppImage() {
+		return "Cluckers-x86_64.AppImage"
+	}
+
+	// Standard archive for non-AppImage installations.
 	version := strings.TrimPrefix(r.TagName, "v")
 	goos := runtime.GOOS
 	goarch := runtime.GOARCH
@@ -203,6 +210,11 @@ func DownloadAndReplace(ctx context.Context, asset *Asset, checksumsAsset *Asset
 		if err := verifyChecksum(ctx, archivePath, asset.Name, checksumsAsset); err != nil {
 			return err
 		}
+	}
+
+	// In AppImage mode, replace the AppImage file directly (no archive extraction needed).
+	if config.IsAppImage() {
+		return replaceAppImage(archivePath)
 	}
 
 	// Determine the running executable path.
@@ -546,4 +558,41 @@ func extractFromZip(archivePath, destDir string) (string, error) {
 		Detail:     fmt.Sprintf("Could not find %q in the downloaded archive", binaryName),
 		Suggestion: "The release archive may be malformed. Check GitHub for the latest release.",
 	}
+}
+
+// replaceAppImage replaces the running AppImage file with a downloaded new version.
+// The APPIMAGE env var (set by the AppImage runtime) provides the path to the
+// running .AppImage file on disk.
+func replaceAppImage(downloadedPath string) error {
+	appImagePath := config.AppImagePath()
+	if appImagePath == "" {
+		return &ui.UserError{
+			Message:    "Cannot determine AppImage path.",
+			Detail:     "APPIMAGE environment variable is not set.",
+			Suggestion: "Self-update in AppImage mode requires the APPIMAGE env var. Try downloading the new version manually.",
+		}
+	}
+
+	// Read the downloaded AppImage.
+	data, err := os.ReadFile(downloadedPath)
+	if err != nil {
+		return &ui.UserError{
+			Message:    "Failed to read downloaded AppImage.",
+			Detail:     err.Error(),
+			Suggestion: "Run `cluckers self-update` to try again.",
+			Err:        err,
+		}
+	}
+
+	// Write to the AppImage path (overwrite in place).
+	if err := os.WriteFile(appImagePath, data, 0755); err != nil {
+		return &ui.UserError{
+			Message:    "Failed to replace AppImage file.",
+			Detail:     err.Error(),
+			Suggestion: fmt.Sprintf("Check write permissions for %s and try again.", appImagePath),
+			Err:        err,
+		}
+	}
+
+	return nil
 }
