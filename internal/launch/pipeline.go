@@ -18,20 +18,24 @@ import (
 
 // LaunchState holds accumulated state across pipeline steps.
 type LaunchState struct {
-	Config        *config.Config
-	Client        *gateway.Client
-	Username      string
-	Password      string
-	AccessToken   string
-	OIDCToken     string
-	Bootstrap     []byte
-	WinePath      string
-	PrefixPath    string
-	GameDir       string
-	VersionInfo   *game.VersionInfo
-	NeedsDownload bool
-	TokenCache    *auth.TokenCache
-	Reporter      ProgressReporter
+	Config              *config.Config
+	Client              *gateway.Client
+	Username            string
+	Password            string
+	AccessToken         string
+	OIDCToken           string
+	Bootstrap           []byte
+	WinePath            string // Legacy Wine path (kept for Windows pipeline compat).
+	PrefixPath          string // Legacy Wine prefix path (kept for Windows pipeline compat).
+	ProtonScript        string // Path to the proton Python script (Linux only).
+	ProtonDir           string // Root of the Proton-GE installation (Linux only).
+	ProtonDisplayVersion string // Human-readable version like "GE-Proton10-1" (Linux only).
+	CompatDataPath      string // Path to Proton compatdata directory (Linux only).
+	GameDir             string
+	VersionInfo         *game.VersionInfo
+	NeedsDownload       bool
+	TokenCache          *auth.TokenCache
+	Reporter            ProgressReporter
 }
 
 // Step represents a single step in the launch pipeline.
@@ -418,6 +422,9 @@ func stepLaunchGame(ctx context.Context, state *LaunchState) error {
 	return LaunchGame(ctx, &LaunchConfig{
 		WinePath:         state.WinePath,
 		WinePrefix:       state.PrefixPath,
+		ProtonScript:     state.ProtonScript,
+		ProtonDir:        state.ProtonDir,
+		CompatDataPath:   state.CompatDataPath,
 		GameDir:          state.GameDir,
 		Username:         state.Username,
 		AccessToken:      state.AccessToken,
