@@ -3,6 +3,7 @@
 #
 # Usage:
 #   curl -sSL https://raw.githubusercontent.com/0xc0re/cluckers/master/install.sh | sh
+#   FORMAT=tarball curl -sSL ... | sh      # force tarball instead of AppImage
 #   INSTALL_DIR=/usr/local/bin curl -sSL ... | sh
 #   sh install.sh
 
@@ -128,6 +129,19 @@ download_text() {
 }
 
 # --------------------------------------------------------------------------- #
+#  Format preference
+# --------------------------------------------------------------------------- #
+
+FORMAT="${FORMAT:-auto}"
+case "$FORMAT" in
+    auto|appimage|tarball) ;;
+    *)
+        error "Unknown FORMAT '$FORMAT'. Use: auto, appimage, or tarball."
+        exit 1
+        ;;
+esac
+
+# --------------------------------------------------------------------------- #
 #  Discover latest release
 # --------------------------------------------------------------------------- #
 
@@ -154,6 +168,13 @@ fi
 APPIMAGE_URL=$(printf '%s' "$RELEASE_JSON" | sed -n 's/.*"browser_download_url" *: *"\([^"]*Cluckers-x86_64\.AppImage\)".*/\1/p' | head -1)
 TARBALL_URL=$(printf '%s' "$RELEASE_JSON" | sed -n 's/.*"browser_download_url" *: *"\([^"]*cluckers_[^"]*linux_amd64\.tar\.gz\)".*/\1/p' | head -1)
 CHECKSUMS_URL=$(printf '%s' "$RELEASE_JSON" | sed -n 's/.*"browser_download_url" *: *"\([^"]*checksums\.txt\)".*/\1/p' | head -1)
+
+# Apply format preference.
+case "$FORMAT" in
+    appimage) TARBALL_URL="" ;;
+    tarball)  APPIMAGE_URL="" ;;
+    # auto: keep both, AppImage preferred (existing behavior).
+esac
 
 if [ -z "$APPIMAGE_URL" ] && [ -z "$TARBALL_URL" ]; then
     error "Could not find linux_amd64 release asset."

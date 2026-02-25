@@ -57,6 +57,12 @@ curl -sSL https://raw.githubusercontent.com/0xc0re/cluckers/master/install.sh | 
 
 The installer downloads the latest release to `~/.local/bin/cluckers`. When
 available, it prefers the AppImage (which bundles Proton-GE) over the tarball.
+To install the tarball instead, set `FORMAT`:
+
+```bash
+FORMAT=tarball curl -sSL https://raw.githubusercontent.com/0xc0re/cluckers/master/install.sh | sh
+```
+
 To install elsewhere, set `INSTALL_DIR`:
 
 ```bash
