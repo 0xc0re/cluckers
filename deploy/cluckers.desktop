@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Cluckers
+Comment=Realm Royale launcher for Project Crown
+Exec=cluckers
+Icon=cluckers
+Type=Application
+Categories=Game;
+Terminal=false
