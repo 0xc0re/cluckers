@@ -82,7 +82,7 @@ func LaunchGame(ctx context.Context, cfg *LaunchConfig) error {
 	cmdName, cmdArgs := buildProtonCommand(cfg.ProtonScript, shmPath, bootstrapPath, shmName, gameExe, gameArgs)
 
 	// Build proton environment.
-	env := buildProtonEnv(cfg.CompatDataPath, cfg.Verbose)
+	env := buildProtonEnv(cfg.CompatDataPath, cfg.SteamInstallPath, cfg.SteamGameId, cfg.Verbose)
 
 	if cfg.Verbose {
 		ui.Verbose(fmt.Sprintf("Proton: %s", cfg.ProtonScript), true)

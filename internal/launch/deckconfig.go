@@ -428,6 +428,13 @@ func deployDeckControllerLayout() {
 	}
 }
 
+// FindCluckersAppID searches a binary VDF shortcuts.vdf for a shortcut whose
+// exe field contains "cluckers" and returns its app ID. Returns 0 if not found.
+// Exported for use by pipeline Steam integration resolution.
+func FindCluckersAppID(data []byte) uint32 {
+	return findCluckersAppID(data)
+}
+
 // findCluckersAppID searches a binary VDF shortcuts.vdf for a shortcut whose
 // exe field contains "cluckers" and returns its app ID. Returns 0 if not found.
 //

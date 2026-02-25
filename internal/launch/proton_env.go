@@ -45,22 +45,29 @@ func filterEnv(env []string, keys ...string) []string {
 // buildProtonEnv constructs the environment variable slice for proton run
 // by filtering the current process environment and appending required Proton
 // variables. This is the public entry point that uses os.Environ().
-func buildProtonEnv(compatDataPath string, verbose bool) []string {
-	return buildProtonEnvFrom(os.Environ(), compatDataPath, verbose)
+func buildProtonEnv(compatDataPath, steamInstallPath, steamGameId string, verbose bool) []string {
+	return buildProtonEnvFrom(os.Environ(), compatDataPath, steamInstallPath, steamGameId, verbose)
 }
 
 // buildProtonEnvFrom constructs the environment variable slice for proton run
 // from a provided base environment. Exported for testability with deterministic
 // input. Strips conflicting Wine/AppImage variables and adds required Proton vars.
-func buildProtonEnvFrom(baseEnv []string, compatDataPath string, verbose bool) []string {
+func buildProtonEnvFrom(baseEnv []string, compatDataPath, steamInstallPath, steamGameId string, verbose bool) []string {
 	env := filterEnv(baseEnv, strippedEnvKeys...)
 
+	// Default steamGameId to "0" when not resolved (detection failed or not in Steam).
+	if steamGameId == "" {
+		steamGameId = "0"
+	}
+
 	// Required Proton environment variables.
+	// SteamAppId is set to match SteamGameId — Proton Wine reads SteamAppId
+	// for X11 class hints (steam_app_{id}), which Gamescope uses for window tracking.
 	env = append(env,
 		"STEAM_COMPAT_DATA_PATH="+compatDataPath,
-		"STEAM_COMPAT_CLIENT_INSTALL_PATH=",
-		"SteamGameId=0",
-		"SteamAppId=0",
+		"STEAM_COMPAT_CLIENT_INSTALL_PATH="+steamInstallPath,
+		"SteamGameId="+steamGameId,
+		"SteamAppId="+steamGameId,
 		"WINEDLLOVERRIDES=dxgi=n",
 	)
 

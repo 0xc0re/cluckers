@@ -35,82 +35,105 @@ func TestFilterEnv_NoMatch(t *testing.T) {
 
 func TestBuildProtonEnv_StripsLDLibraryPath(t *testing.T) {
 	base := []string{"HOME=/home/user", "LD_LIBRARY_PATH=/appimage/lib", "PATH=/bin"}
-	got := buildProtonEnvFrom(base, "/home/user/.cluckers/compatdata", false)
+	got := buildProtonEnvFrom(base, "/home/user/.cluckers/compatdata", "", "", false)
 	assertEnvNotContainsKey(t, got, "LD_LIBRARY_PATH")
 }
 
 func TestBuildProtonEnv_StripsWINEPREFIX(t *testing.T) {
 	base := []string{"WINEPREFIX=/old/prefix", "HOME=/home/user"}
-	got := buildProtonEnvFrom(base, "/compat", false)
+	got := buildProtonEnvFrom(base, "/compat", "", "", false)
 	assertEnvNotContainsKey(t, got, "WINEPREFIX")
 }
 
 func TestBuildProtonEnv_StripsWINE(t *testing.T) {
 	base := []string{"WINE=/usr/bin/wine", "HOME=/home/user"}
-	got := buildProtonEnvFrom(base, "/compat", false)
+	got := buildProtonEnvFrom(base, "/compat", "", "", false)
 	assertEnvNotContainsKey(t, got, "WINE")
 }
 
 func TestBuildProtonEnv_StripsWINEFSYNC(t *testing.T) {
 	base := []string{"WINEFSYNC=1", "HOME=/home/user"}
-	got := buildProtonEnvFrom(base, "/compat", false)
+	got := buildProtonEnvFrom(base, "/compat", "", "", false)
 	assertEnvNotContainsKey(t, got, "WINEFSYNC")
 }
 
 func TestBuildProtonEnv_StripsWINEESYNC(t *testing.T) {
 	base := []string{"WINEESYNC=1", "HOME=/home/user"}
-	got := buildProtonEnvFrom(base, "/compat", false)
+	got := buildProtonEnvFrom(base, "/compat", "", "", false)
 	assertEnvNotContainsKey(t, got, "WINEESYNC")
 }
 
 func TestBuildProtonEnv_ReplacesWINEDLLOVERRIDES(t *testing.T) {
 	base := []string{"WINEDLLOVERRIDES=something", "HOME=/home/user"}
-	got := buildProtonEnvFrom(base, "/compat", false)
+	got := buildProtonEnvFrom(base, "/compat", "", "", false)
 	// Old value should be stripped and replaced with dxgi=n
 	assertEnvContains(t, got, "WINEDLLOVERRIDES=dxgi=n")
 }
 
 func TestBuildProtonEnv_SetsSTEAM_COMPAT_DATA_PATH(t *testing.T) {
-	got := buildProtonEnvFrom([]string{"HOME=/home/user"}, "/home/user/.cluckers/compatdata", false)
+	got := buildProtonEnvFrom([]string{"HOME=/home/user"}, "/home/user/.cluckers/compatdata", "", "", false)
 	assertEnvContains(t, got, "STEAM_COMPAT_DATA_PATH=/home/user/.cluckers/compatdata")
 }
 
 func TestBuildProtonEnv_SetsSteamGameId(t *testing.T) {
-	got := buildProtonEnvFrom([]string{"HOME=/home/user"}, "/compat", false)
+	got := buildProtonEnvFrom([]string{"HOME=/home/user"}, "/compat", "", "", false)
 	assertEnvContains(t, got, "SteamGameId=0")
 }
 
 func TestBuildProtonEnv_SetsSteamAppId(t *testing.T) {
-	got := buildProtonEnvFrom([]string{"HOME=/home/user"}, "/compat", false)
+	got := buildProtonEnvFrom([]string{"HOME=/home/user"}, "/compat", "", "", false)
 	assertEnvContains(t, got, "SteamAppId=0")
 }
 
 func TestBuildProtonEnv_SetsSTEAM_COMPAT_CLIENT_INSTALL_PATH_Empty(t *testing.T) {
-	got := buildProtonEnvFrom([]string{"HOME=/home/user"}, "/compat", false)
+	got := buildProtonEnvFrom([]string{"HOME=/home/user"}, "/compat", "", "", false)
 	assertEnvContains(t, got, "STEAM_COMPAT_CLIENT_INSTALL_PATH=")
 }
 
 func TestBuildProtonEnv_SetsWINEDLLOVERRIDES(t *testing.T) {
-	got := buildProtonEnvFrom([]string{"HOME=/home/user"}, "/compat", false)
+	got := buildProtonEnvFrom([]string{"HOME=/home/user"}, "/compat", "", "", false)
 	assertEnvContains(t, got, "WINEDLLOVERRIDES=dxgi=n")
 }
 
 func TestBuildProtonEnv_VerboseTrue_SetsPROTON_LOG(t *testing.T) {
-	got := buildProtonEnvFrom([]string{"HOME=/home/user"}, "/compat", true)
+	got := buildProtonEnvFrom([]string{"HOME=/home/user"}, "/compat", "", "", true)
 	assertEnvContains(t, got, "PROTON_LOG=1")
 }
 
 func TestBuildProtonEnv_VerboseFalse_NoPROTON_LOG(t *testing.T) {
-	got := buildProtonEnvFrom([]string{"HOME=/home/user"}, "/compat", false)
+	got := buildProtonEnvFrom([]string{"HOME=/home/user"}, "/compat", "", "", false)
 	assertEnvNotContainsKey(t, got, "PROTON_LOG")
 }
 
 func TestBuildProtonEnv_PassesThroughUnrelatedVars(t *testing.T) {
 	base := []string{"HOME=/home/user", "PATH=/usr/bin", "USER=testuser"}
-	got := buildProtonEnvFrom(base, "/compat", false)
+	got := buildProtonEnvFrom(base, "/compat", "", "", false)
 	assertEnvContains(t, got, "HOME=/home/user")
 	assertEnvContains(t, got, "PATH=/usr/bin")
 	assertEnvContains(t, got, "USER=testuser")
+}
+
+// --- New tests for parameterized Steam integration values ---
+
+func TestBuildProtonEnv_SetsSteamGameIdFromParam(t *testing.T) {
+	got := buildProtonEnvFrom([]string{"HOME=/home/user"}, "/compat", "", "3928144816", false)
+	assertEnvContains(t, got, "SteamGameId=3928144816")
+}
+
+func TestBuildProtonEnv_SetsSteamAppIdMatchesSteamGameId(t *testing.T) {
+	got := buildProtonEnvFrom([]string{"HOME=/home/user"}, "/compat", "", "3928144816", false)
+	assertEnvContains(t, got, "SteamAppId=3928144816")
+}
+
+func TestBuildProtonEnv_DefaultsSteamGameIdWhenEmpty(t *testing.T) {
+	got := buildProtonEnvFrom([]string{"HOME=/home/user"}, "/compat", "", "", false)
+	assertEnvContains(t, got, "SteamGameId=0")
+	assertEnvContains(t, got, "SteamAppId=0")
+}
+
+func TestBuildProtonEnv_SetsSTEAM_COMPAT_CLIENT_INSTALL_PATH_FromParam(t *testing.T) {
+	got := buildProtonEnvFrom([]string{"HOME=/home/user"}, "/compat", "/home/user/.local/share/Steam", "", false)
+	assertEnvContains(t, got, "STEAM_COMPAT_CLIENT_INSTALL_PATH=/home/user/.local/share/Steam")
 }
 
 // --- buildProtonCommand tests ---
