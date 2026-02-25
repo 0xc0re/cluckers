@@ -3,8 +3,12 @@
 package inputproxy
 
 import (
+	"context"
+	"fmt"
 	"os"
 	"time"
+
+	"github.com/kenshaw/evdev"
 )
 
 // DefaultHoldTimeout is the duration to hold button state during ServerTravel.
@@ -31,11 +35,11 @@ var buttonCodeToMask = map[uint16]uint32{
 // Dead reckoning holds the last-known button state when ALL buttons AND triggers
 // go to zero simultaneously (the ServerTravel signature from Steam Input firmware).
 type buttonState struct {
-	buttons          uint32    // Bitmask of currently pressed buttons
-	lTrig            uint8     // Left trigger value (ABS_Z)
-	rTrig            uint8     // Right trigger value (ABS_RZ)
-	lastNonZero      time.Time // Last time any button/trigger was non-zero
-	hadTrigActivity  bool      // Whether triggers have ever been non-zero
+	buttons         uint32    // Bitmask of currently pressed buttons
+	lTrig           uint8     // Left trigger value (ABS_Z)
+	rTrig           uint8     // Right trigger value (ABS_RZ)
+	lastNonZero     time.Time // Last time any button/trigger was non-zero
+	hadTrigActivity bool      // Whether triggers have ever been non-zero
 }
 
 // updateButton sets or clears a button in the bitmask and updates lastNonZero.
@@ -98,14 +102,175 @@ func (s *buttonState) shouldHold(timeout time.Duration) bool {
 	return time.Since(s.lastNonZero) < timeout
 }
 
-// InputProxy is the core proxy struct that reads from the Steam Input evdev
-// device and writes to the virtual uinput gamepad. Plan 07.1-03 will implement
-// the Run loop and full event forwarding.
+// InputProxy reads evdev events from the Steam Input virtual pad and forwards
+// them to a virtual Xbox 360 gamepad created via /dev/uinput. During
+// ServerTravel transitions (when Steam Input firmware zeros all button data),
+// the proxy holds the last-known button state instead of forwarding zeros.
 type InputProxy struct {
 	source   *os.File      // Steam Input evdev device (read)
+	sourceDev *evdev.Evdev // kenshaw/evdev wrapper for Poll()
 	sink     *os.File      // /dev/uinput virtual gamepad (write)
 	state    buttonState   // Dead reckoning shadow state
 	holdTime time.Duration // How long to hold state on zero detection
 	stopCh   chan struct{} // Signal to stop the proxy
 	done     chan struct{} // Closed when proxy goroutine exits
+}
+
+// NewInputProxy creates a new InputProxy with the given hold timeout.
+// If holdTimeout is zero, DefaultHoldTimeout is used.
+// The proxy is not started until Start() is called.
+func NewInputProxy(holdTimeout time.Duration) *InputProxy {
+	if holdTimeout == 0 {
+		holdTimeout = DefaultHoldTimeout
+	}
+	return &InputProxy{
+		holdTime: holdTimeout,
+		stopCh:   make(chan struct{}),
+		done:     make(chan struct{}),
+	}
+}
+
+// Start detects the Steam Input virtual pad, creates a virtual Xbox 360
+// gamepad, and begins forwarding events in a background goroutine.
+// Returns an error if the source device or uinput cannot be opened.
+// The caller decides whether to treat errors as fatal.
+func (p *InputProxy) Start(ctx context.Context) error {
+	// Find the Steam Input virtual pad.
+	sourcePath, err := FindSteamInputPad()
+	if err != nil {
+		return fmt.Errorf("detecting Steam Input pad: %w", err)
+	}
+
+	// Open source device for reading via kenshaw/evdev.
+	dev, err := evdev.OpenFile(sourcePath)
+	if err != nil {
+		return fmt.Errorf("opening source device %s: %w", sourcePath, err)
+	}
+	p.sourceDev = dev
+
+	// Open /dev/uinput and create virtual Xbox 360 gamepad.
+	sink, err := openUinput()
+	if err != nil {
+		dev.Close()
+		p.sourceDev = nil
+		return fmt.Errorf("opening uinput: %w", err)
+	}
+	p.sink = sink
+
+	if err := createVirtualXbox360(sink); err != nil {
+		dev.Close()
+		p.sourceDev = nil
+		sink.Close()
+		p.sink = nil
+		return fmt.Errorf("creating virtual gamepad: %w", err)
+	}
+
+	// Small delay for udev to register the new device before the game opens it.
+	time.Sleep(100 * time.Millisecond)
+
+	// Start event forwarding goroutine.
+	go p.run(ctx)
+
+	return nil
+}
+
+// run is the main event forwarding loop. It reads events from the Steam Input
+// virtual pad via kenshaw/evdev Poll and forwards them to the uinput sink,
+// applying dead reckoning for button events and Y-axis inversion for sticks.
+func (p *InputProxy) run(ctx context.Context) {
+	defer close(p.done)
+
+	// Create a child context that we cancel when stopCh is closed.
+	ctx, cancel := context.WithCancel(ctx)
+	go func() {
+		select {
+		case <-p.stopCh:
+			cancel()
+		case <-ctx.Done():
+		}
+	}()
+
+	ch := p.sourceDev.Poll(ctx)
+	for envelope := range ch {
+		// Check for stop signal.
+		select {
+		case <-p.stopCh:
+			cancel()
+			return
+		default:
+		}
+
+		ev := envelope.Event
+		evType := uint16(ev.Type)
+		code := ev.Code
+		value := ev.Value
+
+		switch evType {
+		case evKey:
+			// Button event: update shadow state, apply dead reckoning.
+			p.state.updateButton(code, value)
+			if p.state.shouldHold(p.holdTime) {
+				// ServerTravel detected -- suppress zero forwarding.
+				continue
+			}
+			writeEvent(p.sink, evType, code, value)
+
+		case evAbs:
+			// Axis event: invert Y axes, track triggers.
+			switch code {
+			case absY, absRY:
+				value = invertY(value)
+			case absZ, absRZ:
+				p.state.updateTrigger(code, value)
+			}
+			writeEvent(p.sink, evType, code, value)
+
+		case evSyn:
+			// Sync event: always forward.
+			writeEvent(p.sink, evType, code, value)
+		}
+	}
+}
+
+// Stop signals the proxy to stop and waits for the goroutine to exit.
+// It cleans up the virtual device and closes both source and sink file
+// descriptors. Safe to call multiple times.
+func (p *InputProxy) Stop() {
+	// Signal the run goroutine to stop.
+	select {
+	case <-p.stopCh:
+		// Already closed.
+		return
+	default:
+		close(p.stopCh)
+	}
+
+	// Wait for goroutine exit with timeout to prevent hanging.
+	select {
+	case <-p.done:
+	case <-time.After(2 * time.Second):
+	}
+
+	// Clean up virtual device and file descriptors.
+	if p.sink != nil {
+		destroyVirtualDevice(p.sink)
+		p.sink.Close()
+		p.sink = nil
+	}
+	if p.sourceDev != nil {
+		p.sourceDev.Close()
+		p.sourceDev = nil
+	}
+}
+
+// Cleanup returns a function suitable for deferred cleanup calls.
+// The returned function calls Stop() if the proxy was successfully started.
+// Safe to call on a nil InputProxy (returns a no-op).
+func (p *InputProxy) Cleanup() func() {
+	if p == nil {
+		return func() {}
+	}
+	return func() {
+		p.Stop()
+	}
 }
