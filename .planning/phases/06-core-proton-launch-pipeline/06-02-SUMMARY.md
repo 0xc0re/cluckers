@@ -67,7 +67,7 @@ completed: 2026-02-25
 
 Each task was committed atomically (TDD RED-GREEN cycle):
 
-1. **RED: Failing tests** - `6b98c23` (test) - 32 tests covering all 6 sub-features
+1. **RED: Failing tests** - `68280db` (test) - 32 tests covering all 6 sub-features
 2. **GREEN: Implementation** - `a934afe` (feat) - All functions implemented, all tests passing
 
 **No REFACTOR commit** - implementation was clean on first pass.
@@ -114,7 +114,7 @@ None - no external service configuration required.
 - FOUND: internal/launch/proton_env.go
 - FOUND: internal/launch/proton_env_test.go
 - FOUND: 06-02-SUMMARY.md
-- FOUND: 6b98c23 (RED commit)
+- FOUND: 68280db (RED commit)
 - FOUND: a934afe (GREEN commit)
 
 ---
