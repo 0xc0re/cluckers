@@ -73,6 +73,6 @@ Plans:
 | 3. First-Run Setup and Steam Deck | v1.0 | 0/0 (absorbed) | Complete | 2026-02-24 |
 | 4. Cross-Platform GUI | v1.0 | 5/5 | Complete | 2026-02-24 |
 | 5. Containers / AppImage | v1.0 | 3/3 | Complete | 2026-02-25 |
-| 6. Core Proton Launch Pipeline | v1.1 | 0/3 | In progress | - |
+| 6. Core Proton Launch Pipeline | v1.1 | 1/3 | In progress | - |
 | 7. Controller and Gamescope Integration | v1.1 | 0/? | Not started | - |
 | 8. Cleanup and Polish | v1.1 | 0/? | Not started | - |
