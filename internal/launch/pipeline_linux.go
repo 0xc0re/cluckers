@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 
@@ -16,12 +17,13 @@ import (
 // protonMajorVersionRe extracts the major version number from GE-Proton directory names.
 var protonMajorVersionRe = regexp.MustCompile(`GE-Proton(\d+)-(\d+)`)
 
-// platformSteps returns Linux-specific pipeline steps: Proton detection and
-// compatdata environment preparation.
+// platformSteps returns Linux-specific pipeline steps: Proton detection,
+// compatdata environment preparation, and Steam integration resolution.
 func platformSteps(_ *LaunchState) []Step {
 	return []Step{
 		{Name: "Detecting Proton", Fn: stepDetectProton},
 		{Name: "Preparing Proton environment", Fn: stepEnsureCompatdata},
+		{Name: "Resolving Steam integration", Fn: stepResolveSteamIntegration},
 	}
 }
 
@@ -84,6 +86,37 @@ func stepEnsureCompatdata(_ context.Context, state *LaunchState) error {
 	}
 
 	state.CompatDataPath = compatdata
+	return nil
+}
+
+// stepResolveSteamIntegration detects the Steam installation path and resolves
+// the non-Steam shortcut app ID for Gamescope window tracking. All failures
+// are non-fatal -- the game still launches with fallback values.
+func stepResolveSteamIntegration(_ context.Context, state *LaunchState) error {
+	steamDir := wine.FindSteamInstall()
+	if steamDir == "" {
+		ui.Verbose("Steam installation not found, controller tracking may be limited", state.Config.Verbose)
+		return nil // Non-fatal
+	}
+	state.SteamInstallPath = steamDir
+	ui.Verbose(fmt.Sprintf("Steam: %s", steamDir), state.Config.Verbose)
+
+	// Resolve non-Steam game app ID from shortcuts.vdf.
+	pattern := filepath.Join(steamDir, "userdata", "*", "config", "shortcuts.vdf")
+	matches, _ := filepath.Glob(pattern)
+	for _, shortcutsPath := range matches {
+		data, err := os.ReadFile(shortcutsPath)
+		if err != nil {
+			continue
+		}
+		if appID := FindCluckersAppID(data); appID != 0 {
+			state.SteamGameId = fmt.Sprintf("%d", appID)
+			ui.Verbose(fmt.Sprintf("Steam shortcut app ID: %s", state.SteamGameId), state.Config.Verbose)
+			return nil
+		}
+	}
+
+	ui.Verbose("Cluckers shortcut not found in Steam, using default game ID", state.Config.Verbose)
 	return nil
 }
 
