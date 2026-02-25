@@ -231,12 +231,10 @@ func MakeMainView(w fyne.Window, cfg *config.Config, username, password string, 
 			cache, err := auth.LoadTokenCache()
 			if err == nil && cache != nil && cache.AccessTokenValid() {
 				accessToken = cache.AccessToken
-				fmt.Println("[bot-names] Using cached access token for", username)
 			}
 
 			// Fallback: authenticate inline using available credentials.
 			if accessToken == "" {
-				fmt.Println("[bot-names] No cached token, authenticating inline for", username)
 				client := gateway.NewClient(cfg.Gateway, cfg.Verbose)
 				result, loginErr := auth.Login(context.Background(), client, username, password)
 				if loginErr != nil {
@@ -248,69 +246,66 @@ func MakeMainView(w fyne.Window, cfg *config.Config, username, password string, 
 				}
 				accessToken = result.AccessToken
 
-				// Cache the fresh token so subsequent calls are fast.
 				now := time.Now()
 				newCache := &auth.TokenCache{
 					AccessToken:    accessToken,
 					Username:       username,
 					AccessCachedAt: now,
 				}
-				// Preserve existing OIDC token if present.
 				if cache != nil {
 					newCache.OIDCToken = cache.OIDCToken
 					newCache.OIDCCachedAt = cache.OIDCCachedAt
 				}
-				if saveErr := auth.SaveTokenCache(newCache); saveErr != nil {
-					fmt.Println("[bot-names] Warning: could not save token cache:", saveErr)
-				}
+				_ = auth.SaveTokenCache(newCache)
 			}
 
 			client := gateway.NewClient(cfg.Gateway, cfg.Verbose)
-			req := gateway.BotNameRequest{
-				UserName:    username,
-				AccessToken: accessToken,
-				BotName1:    name1,
-				BotName2:    name2,
+
+			// Upsert each non-empty bot name (one API call per slot, 1-indexed).
+			slots := []struct {
+				index int
+				name  string
+			}{
+				{1, name1},
+				{2, name2},
 			}
 
-			// Log the outgoing request for debugging.
-			reqJSON, _ := json.Marshal(req)
-			fmt.Printf("[bot-names] Request JSON: %s\n", string(reqJSON))
-
-			var resp gateway.BotNameResponse
-			var rawResp []byte
-			if err := client.PostWithRaw(context.Background(), "LAUNCHER_SET_BOT_NAME", req, &resp, &rawResp); err != nil {
-				fmt.Printf("[bot-names] Transport/HTTP error: %s\n", err)
-				fyne.Do(func() {
-					dialog.ShowError(fmt.Errorf("failed to set bot names: %s", err), w)
-					botSetBtn.Enable()
-				})
-				return
-			}
-
-			// Always log the raw response so users can report server behavior.
-			fmt.Printf("[bot-names] Raw response: %s\n", string(rawResp))
-			fmt.Printf("[bot-names] Parsed: SUCCESS=%v, TEXT_VALUE=%q\n", resp.Success, resp.TextValue)
-
-			if !bool(resp.Success) {
-				msg := resp.TextValue
-				if msg == "" {
-					// Zero-value TextValue may indicate JSON field mismatch.
-					// Include raw response so the user/developer can diagnose.
-					raw := string(rawResp)
-					if len(raw) > 500 {
-						raw = raw[:500] + "..."
-					}
-					msg = fmt.Sprintf("Server rejected request (no details in TEXT_VALUE).\n\nRaw response: %s", raw)
-				} else {
-					msg = "Server rejected request: " + msg
+			for _, slot := range slots {
+				if slot.name == "" {
+					continue
 				}
-				fyne.Do(func() {
-					dialog.ShowError(fmt.Errorf("failed to set bot names: %s", msg), w)
-					botSetBtn.Enable()
-				})
-				return
+				req := gateway.BotNameUpsertRequest{
+					UserName:     username,
+					AccessToken:  accessToken,
+					TextValue:    slot.name,
+					CustomValue1: slot.index,
+				}
+
+				var resp gateway.BotNameResponse
+				if err := client.Post(context.Background(), "LAUNCHER_SUPPORTER_BOT_NAME_UPSERT", req, &resp); err != nil {
+					fyne.Do(func() {
+						dialog.ShowError(fmt.Errorf("failed to set bot name %d: %s", slot.index, err), w)
+						botSetBtn.Enable()
+					})
+					return
+				}
+
+				if !bool(resp.Success) {
+					msg := resp.StringValue
+					if msg == "" {
+						msg = resp.TextValue
+					}
+					if msg == "" {
+						msg = "unknown error"
+					}
+					fyne.Do(func() {
+						dialog.ShowError(fmt.Errorf("failed to set bot name %d: %s", slot.index, msg), w)
+						botSetBtn.Enable()
+					})
+					return
+				}
 			}
+
 			fyne.Do(func() {
 				dialog.ShowInformation("Bot Names", "Bot names updated successfully!", w)
 				botSetBtn.Enable()
@@ -318,6 +313,7 @@ func MakeMainView(w fyne.Window, cfg *config.Config, username, password string, 
 		}()
 	}
 
+	botNameSep := widget.NewSeparator()
 	botNameSection := container.NewVBox(
 		widget.NewLabelWithStyle("Supporter Features", fyne.TextAlignCenter, fyne.TextStyle{Italic: true}),
 		container.NewCenter(
@@ -330,6 +326,54 @@ func MakeMainView(w fyne.Window, cfg *config.Config, username, password string, 
 			container.NewGridWrap(fyne.NewSize(200, 36), botSetBtn),
 		),
 	)
+
+	// Hide bot name section by default; show only if supporter.
+	botNameSection.Hide()
+	botNameSep.Hide()
+
+	// Check supporter status in background via bot names list endpoint.
+	go func() {
+		var accessToken string
+		cache, err := auth.LoadTokenCache()
+		if err == nil && cache != nil && cache.AccessTokenValid() {
+			accessToken = cache.AccessToken
+		}
+		if accessToken == "" {
+			return
+		}
+
+		client := gateway.NewClient(cfg.Gateway, cfg.Verbose)
+		req := gateway.GenericRequest{
+			UserName:    username,
+			AccessToken: accessToken,
+		}
+		var listResp struct {
+			Success     gateway.FlexBool `json:"SUCCESS"`
+			PortalInfo1 string           `json:"PORTAL_INFO_1"`
+		}
+		if err := client.Post(context.Background(), "LAUNCHER_SUPPORTER_BOT_NAMES_LIST", req, &listResp); err != nil {
+			return
+		}
+		if !bool(listResp.Success) {
+			return
+		}
+
+		var names []string
+		if listResp.PortalInfo1 != "" {
+			_ = json.Unmarshal([]byte(listResp.PortalInfo1), &names)
+		}
+
+		fyne.Do(func() {
+			if len(names) > 0 {
+				botName1Entry.SetText(names[0])
+			}
+			if len(names) > 1 {
+				botName2Entry.SetText(names[1])
+			}
+			botNameSection.Show()
+			botNameSep.Show()
+		})
+	}()
 
 	// ---- Links section ----
 	discordURL, _ := url.Parse("https://discord.gg/RealmRoyale")
@@ -373,7 +417,7 @@ func MakeMainView(w fyne.Window, cfg *config.Config, username, password string, 
 		launchBtnRow,
 		widget.NewSeparator(),
 		container.NewCenter(gameManagementGrid),
-		widget.NewSeparator(),
+		botNameSep,
 		botNameSection,
 		widget.NewSeparator(),
 		linksRow,

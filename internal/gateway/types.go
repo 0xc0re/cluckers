@@ -70,16 +70,25 @@ type GenericRequest struct {
 	AccessToken string `json:"access_token"`
 }
 
-// BotNameRequest is the request body for LAUNCHER_SET_BOT_NAME.
-type BotNameRequest struct {
-	UserName    string `json:"user_name"`
-	AccessToken string `json:"access_token"`
-	BotName1    string `json:"bot_name_1"`
-	BotName2    string `json:"bot_name_2"`
+// BotNameUpsertRequest is the request body for LAUNCHER_SUPPORTER_BOT_NAME_UPSERT.
+// Each call sets one bot name at a specific slot index (0 or 1).
+type BotNameUpsertRequest struct {
+	UserName     string `json:"user_name"`
+	AccessToken  string `json:"access_token"`
+	TextValue    string `json:"text_value"`
+	CustomValue1 int    `json:"custom_value_1"`
 }
 
-// BotNameResponse is the response from LAUNCHER_SET_BOT_NAME.
+// BotNameDeleteRequest is the request body for LAUNCHER_SUPPORTER_BOT_NAME_DELETE.
+type BotNameDeleteRequest struct {
+	UserName     string `json:"user_name"`
+	AccessToken  string `json:"access_token"`
+	CustomValue1 int    `json:"custom_value_1"`
+}
+
+// BotNameResponse is the response from bot name upsert/delete/list commands.
 type BotNameResponse struct {
-	Success   FlexBool `json:"SUCCESS"`
-	TextValue string   `json:"TEXT_VALUE"`
+	Success     FlexBool `json:"SUCCESS"`
+	TextValue   string   `json:"TEXT_VALUE"`
+	StringValue string   `json:"STRING_VALUE"`
 }
