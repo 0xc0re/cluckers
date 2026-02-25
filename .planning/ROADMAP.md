@@ -38,7 +38,11 @@ See `.planning/milestones/v1.0-ROADMAP.md` for full details.
   3. The shared memory bridge (shm_launcher.exe) correctly passes content bootstrap data to the game under Proton
   4. All game arguments (-user, -token, -eac_oidc_token_file, -hostx) reach the game process through the Proton invocation chain
   5. The launcher detects Proton-GE from bundled path, config override, or system scan and reports the version found
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 06-01-PLAN.md — Proton-GE detection with priority ordering and compatdata health check (TDD)
+- [ ] 06-02-PLAN.md — Proton environment variable construction and command building (TDD)
+- [ ] 06-03-PLAN.md — Pipeline integration: wire Proton detection and invocation into launch pipeline
 
 ### Phase 7: Controller and Gamescope Integration
 **Goal**: Steam Deck controller buttons persist through the lobby-to-match transition (UE3 ServerTravel) without input loss
@@ -69,6 +73,6 @@ See `.planning/milestones/v1.0-ROADMAP.md` for full details.
 | 3. First-Run Setup and Steam Deck | v1.0 | 0/0 (absorbed) | Complete | 2026-02-24 |
 | 4. Cross-Platform GUI | v1.0 | 5/5 | Complete | 2026-02-24 |
 | 5. Containers / AppImage | v1.0 | 3/3 | Complete | 2026-02-25 |
-| 6. Core Proton Launch Pipeline | v1.1 | 0/? | Not started | - |
+| 6. Core Proton Launch Pipeline | v1.1 | 0/3 | In progress | - |
 | 7. Controller and Gamescope Integration | v1.1 | 0/? | Not started | - |
 | 8. Cleanup and Polish | v1.1 | 0/? | Not started | - |
