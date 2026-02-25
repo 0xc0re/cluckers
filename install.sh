@@ -150,15 +150,19 @@ if [ -z "$LATEST_VERSION" ]; then
     exit 1
 fi
 
-# Extract tarball download URL.
+# Extract download URLs — prefer AppImage, fall back to tar.gz.
+APPIMAGE_URL=$(printf '%s' "$RELEASE_JSON" | sed -n 's/.*"browser_download_url" *: *"\([^"]*Cluckers-x86_64\.AppImage\)".*/\1/p' | head -1)
 TARBALL_URL=$(printf '%s' "$RELEASE_JSON" | sed -n 's/.*"browser_download_url" *: *"\([^"]*cluckers_[^"]*linux_amd64\.tar\.gz\)".*/\1/p' | head -1)
 CHECKSUMS_URL=$(printf '%s' "$RELEASE_JSON" | sed -n 's/.*"browser_download_url" *: *"\([^"]*checksums\.txt\)".*/\1/p' | head -1)
 
-if [ -z "$TARBALL_URL" ]; then
+if [ -z "$APPIMAGE_URL" ] && [ -z "$TARBALL_URL" ]; then
     error "Could not find linux_amd64 release asset."
     printf "  Check: https://github.com/0xc0re/cluckers/releases/latest\n" >&2
     exit 1
 fi
+
+# Track which format we install.
+INSTALLED_APPIMAGE=false
 
 info "Latest version: $LATEST_VERSION"
 
@@ -185,53 +189,93 @@ fi
 TMPDIR=$(mktemp -d)
 trap 'rm -rf "$TMPDIR"' EXIT
 
-step "Downloading cluckers $LATEST_VERSION..."
-download "$TARBALL_URL" "$TMPDIR/cluckers.tar.gz"
+if [ -n "$APPIMAGE_URL" ]; then
+    # ---------- AppImage path (preferred) ----------
+    step "Downloading Cluckers AppImage $LATEST_VERSION..."
+    download "$APPIMAGE_URL" "$TMPDIR/Cluckers-x86_64.AppImage"
 
-if [ -n "$CHECKSUMS_URL" ]; then
-    step "Verifying checksum..."
-    download "$CHECKSUMS_URL" "$TMPDIR/checksums.txt"
+    if [ -n "$CHECKSUMS_URL" ]; then
+        step "Verifying checksum..."
+        download "$CHECKSUMS_URL" "$TMPDIR/checksums.txt"
 
-    # Determine available sha256 tool.
-    SHA_CMD=""
-    if command -v sha256sum >/dev/null 2>&1; then
-        SHA_CMD="sha256sum"
-    elif command -v shasum >/dev/null 2>&1; then
-        SHA_CMD="shasum -a 256"
-    fi
-
-    if [ -n "$SHA_CMD" ]; then
-        EXPECTED=$(grep "cluckers_.*linux_amd64\.tar\.gz" "$TMPDIR/checksums.txt" | awk '{print $1}')
-        ACTUAL=$($SHA_CMD "$TMPDIR/cluckers.tar.gz" | awk '{print $1}')
-        if [ "$EXPECTED" != "$ACTUAL" ]; then
-            error "Checksum verification failed!"
-            printf "  Expected: %s\n" "$EXPECTED" >&2
-            printf "  Got:      %s\n" "$ACTUAL" >&2
-            exit 1
+        SHA_CMD=""
+        if command -v sha256sum >/dev/null 2>&1; then
+            SHA_CMD="sha256sum"
+        elif command -v shasum >/dev/null 2>&1; then
+            SHA_CMD="shasum -a 256"
         fi
-        success "Checksum verified."
+
+        if [ -n "$SHA_CMD" ]; then
+            EXPECTED=$(grep "Cluckers-x86_64\.AppImage" "$TMPDIR/checksums.txt" | awk '{print $1}')
+            if [ -n "$EXPECTED" ]; then
+                ACTUAL=$($SHA_CMD "$TMPDIR/Cluckers-x86_64.AppImage" | awk '{print $1}')
+                if [ "$EXPECTED" != "$ACTUAL" ]; then
+                    error "Checksum verification failed!"
+                    printf "  Expected: %s\n" "$EXPECTED" >&2
+                    printf "  Got:      %s\n" "$ACTUAL" >&2
+                    exit 1
+                fi
+                success "Checksum verified."
+            else
+                warn "No AppImage checksum found in checksums.txt; skipping verification."
+            fi
+        else
+            warn "No sha256sum or shasum found; skipping checksum verification."
+        fi
     else
-        warn "No sha256sum or shasum found; skipping checksum verification."
+        warn "No checksums.txt found in release; skipping verification."
     fi
+
+    # Install the AppImage directly (no extraction needed).
+    step "Installing to $INSTALL_DIR..."
+    mv "$TMPDIR/Cluckers-x86_64.AppImage" "$INSTALL_PATH"
+    chmod +x "$INSTALL_PATH"
+    INSTALLED_APPIMAGE=true
 else
-    warn "No checksums.txt found in release; skipping verification."
+    # ---------- Tarball fallback (older releases without AppImage) ----------
+    step "Downloading cluckers $LATEST_VERSION..."
+    download "$TARBALL_URL" "$TMPDIR/cluckers.tar.gz"
+
+    if [ -n "$CHECKSUMS_URL" ]; then
+        step "Verifying checksum..."
+        download "$CHECKSUMS_URL" "$TMPDIR/checksums.txt"
+
+        SHA_CMD=""
+        if command -v sha256sum >/dev/null 2>&1; then
+            SHA_CMD="sha256sum"
+        elif command -v shasum >/dev/null 2>&1; then
+            SHA_CMD="shasum -a 256"
+        fi
+
+        if [ -n "$SHA_CMD" ]; then
+            EXPECTED=$(grep "cluckers_.*linux_amd64\.tar\.gz" "$TMPDIR/checksums.txt" | awk '{print $1}')
+            ACTUAL=$($SHA_CMD "$TMPDIR/cluckers.tar.gz" | awk '{print $1}')
+            if [ "$EXPECTED" != "$ACTUAL" ]; then
+                error "Checksum verification failed!"
+                printf "  Expected: %s\n" "$EXPECTED" >&2
+                printf "  Got:      %s\n" "$ACTUAL" >&2
+                exit 1
+            fi
+            success "Checksum verified."
+        else
+            warn "No sha256sum or shasum found; skipping checksum verification."
+        fi
+    else
+        warn "No checksums.txt found in release; skipping verification."
+    fi
+
+    step "Installing to $INSTALL_DIR..."
+    tar xzf "$TMPDIR/cluckers.tar.gz" -C "$TMPDIR"
+
+    if [ -f "$TMPDIR/cluckers" ]; then
+        mv "$TMPDIR/cluckers" "$INSTALL_PATH"
+    else
+        error "Binary not found in archive. Contents:"
+        ls -la "$TMPDIR" >&2
+        exit 1
+    fi
+    chmod +x "$INSTALL_PATH"
 fi
-
-# --------------------------------------------------------------------------- #
-#  Extract and install
-# --------------------------------------------------------------------------- #
-
-step "Installing to $INSTALL_DIR..."
-tar xzf "$TMPDIR/cluckers.tar.gz" -C "$TMPDIR"
-
-if [ -f "$TMPDIR/cluckers" ]; then
-    mv "$TMPDIR/cluckers" "$INSTALL_PATH"
-else
-    error "Binary not found in archive. Contents:"
-    ls -la "$TMPDIR" >&2
-    exit 1
-fi
-chmod +x "$INSTALL_PATH"
 
 # Verify the installed binary.
 INSTALLED_VERSION=$("$INSTALL_PATH" --version 2>/dev/null | head -1 || printf '')
@@ -291,13 +335,18 @@ check_proton_ge() {
     return 1
 }
 
-PROTON_DIR=""
-if PROTON_DIR=$(check_proton_ge); then
-    WINE_STATUS="Proton-GE found: $(basename "$PROTON_DIR")"
-elif command -v wine >/dev/null 2>&1; then
-    WINE_STATUS="System Wine found: $(wine --version 2>/dev/null || printf 'wine')"
+# If we installed the AppImage, Proton-GE is bundled inside it.
+if [ "$INSTALLED_APPIMAGE" = true ]; then
+    WINE_STATUS="Proton-GE bundled in AppImage"
 else
-    WINE_STATUS="not found"
+    PROTON_DIR=""
+    if PROTON_DIR=$(check_proton_ge); then
+        WINE_STATUS="Proton-GE found: $(basename "$PROTON_DIR")"
+    elif command -v wine >/dev/null 2>&1; then
+        WINE_STATUS="System Wine found: $(wine --version 2>/dev/null || printf 'wine')"
+    else
+        WINE_STATUS="not found"
+    fi
 fi
 
 # --------------------------------------------------------------------------- #
@@ -344,6 +393,9 @@ printf '%s%s%s\n' "$BOLD" "================================================" "$R
 printf "\n"
 printf '  %sLocation:%s  %s\n' "$BOLD" "$RESET" "$INSTALL_PATH"
 printf '  %sVersion:%s   %s\n' "$BOLD" "$RESET" "$LATEST_VERSION"
+if [ "$INSTALLED_APPIMAGE" = true ]; then
+    printf '  %sFormat:%s    AppImage (Proton-GE bundled)\n' "$BOLD" "$RESET"
+fi
 
 if [ "$WINE_STATUS" = "not found" ]; then
     printf '  %sWine:%s      %sNot found%s\n' "$BOLD" "$RESET" "$YELLOW" "$RESET"
@@ -363,9 +415,13 @@ elif [ "$PATH_OK" = false ]; then
     printf "\n"
 fi
 
-# Wine install guidance if not found.
+# Wine install guidance if not found (only applies to tarball installs;
+# AppImage bundles Proton-GE so this section is skipped).
 if [ "$WINE_STATUS" = "not found" ]; then
     warn "Wine or Proton-GE is required to run Realm Royale."
+    printf "\n"
+    printf "  %sTip:%s The AppImage version bundles Proton-GE automatically.\n" "$BOLD" "$RESET"
+    printf "  If this release has an AppImage, re-run the installer to get it.\n"
     printf "\n"
     if [ "$IS_STEAM_DECK" = true ]; then
         printf '  %sSteam Deck:%s Install ProtonUp-Qt from the Discover store,\n' "$BOLD" "$RESET"

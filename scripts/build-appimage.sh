@@ -42,7 +42,7 @@ BUILD_DIR="$PROJECT_DIR/build/appimage"
 APPDIR="$BUILD_DIR/Cluckers.AppDir"
 OUTPUT_DIR="$PROJECT_DIR/dist"
 PROTON_CACHE="$BUILD_DIR/proton-cache"
-RUNTIME_PATH="$BUILD_DIR/type2-runtime-x86_64"
+RUNTIME_PATH="${RUNTIME_PATH:-$BUILD_DIR/type2-runtime-x86_64}"
 
 # ---------------------------------------------------------------------------
 # Prerequisite checks
