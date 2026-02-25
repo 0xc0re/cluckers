@@ -1,6 +1,6 @@
 # Project State
 
-Last activity: 2026-02-25 - Completed 06-01 Proton-GE detection and compatdata health
+Last activity: 2026-02-25 - Completed phase 06 (Core Proton Launch Pipeline) - all 3 plans done
 
 ## Project Reference
 
@@ -11,12 +11,12 @@ See: .planning/PROJECT.md (updated 2026-02-24)
 
 ## Current Position
 
-Phase: 6 of 8 (Core Proton Launch Pipeline)
-Plan: 2 of 3 in current phase
-Status: Executing
-Last activity: 2026-02-25 -- Completed 06-01 Proton-GE detection and compatdata health
+Phase: 6 of 8 (Core Proton Launch Pipeline) -- COMPLETE
+Plan: 3 of 3 in current phase (all done)
+Status: Phase Complete
+Last activity: 2026-02-25 -- Completed 06-03 Proton pipeline integration
 
-Progress: [###############░░░░░] 76% (v1.0 complete, v1.1 phase 6: 2/3 plans)
+Progress: [################░░░░] 80% (v1.0 complete, v1.1 phase 6: 3/3 plans)
 
 ## Performance Metrics
 
@@ -42,6 +42,7 @@ Progress: [###############░░░░░] 76% (v1.0 complete, v1.1 phase 6: 2/3
 |-------|------|----------|-------|-------|
 | 6. Core Proton | 06-01 | 5min | 3 (TDD) | 4 |
 | 6. Core Proton | 06-02 | 3min | 1 (TDD) | 2 |
+| 6. Core Proton | 06-03 | 3min | 2 | 4 |
 
 ## Accumulated Context
 
@@ -57,6 +58,8 @@ Progress: [###############░░░░░] 76% (v1.0 complete, v1.1 phase 6: 2/3
 - 06-02: Injectable env pattern (buildProtonEnvFrom) for deterministic testing
 - 06-02: SHM bridge error detection via 4 case-insensitive stderr patterns
 - 06-02: proton run shmPath uses Linux path, bootstrapPath/gameExe use Wine Z: paths
+- 06-03: Proton info stored as simple strings in cross-platform LaunchState (no wine package import)
+- 06-03: WinePath/WinePrefix kept in structs for Windows compat (Phase 8 cleanup candidate)
 
 ### Blockers/Concerns
 
@@ -65,5 +68,5 @@ Progress: [###############░░░░░] 76% (v1.0 complete, v1.1 phase 6: 2/3
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Completed 06-01-PLAN.md (Proton-GE detection and compatdata health)
+Stopped at: Completed 06-03-PLAN.md (Proton pipeline integration -- phase 06 complete)
 Resume file: None
