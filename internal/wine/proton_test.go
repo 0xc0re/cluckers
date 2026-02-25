@@ -12,6 +12,8 @@ import (
 // TestFindProtonBundled verifies that CLUCKERS_BUNDLED_PROTON env var has highest priority.
 func TestFindProtonBundled(t *testing.T) {
 	tmp := t.TempDir()
+	emptyHome := filepath.Join(tmp, "empty")
+	os.MkdirAll(emptyHome, 0755)
 
 	// Create a fake bundled Proton-GE installation.
 	bundledDir := filepath.Join(tmp, "bundled", "GE-Proton10-1")
@@ -20,12 +22,10 @@ func TestFindProtonBundled(t *testing.T) {
 	os.WriteFile(filepath.Join(bundledDir, "files", "bin", "wine64"), []byte("fake"), 0755)
 
 	t.Setenv("CLUCKERS_BUNDLED_PROTON", bundledDir)
-	// Set HOME to empty dir so system scan finds nothing.
-	t.Setenv("HOME", filepath.Join(tmp, "empty"))
 
-	install, err := FindProton("")
+	install, err := findProton("", emptyHome)
 	if err != nil {
-		t.Fatalf("FindProton returned error: %v", err)
+		t.Fatalf("findProton returned error: %v", err)
 	}
 	if install.ProtonDir != bundledDir {
 		t.Errorf("ProtonDir = %q, want %q", install.ProtonDir, bundledDir)
@@ -37,22 +37,29 @@ func TestFindProtonBundled(t *testing.T) {
 
 // TestFindProtonBundledInvalidFallsThrough verifies that invalid bundled path falls through.
 func TestFindProtonBundledInvalidFallsThrough(t *testing.T) {
+	// Skip if real Proton-GE is installed on system (system-wide paths are always scanned).
+	if len(FindProtonGE("/nonexistent-home-for-test")) > 0 {
+		t.Skip("Skipping: real Proton-GE installed at system-wide path; cannot test 'not found' scenario")
+	}
+
 	tmp := t.TempDir()
+	emptyHome := filepath.Join(tmp, "empty")
+	os.MkdirAll(emptyHome, 0755)
 
 	// Bundled dir set but has no proton script.
 	t.Setenv("CLUCKERS_BUNDLED_PROTON", filepath.Join(tmp, "nonexistent"))
-	// Set HOME to empty dir so system scan finds nothing.
-	t.Setenv("HOME", filepath.Join(tmp, "empty"))
 
-	_, err := FindProton("")
+	_, err := findProton("", emptyHome)
 	if err == nil {
-		t.Fatal("FindProton should return error when bundled is invalid and nothing else found")
+		t.Fatal("findProton should return error when bundled is invalid and nothing else found")
 	}
 }
 
 // TestFindProtonConfigOverrideWine64Path verifies config override with wine64 path.
 func TestFindProtonConfigOverrideWine64Path(t *testing.T) {
 	tmp := t.TempDir()
+	emptyHome := filepath.Join(tmp, "empty")
+	os.MkdirAll(emptyHome, 0755)
 
 	// Create a fake Proton-GE installation pointed to by wine64 path.
 	protonDir := filepath.Join(tmp, "GE-Proton10-1")
@@ -61,12 +68,11 @@ func TestFindProtonConfigOverrideWine64Path(t *testing.T) {
 	os.WriteFile(filepath.Join(protonDir, "files", "bin", "wine64"), []byte("fake"), 0755)
 
 	t.Setenv("CLUCKERS_BUNDLED_PROTON", "")
-	t.Setenv("HOME", filepath.Join(tmp, "empty"))
 
 	wine64Path := filepath.Join(protonDir, "files", "bin", "wine64")
-	install, err := FindProton(wine64Path)
+	install, err := findProton(wine64Path, emptyHome)
 	if err != nil {
-		t.Fatalf("FindProton returned error: %v", err)
+		t.Fatalf("findProton returned error: %v", err)
 	}
 	if install.ProtonDir != protonDir {
 		t.Errorf("ProtonDir = %q, want %q", install.ProtonDir, protonDir)
@@ -79,6 +85,8 @@ func TestFindProtonConfigOverrideWine64Path(t *testing.T) {
 // TestFindProtonConfigOverrideDirectory verifies config override with directory path.
 func TestFindProtonConfigOverrideDirectory(t *testing.T) {
 	tmp := t.TempDir()
+	emptyHome := filepath.Join(tmp, "empty")
+	os.MkdirAll(emptyHome, 0755)
 
 	// Create a fake Proton-GE installation pointed to by directory.
 	protonDir := filepath.Join(tmp, "GE-Proton10-1")
@@ -87,11 +95,10 @@ func TestFindProtonConfigOverrideDirectory(t *testing.T) {
 	os.WriteFile(filepath.Join(protonDir, "files", "bin", "wine64"), []byte("fake"), 0755)
 
 	t.Setenv("CLUCKERS_BUNDLED_PROTON", "")
-	t.Setenv("HOME", filepath.Join(tmp, "empty"))
 
-	install, err := FindProton(protonDir)
+	install, err := findProton(protonDir, emptyHome)
 	if err != nil {
-		t.Fatalf("FindProton returned error: %v", err)
+		t.Fatalf("findProton returned error: %v", err)
 	}
 	if install.ProtonDir != protonDir {
 		t.Errorf("ProtonDir = %q, want %q", install.ProtonDir, protonDir)
@@ -105,7 +112,7 @@ func TestFindProtonConfigOverrideDirectory(t *testing.T) {
 func TestFindProtonSystemScan(t *testing.T) {
 	tmp := t.TempDir()
 
-	// Create a fake Proton-GE at a system scan location.
+	// Create a fake Proton-GE at a system scan location under tmp as home.
 	compatDir := filepath.Join(tmp, ".local", "share", "Steam", "compatibilitytools.d")
 	protonDir := filepath.Join(compatDir, "GE-Proton10-1")
 	os.MkdirAll(filepath.Join(protonDir, "files", "bin"), 0755)
@@ -113,11 +120,10 @@ func TestFindProtonSystemScan(t *testing.T) {
 	os.WriteFile(filepath.Join(protonDir, "files", "bin", "wine64"), []byte("fake"), 0755)
 
 	t.Setenv("CLUCKERS_BUNDLED_PROTON", "")
-	t.Setenv("HOME", tmp)
 
-	install, err := FindProton("")
+	install, err := findProton("", tmp)
 	if err != nil {
-		t.Fatalf("FindProton returned error: %v", err)
+		t.Fatalf("findProton returned error: %v", err)
 	}
 	if install.ProtonDir != protonDir {
 		t.Errorf("ProtonDir = %q, want %q", install.ProtonDir, protonDir)
@@ -141,11 +147,10 @@ func TestFindProtonBundledOverridesSystem(t *testing.T) {
 	os.WriteFile(filepath.Join(systemDir, "files", "bin", "wine64"), []byte("fake"), 0755)
 
 	t.Setenv("CLUCKERS_BUNDLED_PROTON", bundledDir)
-	t.Setenv("HOME", tmp)
 
-	install, err := FindProton("")
+	install, err := findProton("", tmp)
 	if err != nil {
-		t.Fatalf("FindProton returned error: %v", err)
+		t.Fatalf("findProton returned error: %v", err)
 	}
 	// Should use bundled, not system.
 	if install.ProtonDir != bundledDir {
@@ -153,15 +158,22 @@ func TestFindProtonBundledOverridesSystem(t *testing.T) {
 	}
 }
 
-// TestFindProtonNotFoundArch verifies per-distro error messages for Arch Linux.
-func TestFindProtonNotFoundArch(t *testing.T) {
-	tmp := t.TempDir()
-	t.Setenv("CLUCKERS_BUNDLED_PROTON", "")
-	t.Setenv("HOME", filepath.Join(tmp, "empty"))
+// TestFindProtonNotFound verifies error when nothing found.
+func TestFindProtonNotFound(t *testing.T) {
+	// Skip if real Proton-GE is installed on system (system-wide paths are always scanned).
+	if len(FindProtonGE("/nonexistent-home-for-test")) > 0 {
+		t.Skip("Skipping: real Proton-GE installed at system-wide path; cannot test 'not found' scenario")
+	}
 
-	_, err := FindProton("")
+	tmp := t.TempDir()
+	emptyHome := filepath.Join(tmp, "empty")
+	os.MkdirAll(emptyHome, 0755)
+
+	t.Setenv("CLUCKERS_BUNDLED_PROTON", "")
+
+	_, err := findProton("", emptyHome)
 	if err == nil {
-		t.Fatal("FindProton should return error when nothing found")
+		t.Fatal("findProton should return error when nothing found")
 	}
 
 	errMsg := err.Error()
@@ -170,7 +182,7 @@ func TestFindProtonNotFoundArch(t *testing.T) {
 	}
 }
 
-// TestFindProtonNotFoundInstructions verifies install instructions are per-distro.
+// TestProtonInstallInstructionsArch verifies install instructions for Arch Linux.
 func TestProtonInstallInstructionsArch(t *testing.T) {
 	instructions := ProtonInstallInstructions("arch")
 	if !strings.Contains(instructions, "ProtonUp-Qt") {
@@ -258,11 +270,10 @@ func TestFindProtonOldVersionAllowed(t *testing.T) {
 	os.WriteFile(filepath.Join(protonDir, "files", "bin", "wine64"), []byte("fake"), 0755)
 
 	t.Setenv("CLUCKERS_BUNDLED_PROTON", "")
-	t.Setenv("HOME", tmp)
 
-	install, err := FindProton("")
+	install, err := findProton("", tmp)
 	if err != nil {
-		t.Fatalf("FindProton should succeed for old versions (warn but allow), got error: %v", err)
+		t.Fatalf("findProton should succeed for old versions (warn but allow), got error: %v", err)
 	}
 	if install.DisplayVersion() != "GE-Proton7-55" {
 		t.Errorf("DisplayVersion() = %q, want %q", install.DisplayVersion(), "GE-Proton7-55")

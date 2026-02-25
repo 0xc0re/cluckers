@@ -10,10 +10,10 @@ Requirements for Proton launch pipeline migration. Each maps to roadmap phases.
 ### Proton Launch Pipeline
 
 - [ ] **PROTON-01**: Launcher detects Proton-GE installation (bundled via CLUCKERS_BUNDLED_PROTON, config override, or system Proton-GE scan paths)
-- [ ] **PROTON-02**: Launcher invokes game via `proton run` with correct environment (STEAM_COMPAT_DATA_PATH, PROTON_WINEDLLOVERRIDES=dxgi=n, UMU_ID=0, SteamGameId, SteamAppId=0)
+- [x] **PROTON-02**: Launcher invokes game via `proton run` with correct environment (STEAM_COMPAT_DATA_PATH, PROTON_WINEDLLOVERRIDES=dxgi=n, UMU_ID=0, SteamGameId, SteamAppId=0)
 - [ ] **PROTON-03**: Proton automatically creates and manages Wine prefix at ~/.cluckers/compatdata/pfx/ on first launch
-- [ ] **PROTON-04**: shm_launcher.exe shared memory bridge works correctly under Proton (CreateFileMappingW/OpenFileMapping)
-- [ ] **PROTON-05**: All game arguments pass through correctly via proton run (-user, -token, -eac_oidc_token_file, -hostx)
+- [x] **PROTON-04**: shm_launcher.exe shared memory bridge works correctly under Proton (CreateFileMappingW/OpenFileMapping)
+- [x] **PROTON-05**: All game arguments pass through correctly via proton run (-user, -token, -eac_oidc_token_file, -hostx)
 
 ### Controller / Gamescope
 
@@ -58,10 +58,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | PROTON-01 | Phase 6 | Pending |
-| PROTON-02 | Phase 6 | Pending |
+| PROTON-02 | Phase 6 | Complete |
 | PROTON-03 | Phase 6 | Pending |
-| PROTON-04 | Phase 6 | Pending |
-| PROTON-05 | Phase 6 | Pending |
+| PROTON-04 | Phase 6 | Complete |
+| PROTON-05 | Phase 6 | Complete |
 | CTRL-01 | Phase 7 | Pending |
 | CTRL-02 | Phase 7 | Pending |
 | CTRL-03 | Phase 7 | Pending |

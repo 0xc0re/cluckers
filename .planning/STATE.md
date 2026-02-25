@@ -1,6 +1,6 @@
 # Project State
 
-Last activity: 2026-02-24 - Roadmap created for v1.1
+Last activity: 2026-02-25 - Completed 06-02 Proton env construction
 
 ## Project Reference
 
@@ -12,11 +12,11 @@ See: .planning/PROJECT.md (updated 2026-02-24)
 ## Current Position
 
 Phase: 6 of 8 (Core Proton Launch Pipeline)
-Plan: 0 of ? in current phase
-Status: Ready to plan
-Last activity: 2026-02-24 -- Roadmap created for v1.1
+Plan: 2 of 3 in current phase
+Status: Executing
+Last activity: 2026-02-25 -- Completed 06-02 Proton env construction
 
-Progress: [##############░░░░░░] 70% (v1.0 complete, v1.1 starting)
+Progress: [###############░░░░░] 76% (v1.0 complete, v1.1 phase 6: 2/3 plans)
 
 ## Performance Metrics
 
@@ -36,6 +36,12 @@ Progress: [##############░░░░░░] 70% (v1.0 complete, v1.1 starting)
 
 *v1.1 metrics will be tracked from Phase 6 onward*
 
+**By Phase (v1.1):**
+
+| Phase | Plan | Duration | Tasks | Files |
+|-------|------|----------|-------|-------|
+| 6. Core Proton | 06-02 | 3min | 1 (TDD) | 2 |
+
 ## Accumulated Context
 
 ### Decisions
@@ -45,6 +51,9 @@ Progress: [##############░░░░░░] 70% (v1.0 complete, v1.1 starting)
 - v1.1: Fresh Proton prefix at ~/.cluckers/compatdata/ (no migration of old prefix)
 - v1.1: Proton-GE required for all Linux (system Wine fallback out of scope per REQUIREMENTS.md)
 - v1.1: Direct `proton run` invocation (not umu-launcher)
+- 06-02: Injectable env pattern (buildProtonEnvFrom) for deterministic testing
+- 06-02: SHM bridge error detection via 4 case-insensitive stderr patterns
+- 06-02: proton run shmPath uses Linux path, bootstrapPath/gameExe use Wine Z: paths
 
 ### Blockers/Concerns
 
@@ -52,6 +61,6 @@ Progress: [##############░░░░░░] 70% (v1.0 complete, v1.1 starting)
 
 ## Session Continuity
 
-Last session: 2026-02-24
-Stopped at: Roadmap created, ready to plan Phase 6
+Last session: 2026-02-25
+Stopped at: Completed 06-02-PLAN.md (Proton env construction)
 Resume file: None
