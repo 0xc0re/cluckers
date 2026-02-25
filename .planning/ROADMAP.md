@@ -23,7 +23,7 @@ See `.planning/milestones/v1.0-ROADMAP.md` for full details.
 ### v1.1 Full Controller Functionality on Steam Deck
 
 - [ ] **Phase 6: Core Proton Launch Pipeline** - Replace direct Wine execution with `proton run` for all Linux launches
-- [ ] **Phase 7: Controller and Gamescope Integration** - Fix Steam Deck controller input loss through Gamescope session tracking
+- [x] **Phase 7: Controller and Gamescope Integration** - Fix Steam Deck controller input loss through Gamescope session tracking (completed 2026-02-25)
 - [ ] **Phase 8: Cleanup and Polish** - Remove dead Wine code paths and update UI for Proton terminology
 
 ## Phase Details
@@ -78,5 +78,5 @@ Plans:
 | 4. Cross-Platform GUI | v1.0 | 5/5 | Complete | 2026-02-24 |
 | 5. Containers / AppImage | v1.0 | 3/3 | Complete | 2026-02-25 |
 | 6. Core Proton Launch Pipeline | v1.1 | 3/3 | Complete | 2026-02-25 |
-| 7. Controller and Gamescope Integration | v1.1 | 3/3 | Complete (CTRL-03 FAILED, deferred) | 2026-02-25 |
+| 7. Controller and Gamescope Integration | v1.1 | Complete    | 2026-02-25 | 2026-02-25 |
 | 8. Cleanup and Polish | v1.1 | 0/? | Not started | - |
