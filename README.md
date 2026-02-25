@@ -106,29 +106,7 @@ mv cluckers ~/.local/bin/  # or wherever you prefer
 
 ### Build from source
 
-Requires Go 1.25+ and mingw-w64 (for cross-compiling the embedded SHM helper):
-
-```bash
-git clone https://github.com/0xc0re/cluckers.git
-cd cluckers
-x86_64-w64-mingw32-gcc -o assets/shm_launcher.exe tools/shm_launcher.c -municode
-go build -o cluckers ./cmd/cluckers
-```
-
-To build with the GUI (requires CGO and platform graphics libraries):
-
-```bash
-CGO_ENABLED=1 go build -tags gui -o cluckers ./cmd/cluckers
-```
-
-Without the `gui` build tag, the binary is CLI-only (no graphical interface).
-Release binaries from GitHub are always built with the `gui` tag.
-
-To cross-compile a CLI-only Windows binary from Linux:
-
-```bash
-GOOS=windows go build -o cluckers.exe ./cmd/cluckers
-```
+See [CONTRIBUTING.md](CONTRIBUTING.md) for build prerequisites and instructions.
 
 ## Usage
 
