@@ -86,7 +86,15 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG_NAME: ${{ github.ref_name }}
         run: |
+          # Append AppImage checksums to goreleaser's checksums.txt
+          cd dist
+          sha256sum Cluckers-x86_64.AppImage >> checksums.txt
+          sha256sum Cluckers-x86_64.AppImage.zsync >> checksums.txt
+          cd ..
+
+          # Upload AppImage files and updated checksums
           gh release upload "$TAG_NAME" \
             dist/Cluckers-x86_64.AppImage \
             dist/Cluckers-x86_64.AppImage.zsync \
+            dist/checksums.txt \
             --clobber

@@ -73,6 +73,3 @@ release:
   github:
     owner: 0xc0re
     name: cluckers
-  extra_files:
-    - glob: ./dist/Cluckers-x86_64.AppImage
-    - glob: ./dist/Cluckers-x86_64.AppImage.zsync
