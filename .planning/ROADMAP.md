@@ -52,7 +52,11 @@ Plans:
   1. The launcher injects `SteamGameId` environment variable so Gamescope tracks the game window across D3D window recreation
   2. The launcher auto-detects the Steam installation path (native, Flatpak, or Snap) for `STEAM_COMPAT_CLIENT_INSTALL_PATH`
   3. On Steam Deck hardware, controller buttons (A/B/X/Y, bumpers, triggers) remain functional after transitioning from lobby to in-match gameplay
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 07-01-PLAN.md — Steam installation detection with TDD (FindSteamInstall for native, Flatpak, Snap)
+- [ ] 07-02-PLAN.md — Wire Steam detection and app ID into Proton env vars and launch pipeline
+- [ ] 07-03-PLAN.md — Hardware validation of controller persistence on Steam Deck
 
 ### Phase 8: Cleanup and Polish
 **Goal**: The codebase reflects the Proton-only reality for Proton-GE users, with UI terminology and status output updated to match
@@ -74,5 +78,5 @@ Plans:
 | 4. Cross-Platform GUI | v1.0 | 5/5 | Complete | 2026-02-24 |
 | 5. Containers / AppImage | v1.0 | 3/3 | Complete | 2026-02-25 |
 | 6. Core Proton Launch Pipeline | v1.1 | 2/3 | In progress | - |
-| 7. Controller and Gamescope Integration | v1.1 | 0/? | Not started | - |
+| 7. Controller and Gamescope Integration | v1.1 | 0/3 | Not started | - |
 | 8. Cleanup and Polish | v1.1 | 0/? | Not started | - |
