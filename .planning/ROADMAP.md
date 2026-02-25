@@ -79,7 +79,7 @@ Phases execute in numeric order: 1 -> 2 -> 3
 | 2. Wine and Game Management | 0/3 | Complete    | 2026-02-22 |
 | 3. First-Run Setup and Steam Deck | 0/2 | Not started | - |
 | 4. Cross-Platform GUI | 5/5 | Complete    | 2026-02-24 |
-| 5. Containers / AppImage | 0/3 | Not started | - |
+| 5. Containers / AppImage | 0/3 | Complete    | 2026-02-25 |
 
 ### Phase 4: Cross-Platform GUI
 
@@ -115,7 +115,7 @@ Plans:
   4. GitHub release includes AppImage + zsync file alongside existing tar.gz and zip archives
   5. Install script defaults to AppImage download for new Linux installations
   6. Wine prefix stays external at ~/.cluckers/prefix/ (not inside AppImage)
-**Plans:** 3 plans
+**Plans:** 3/3 plans complete
 
 Plans:
 - [ ] 05-01-PLAN.md -- AppImage deploy assets, detection helpers, bundled Proton-GE detection, LD_LIBRARY_PATH isolation

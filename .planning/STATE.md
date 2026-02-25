@@ -1,14 +1,14 @@
 # Project State
 
-Last activity: 2026-02-25 - Completed 05-02-PLAN.md: AppImage build script with Proton-GE bundling
+Last activity: 2026-02-25 - Completed 05-03-PLAN.md: CI/CD integration, AppImage-aware self-update, install script
 
 ## Current Phase Execution
 
-- **Phase:** 05-containers-appimage (IN PROGRESS - 2/3 plans)
-- **Current Plan:** 05-03-PLAN.md
-- **Last Completed:** 05-02-PLAN.md (AppImage build script with Proton-GE caching and zsync support)
-- **Last Session:** 2026-02-25T00:49:34.234Z
-- **Stopped At:** Completed 05-01-PLAN.md
+- **Phase:** 05-containers-appimage (COMPLETE - 3/3 plans)
+- **Current Plan:** Not started
+- **Last Completed:** 05-03-PLAN.md (CI/CD integration and AppImage-aware self-update)
+- **Last Session:** 2026-02-25T00:56:05.060Z
+- **Stopped At:** Completed 05-03-PLAN.md
 
 ### Quick Tasks Completed
 
@@ -83,3 +83,8 @@ Last activity: 2026-02-25 - Completed 05-02-PLAN.md: AppImage build script with 
 - [Phase 05-01]: AppImage detection via env vars (APPIMAGE, APPDIR, CLUCKERS_BUNDLED_PROTON) is cross-platform safe -- no build tags needed
 - [Phase 05-01]: LD_LIBRARY_PATH stripped entirely from Wine env rather than selectively filtered -- Wine manages its own library paths
 - [Phase 05-01]: Bundled Proton-GE is priority 2 in FindWine chain (between user config override and system Proton-GE scan)
+- [Phase 05-03]: Self-update reads APPIMAGE env var to determine download artifact type at runtime
+- [Phase 05-03]: replaceAppImage uses os.ReadFile/os.WriteFile for in-place overwrite (no archive extraction)
+- [Phase 05-03]: CI uploads AppImage via gh release upload with goreleaser extra_files as backup
+- [Phase 05-03]: Install script prefers AppImage URL; falls back to tar.gz for older releases
+- [Phase 05-03]: Build script RUNTIME_PATH made configurable via env var for CI override
