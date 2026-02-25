@@ -1,14 +1,14 @@
 # Project State
 
-Last activity: 2026-02-25 - Completed quick task 32: document both Linux release formats (tarball and AppImage)
+Last activity: 2026-02-25 - Completed quick task 33: resolve error setting bot names
 
 ## Current Phase Execution
 
 - **Phase:** 05-containers-appimage (COMPLETE - 3/3 plans)
 - **Current Plan:** Not started
 - **Last Completed:** 05-03-PLAN.md (CI/CD integration and AppImage-aware self-update)
-- **Last Session:** 2026-02-25T02:56:35.512Z
-- **Stopped At:** Completed quick-32: document both Linux release formats
+- **Last Session:** 2026-02-25T03:31:32.499Z
+- **Stopped At:** Completed quick-33: resolve error setting bot names
 
 ### Quick Tasks Completed
 
@@ -35,6 +35,7 @@ Last activity: 2026-02-25 - Completed quick task 32: document both Linux release
 | 30 | Verify AppImage builds locally and in CI, fix strip/FUSE/zsync issues | 2026-02-25 | cea7ee9 | [30-make-sure-appimage-builds-locally-and-in](./quick/30-make-sure-appimage-builds-locally-and-in/) |
 | 31 | Split README into user-facing docs and CONTRIBUTING.md for developers | 2026-02-25 | bc9122a | [31-breakup-documentation-developer-build-do](./quick/31-breakup-documentation-developer-build-do/) |
 | 32 | Document both Linux release formats (tarball and AppImage) | 2026-02-25 | 782b31a | [32-include-gui-and-cli-as-single-binary-lin](./quick/32-include-gui-and-cli-as-single-binary-lin/) |
+| 33 | Resolve error setting bot names (raw response diagnostics) | 2026-02-25 | 081c320 | [33-resolve-error-setting-bot-names](./quick/33-resolve-error-setting-bot-names/) |
 
 ## Accumulated Context
 
@@ -95,3 +96,4 @@ Last activity: 2026-02-25 - Completed quick task 32: document both Linux release
 - [Phase quick-30]: APPIMAGE_EXTRACT_AND_RUN=1 for CI: ubuntu-22.04 runners lack FUSE for AppImage tools
 - [Quick 31]: Documentation split: README for users only, CONTRIBUTING.md for developer/build docs
 - [Phase quick-32]: Both Linux formats presented as equal options; tarball prerequisites include per-distro graphics library packages
+- [Phase quick-33]: PostWithRaw gateway method added alongside Post for optional raw response capture without breaking existing callers
