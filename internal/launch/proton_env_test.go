@@ -6,8 +6,6 @@ import (
 	"errors"
 	"strings"
 	"testing"
-
-	"github.com/0xc0re/cluckers/internal/ui"
 )
 
 // --- filterEnv tests ---
