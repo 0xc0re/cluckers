@@ -54,9 +54,9 @@ Plans:
   3. On Steam Deck hardware, controller buttons (A/B/X/Y, bumpers, triggers) remain functional after transitioning from lobby to in-match gameplay
 **Plans**: 3 plans
 Plans:
-- [ ] 07-01-PLAN.md — Steam installation detection with TDD (FindSteamInstall for native, Flatpak, Snap)
-- [ ] 07-02-PLAN.md — Wire Steam detection and app ID into Proton env vars and launch pipeline
-- [ ] 07-03-PLAN.md — Hardware validation of controller persistence on Steam Deck
+- [x] 07-01-PLAN.md — Steam installation detection with TDD (FindSteamInstall for native, Flatpak, Snap)
+- [x] 07-02-PLAN.md — Wire Steam detection and app ID into Proton env vars and launch pipeline
+- [x] 07-03-PLAN.md — Hardware validation of controller persistence on Steam Deck (FAILED -- CTRL-03 unsatisfied, deferred to v1.2+)
 
 ### Phase 8: Cleanup and Polish
 **Goal**: The codebase reflects the Proton-only reality for Proton-GE users, with UI terminology and status output updated to match
@@ -77,6 +77,6 @@ Plans:
 | 3. First-Run Setup and Steam Deck | v1.0 | 0/0 (absorbed) | Complete | 2026-02-24 |
 | 4. Cross-Platform GUI | v1.0 | 5/5 | Complete | 2026-02-24 |
 | 5. Containers / AppImage | v1.0 | 3/3 | Complete | 2026-02-25 |
-| 6. Core Proton Launch Pipeline | v1.1 | 2/3 | In progress | - |
-| 7. Controller and Gamescope Integration | v1.1 | 0/3 | Not started | - |
+| 6. Core Proton Launch Pipeline | v1.1 | 3/3 | Complete | 2026-02-25 |
+| 7. Controller and Gamescope Integration | v1.1 | 3/3 | Complete (CTRL-03 FAILED, deferred) | 2026-02-25 |
 | 8. Cleanup and Polish | v1.1 | 0/? | Not started | - |

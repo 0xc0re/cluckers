@@ -64,7 +64,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PROTON-05 | Phase 6 | Complete |
 | CTRL-01 | Phase 7 | Complete |
 | CTRL-02 | Phase 7 | Complete |
-| CTRL-03 | Phase 7 | Pending |
+| CTRL-03 | Phase 7 | FAILED (deferred to v1.2+) |
 | POLISH-01 | Phase 8 | Pending |
 | POLISH-02 | Phase 8 | Pending |
 | POLISH-03 | Phase 8 | Pending |

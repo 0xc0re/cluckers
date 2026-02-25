@@ -1,6 +1,6 @@
 # Project State
 
-Last activity: 2026-02-25 - Phase 07 (Controller & Gamescope Integration) in progress - 07-02 complete
+Last activity: 2026-02-25 - Phase 07 (Controller & Gamescope Integration) complete - 07-03 hardware test FAILED (CTRL-03 unsatisfied)
 
 ## Project Reference
 
@@ -12,11 +12,11 @@ See: .planning/PROJECT.md (updated 2026-02-24)
 ## Current Position
 
 Phase: 7 of 8 (Controller & Gamescope Integration)
-Plan: 2 of 3 in current phase
-Status: In Progress
-Last activity: 2026-02-25 -- Completed 07-02 Steam integration pipeline wiring
+Plan: 3 of 3 in current phase
+Status: Phase 7 Complete (CTRL-03 FAILED -- controller drop unsolved, deferred to v1.2+)
+Last activity: 2026-02-25 -- Completed 07-03 hardware validation (FAILED)
 
-Progress: [##################░░] 90% (v1.0 complete, v1.1 phase 7: 2/3 plans)
+Progress: [###################░] 95% (v1.0 complete, v1.1 phase 7: 3/3 plans, phase 8 remaining)
 
 ## Performance Metrics
 
@@ -45,6 +45,7 @@ Progress: [##################░░] 90% (v1.0 complete, v1.1 phase 7: 2/3 plans
 | 6. Core Proton | 06-03 | 3min | 2 | 4 |
 | 7. Controller/Gamescope | 07-01 | 1min | 2 (TDD) | 2 |
 | 7. Controller/Gamescope | 07-02 | 3min | 2 | 8 |
+| 7. Controller/Gamescope | 07-03 | 0min | 1 (checkpoint) | 0 |
 
 ## Accumulated Context
 
@@ -67,13 +68,16 @@ Progress: [##################░░] 90% (v1.0 complete, v1.1 phase 7: 2/3 plans
 - 07-02: SteamAppId set to match SteamGameId for Proton Wine X11 class hints (Gamescope window tracking)
 - 07-02: All Steam detection failures non-fatal -- game launches with fallback values
 - 07-02: stepResolveSteamIntegration placed after stepEnsureCompatdata in pipeline
+- 07-03: CTRL-03 hardware test FAILED -- Gamescope window tracking hypothesis disproven; controller loss is Steam Input firmware behavior independent of window class/focus
+- 07-03: Env var changes (SteamGameId, STEAM_COMPAT_CLIENT_INSTALL_PATH) retained for correct Proton integration despite not fixing controller drop
+- 07-03: Controller persistence deferred to v1.2+ (fallback: launch through Steam, external USB controller, or Valve fix)
 
 ### Blockers/Concerns
 
-- MEDIUM confidence: Standalone `proton run` may not set STEAM_GAME X11 property for Gamescope. Phase 6 must include hardware validation on Steam Deck. If it fails, pivot to requiring launch through Steam as non-Steam shortcut.
+- ~~MEDIUM confidence: Standalone `proton run` may not set STEAM_GAME X11 property for Gamescope.~~ **RESOLVED (07-03):** Hardware test confirmed STEAM_GAME absent and controller drops persist. Gamescope window tracking (WM_CLASS, GAMESCOPE_FOCUSED_APP) works correctly but does not prevent Steam Input firmware reconfiguration. Controller fix deferred to v1.2+ -- standalone `proton run` with env vars is correct for Proton integration; controller persistence requires a fundamentally different approach (launch through Steam runtime, external controller, or Valve fix).
 
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Completed 07-02-PLAN.md (Steam integration pipeline wiring)
+Stopped at: Completed 07-03-PLAN.md (hardware validation FAILED -- CTRL-03 unsatisfied, deferred to v1.2+)
 Resume file: None
