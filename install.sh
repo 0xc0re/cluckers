@@ -3,8 +3,8 @@
 #
 # Usage:
 #   curl -sSL https://raw.githubusercontent.com/0xc0re/cluckers/master/install.sh | sh
-#   FORMAT=tarball curl -sSL ... | sh      # force tarball instead of AppImage
-#   INSTALL_DIR=/usr/local/bin curl -sSL ... | sh
+#   curl -sSL ... | FORMAT=tarball sh      # force tarball instead of AppImage
+#   curl -sSL ... | INSTALL_DIR=/usr/local/bin sh
 #   sh install.sh
 
 set -eu

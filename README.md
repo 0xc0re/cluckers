@@ -60,13 +60,13 @@ available, it prefers the AppImage (which bundles Proton-GE) over the tarball.
 To install the tarball instead, set `FORMAT`:
 
 ```bash
-FORMAT=tarball curl -sSL https://raw.githubusercontent.com/0xc0re/cluckers/master/install.sh | sh
+curl -sSL https://raw.githubusercontent.com/0xc0re/cluckers/master/install.sh | FORMAT=tarball sh
 ```
 
 To install elsewhere, set `INSTALL_DIR`:
 
 ```bash
-INSTALL_DIR=/usr/local/bin curl -sSL https://raw.githubusercontent.com/0xc0re/cluckers/master/install.sh | sh
+curl -sSL https://raw.githubusercontent.com/0xc0re/cluckers/master/install.sh | INSTALL_DIR=/usr/local/bin sh
 ```
 
 **Steam Deck:** Works out of the box. The installer detects SteamOS and places
