@@ -188,6 +188,17 @@ func FindWine(configOverride string) (string, error) {
 		return configOverride, nil
 	}
 
+	// Check for bundled Proton-GE (AppImage mode).
+	// Set by AppRun via CLUCKERS_BUNDLED_PROTON env var.
+	if bundled := os.Getenv("CLUCKERS_BUNDLED_PROTON"); bundled != "" {
+		winePath := filepath.Join(bundled, "files", "bin", "wine64")
+		if _, err := os.Stat(winePath); err == nil {
+			return winePath, nil
+		}
+		// Bundled Proton-GE declared but wine64 not found -- warn and continue to system search.
+		ui.Warn("Bundled Proton-GE not found at " + winePath + ", searching system...")
+	}
+
 	// Check Proton-GE installations (sorted newest first).
 	home := userHome()
 	installs := FindProtonGE(home)

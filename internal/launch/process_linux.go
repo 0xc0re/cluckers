@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"strings"
 
 	"github.com/0xc0re/cluckers/internal/game"
 	"github.com/0xc0re/cluckers/internal/ui"
@@ -85,8 +86,19 @@ func LaunchGame(ctx context.Context, cfg *LaunchConfig) error {
 		args = append(args, gameArgs...)
 	}
 
-	// Set up environment.
+	// Clean LD_LIBRARY_PATH before launching Wine to prevent AppImage-bundled
+	// libraries from conflicting with Wine's own library resolution.
+	// AppRun sets LD_LIBRARY_PATH for the Cluckers binary, but Wine must
+	// not inherit these paths or it may load incompatible libraries.
 	env := os.Environ()
+	filteredEnv := make([]string, 0, len(env))
+	for _, e := range env {
+		if strings.HasPrefix(e, "LD_LIBRARY_PATH=") {
+			continue // Strip entirely -- Wine manages its own library paths
+		}
+		filteredEnv = append(filteredEnv, e)
+	}
+	env = filteredEnv
 	if cfg.WinePrefix != "" {
 		env = append(env, "WINEPREFIX="+cfg.WinePrefix)
 	}
