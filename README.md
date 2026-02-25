@@ -22,9 +22,13 @@ Native launcher for Realm Royale on the Project Crown private server, for Linux 
 
 ### Linux
 
-- Wine or Proton-GE
-- winetricks (for prefix setup with system Wine; not needed with Proton-GE)
-- A Project Crown account
+**AppImage (recommended):** No prerequisites -- Proton-GE is bundled inside the
+AppImage. Just download and run.
+
+**Tarball:** Requires Wine or Proton-GE installed separately, plus winetricks for
+prefix setup with system Wine (not needed with Proton-GE).
+
+Both formats require a Project Crown account.
 
 ### Windows
 
@@ -40,16 +44,17 @@ No additional dependencies are required on Windows. The game runs natively.
 curl -sSL https://raw.githubusercontent.com/0xc0re/cluckers/master/install.sh | sh
 ```
 
-This downloads the latest release binary to `~/.local/bin/cluckers`. To install
-elsewhere, set `INSTALL_DIR`:
+The installer downloads the latest release to `~/.local/bin/cluckers`. When
+available, it prefers the AppImage (which bundles Proton-GE) over the tarball.
+To install elsewhere, set `INSTALL_DIR`:
 
 ```bash
 INSTALL_DIR=/usr/local/bin curl -sSL https://raw.githubusercontent.com/0xc0re/cluckers/master/install.sh | sh
 ```
 
 **Steam Deck:** Works out of the box. The installer detects SteamOS and places
-the binary in `~/.local/bin`. If you don't have Proton-GE installed, grab
-ProtonUp-Qt from the Discover store and install the latest GE-Proton version.
+the binary in `~/.local/bin`. The AppImage bundles Proton-GE, so no additional
+setup is needed.
 
 ### Quick install -- Windows (PowerShell)
 
@@ -68,10 +73,22 @@ powershell -ExecutionPolicy Bypass -File install.ps1
 
 ### Manual download -- Linux
 
-Grab the latest release from [GitHub Releases](https://github.com/0xc0re/cluckers/releases):
+Grab the latest release from [GitHub Releases](https://github.com/0xc0re/cluckers/releases).
+
+**AppImage (recommended):** Single file, bundles Proton-GE, no Wine install needed.
 
 ```bash
-# Download latest release
+curl -s https://api.github.com/repos/0xc0re/cluckers/releases/latest \
+  | grep "browser_download_url.*Cluckers-x86_64.AppImage\"" \
+  | cut -d '"' -f 4 \
+  | xargs curl -LO
+chmod +x Cluckers-x86_64.AppImage
+mv Cluckers-x86_64.AppImage ~/.local/bin/cluckers
+```
+
+**Tarball:** Smaller download, but requires Wine or Proton-GE installed separately.
+
+```bash
 curl -s https://api.github.com/repos/0xc0re/cluckers/releases/latest \
   | grep "browser_download_url.*tar.gz\"" \
   | cut -d '"' -f 4 \
@@ -272,13 +289,11 @@ game directly, because release binaries include the GUI.
 
 ## Steam Deck
 
-The quick install script works in Desktop Mode terminal or SSH. After
-installing, set up Proton-GE via ProtonUp-Qt from the Discover store, then
-follow the "Adding to Steam" steps above.
+The quick install script works in Desktop Mode terminal or SSH. When available,
+it installs the AppImage which bundles Proton-GE -- no additional setup needed.
 
 The launcher auto-detects Steam Deck and configures display settings (fullscreen
-1280x800). Proton-GE is auto-detected from Steam's `compatibilitytools.d`
-directory.
+1280x800).
 
 **Controller support:** Controller input on Steam Deck is not currently
 supported. Keyboard and mouse work normally.
