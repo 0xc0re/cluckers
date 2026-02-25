@@ -59,7 +59,7 @@ setup is needed.
 ### Quick install -- Windows (PowerShell)
 
 ```powershell
-irm https://raw.githubusercontent.com/0xc0re/cluckers/master/install.ps1 | iex
+(iwr https://raw.githubusercontent.com/0xc0re/cluckers/master/install.ps1).Content | iex
 ```
 
 This downloads the latest release binary to `%LOCALAPPDATA%\cluckers\bin\cluckers.exe`
