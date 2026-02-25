@@ -1,14 +1,14 @@
 # Project State
 
-Last activity: 2026-02-24 - Completed quick task 29: Build-time endpoint configuration via ldflags
+Last activity: 2026-02-25 - Completed 05-02-PLAN.md: AppImage build script with Proton-GE bundling
 
 ## Current Phase Execution
 
-- **Phase:** 04-cross-platform-gui (COMPLETE - 5/5 plans)
-- **Current Plan:** Not started
-- **Last Completed:** 04-05-PLAN.md (CI/CD updates: goreleaser dual-build, workflow changes, human verification)
-- **Last Session:** 2026-02-25T00:14:29.773Z
-- **Stopped At:** Phase 5 context gathered
+- **Phase:** 05-containers-appimage (IN PROGRESS - 2/3 plans)
+- **Current Plan:** 05-03-PLAN.md
+- **Last Completed:** 05-02-PLAN.md (AppImage build script with Proton-GE caching and zsync support)
+- **Last Session:** 2026-02-25T00:49:08.286Z
+- **Stopped At:** Completed 05-02-PLAN.md
 
 ### Quick Tasks Completed
 
@@ -77,3 +77,9 @@ Last activity: 2026-02-24 - Completed quick task 29: Build-time endpoint configu
 - [Quick 29]: Build-time ldflags inject gateway URL and hostx IP; SetBuildDefaults pattern with InitFlags() for CLI help text
 - [Quick 29]: GitHub repo variables (vars.*) used for endpoint config, not secrets (URLs are not sensitive)
 - [Quick 29]: Fallback defaults via || syntax in release workflow so builds work without repo variables
+- [Phase 05-02]: curl used over wget for Proton-GE download (more universally available)
+- [Phase 05-02]: Proton-GE tarball deleted after extraction to save CI disk space
+- [Phase 05-02]: resolve_cmd helper handles both standalone and AppImage-suffixed tool binaries
+- [Phase 05-01]: AppImage detection via env vars (APPIMAGE, APPDIR, CLUCKERS_BUNDLED_PROTON) is cross-platform safe -- no build tags needed
+- [Phase 05-01]: LD_LIBRARY_PATH stripped entirely from Wine env rather than selectively filtered -- Wine manages its own library paths
+- [Phase 05-01]: Bundled Proton-GE is priority 2 in FindWine chain (between user config override and system Proton-GE scan)
