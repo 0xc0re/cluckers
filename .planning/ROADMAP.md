@@ -58,6 +58,24 @@ Plans:
 - [x] 07-02-PLAN.md — Wire Steam detection and app ID into Proton env vars and launch pipeline
 - [x] 07-03-PLAN.md — Hardware validation of controller persistence on Steam Deck (FAILED -- CTRL-03 unsatisfied, deferred to v1.2+)
 
+### Phase 07.1: Steam Deck controller input proxy (INSERTED)
+
+**Goal**: A pure Go uinput proxy creates a persistent virtual Xbox 360 gamepad that forwards Steam Input events and holds last-known button state during ServerTravel transitions, preventing controller disconnect on Steam Deck
+**Depends on:** Phase 7
+**Requirements**: CTRL-03
+**Success Criteria** (what must be TRUE):
+  1. The launcher creates a virtual Xbox 360 gamepad via `/dev/uinput` before launching the game, and the game receives input exclusively from this virtual device
+  2. The proxy reads evdev events from Steam Input's virtual pad and forwards them to the virtual gamepad with sub-frame latency
+  3. When Steam Input zeros button data during ServerTravel, the proxy holds the last known button state for a configurable timeout instead of forwarding zeros
+  4. Wine prefix is configured with `DisableHidraw=1` and `Enable SDL=1` so the game only sees the proxy's virtual pad
+**Plans:** 4 plans
+
+Plans:
+- [ ] 07.1-01-PLAN.md — Uinput virtual Xbox 360 gamepad creation and Steam Input device detection (TDD)
+- [ ] 07.1-02-PLAN.md — Dead reckoning state machine and Wine registry patching (TDD)
+- [ ] 07.1-03-PLAN.md — Proxy Run loop and launch pipeline integration
+- [ ] 07.1-04-PLAN.md — Hardware validation of controller persistence on Steam Deck
+
 ### Phase 8: Cleanup and Polish
 **Goal**: The codebase reflects the Proton-only reality for Proton-GE users, with UI terminology and status output updated to match
 **Depends on**: Phase 7
@@ -79,4 +97,5 @@ Plans:
 | 5. Containers / AppImage | v1.0 | 3/3 | Complete | 2026-02-25 |
 | 6. Core Proton Launch Pipeline | v1.1 | 3/3 | Complete | 2026-02-25 |
 | 7. Controller and Gamescope Integration | v1.1 | Complete    | 2026-02-25 | 2026-02-25 |
+| 7.1 Steam Deck Controller Input Proxy | v1.1 | 0/4 | Planning complete | - |
 | 8. Cleanup and Polish | v1.1 | 0/? | Not started | - |
