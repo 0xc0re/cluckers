@@ -1,6 +1,6 @@
 # Project State
 
-Last activity: 2026-02-25 - Completed 06-02 Proton env construction
+Last activity: 2026-02-25 - Completed 06-01 Proton-GE detection and compatdata health
 
 ## Project Reference
 
@@ -14,7 +14,7 @@ See: .planning/PROJECT.md (updated 2026-02-24)
 Phase: 6 of 8 (Core Proton Launch Pipeline)
 Plan: 2 of 3 in current phase
 Status: Executing
-Last activity: 2026-02-25 -- Completed 06-02 Proton env construction
+Last activity: 2026-02-25 -- Completed 06-01 Proton-GE detection and compatdata health
 
 Progress: [###############░░░░░] 76% (v1.0 complete, v1.1 phase 6: 2/3 plans)
 
@@ -40,6 +40,7 @@ Progress: [###############░░░░░] 76% (v1.0 complete, v1.1 phase 6: 2/3
 
 | Phase | Plan | Duration | Tasks | Files |
 |-------|------|----------|-------|-------|
+| 6. Core Proton | 06-01 | 5min | 3 (TDD) | 4 |
 | 6. Core Proton | 06-02 | 3min | 1 (TDD) | 2 |
 
 ## Accumulated Context
@@ -51,6 +52,8 @@ Progress: [###############░░░░░] 76% (v1.0 complete, v1.1 phase 6: 2/3
 - v1.1: Fresh Proton prefix at ~/.cluckers/compatdata/ (no migration of old prefix)
 - v1.1: Proton-GE required for all Linux (system Wine fallback out of scope per REQUIREMENTS.md)
 - v1.1: Direct `proton run` invocation (not umu-launcher)
+- 06-01: Internal findProton(configOverride, home) pattern for testability
+- 06-01: Tests skip "not found" scenarios when real Proton-GE exists at system paths
 - 06-02: Injectable env pattern (buildProtonEnvFrom) for deterministic testing
 - 06-02: SHM bridge error detection via 4 case-insensitive stderr patterns
 - 06-02: proton run shmPath uses Linux path, bootstrapPath/gameExe use Wine Z: paths
@@ -62,5 +65,5 @@ Progress: [###############░░░░░] 76% (v1.0 complete, v1.1 phase 6: 2/3
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Completed 06-02-PLAN.md (Proton env construction)
+Stopped at: Completed 06-01-PLAN.md (Proton-GE detection and compatdata health)
 Resume file: None
