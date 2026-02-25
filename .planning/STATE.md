@@ -1,6 +1,6 @@
 # Project State
 
-Last activity: 2026-02-25 - Phase 07 (Controller & Gamescope Integration) complete - 07-03 hardware test FAILED (CTRL-03 unsatisfied)
+Last activity: 2026-02-25 - Phase 07.1 plan 01 complete (uinput virtual gamepad + Steam Input detection)
 
 ## Project Reference
 
@@ -11,12 +11,12 @@ See: .planning/PROJECT.md (updated 2026-02-24)
 
 ## Current Position
 
-Phase: 7 of 8 (Controller & Gamescope Integration)
-Plan: 3 of 3 in current phase
-Status: Phase 7 Complete (CTRL-03 FAILED -- controller drop unsolved, deferred to v1.2+)
-Last activity: 2026-02-25 -- Completed 07-03 hardware validation (FAILED)
+Phase: 7.1 of 8 (Steam Deck Controller Input Proxy)
+Plan: 1 of 4 in current phase
+Status: Executing Phase 7.1 -- plan 01 complete
+Last activity: 2026-02-25 -- Completed 07.1-01 uinput virtual gamepad and Steam Input detection (TDD)
 
-Progress: [###################░] 95% (v1.0 complete, v1.1 phase 7: 3/3 plans, phase 8 remaining)
+Progress: [###################░] 95% (v1.0 complete, v1.1 phase 7.1: 1/4 plans, phases 8 remaining)
 
 ## Performance Metrics
 
@@ -46,6 +46,7 @@ Progress: [###################░] 95% (v1.0 complete, v1.1 phase 7: 3/3 plans, 
 | 7. Controller/Gamescope | 07-01 | 1min | 2 (TDD) | 2 |
 | 7. Controller/Gamescope | 07-02 | 3min | 2 | 8 |
 | 7. Controller/Gamescope | 07-03 | 0min | 1 (checkpoint) | 0 |
+| 7.1 Input Proxy | 07.1-01 | 6min | 2 (TDD) | 6 |
 
 ## Accumulated Context
 
@@ -71,6 +72,9 @@ Progress: [###################░] 95% (v1.0 complete, v1.1 phase 7: 3/3 plans, 
 - 07-03: CTRL-03 hardware test FAILED -- Gamescope window tracking hypothesis disproven; controller loss is Steam Input firmware behavior independent of window class/focus
 - 07-03: Env var changes (SteamGameId, STEAM_COMPAT_CLIENT_INSTALL_PATH) retained for correct Proton integration despite not fixing controller drop
 - 07-03: Controller persistence deferred to v1.2+ (fallback: launch through Steam, external USB controller, or Valve fix)
+- 07.1-01: Raw uinput ioctls via unix.Syscall instead of kenshaw/evdev UserInput (WithAbsoluteTypes is empty/no-op)
+- 07.1-01: kenshaw/evdev for device detection (OpenFile + ID()), not for uinput creation
+- 07.1-01: Button/axis constants as named Go constants in uinput.go for package-wide reuse
 
 ### Roadmap Evolution
 
@@ -83,5 +87,5 @@ Progress: [###################░] 95% (v1.0 complete, v1.1 phase 7: 3/3 plans, 
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Completed 07-03-PLAN.md (hardware validation FAILED -- CTRL-03 unsatisfied, deferred to v1.2+)
+Stopped at: Completed 07.1-01-PLAN.md (uinput virtual gamepad + Steam Input detection)
 Resume file: None
