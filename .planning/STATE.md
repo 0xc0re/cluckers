@@ -1,6 +1,6 @@
 # Project State
 
-Last activity: 2026-02-25 - Phase 07 (Controller & Gamescope Integration) in progress - 07-01 complete
+Last activity: 2026-02-25 - Phase 07 (Controller & Gamescope Integration) in progress - 07-02 complete
 
 ## Project Reference
 
@@ -12,11 +12,11 @@ See: .planning/PROJECT.md (updated 2026-02-24)
 ## Current Position
 
 Phase: 7 of 8 (Controller & Gamescope Integration)
-Plan: 1 of 3 in current phase
+Plan: 2 of 3 in current phase
 Status: In Progress
-Last activity: 2026-02-25 -- Completed 07-01 Steam installation detection
+Last activity: 2026-02-25 -- Completed 07-02 Steam integration pipeline wiring
 
-Progress: [#################░░░] 85% (v1.0 complete, v1.1 phase 7: 1/3 plans)
+Progress: [##################░░] 90% (v1.0 complete, v1.1 phase 7: 2/3 plans)
 
 ## Performance Metrics
 
@@ -44,6 +44,7 @@ Progress: [#################░░░] 85% (v1.0 complete, v1.1 phase 7: 1/3 pla
 | 6. Core Proton | 06-02 | 3min | 1 (TDD) | 2 |
 | 6. Core Proton | 06-03 | 3min | 2 | 4 |
 | 7. Controller/Gamescope | 07-01 | 1min | 2 (TDD) | 2 |
+| 7. Controller/Gamescope | 07-02 | 3min | 2 | 8 |
 
 ## Accumulated Context
 
@@ -63,6 +64,9 @@ Progress: [#################░░░] 85% (v1.0 complete, v1.1 phase 7: 1/3 pla
 - 06-03: WinePath/WinePrefix kept in structs for Windows compat (Phase 8 cleanup candidate)
 - 07-01: Reuse resolveReal() and userHome() from detect.go for FindSteamInstall consistency
 - 07-01: Priority order native > symlink > Flatpak > Snap; two marker files (steam.sh, steamclient.so)
+- 07-02: SteamAppId set to match SteamGameId for Proton Wine X11 class hints (Gamescope window tracking)
+- 07-02: All Steam detection failures non-fatal -- game launches with fallback values
+- 07-02: stepResolveSteamIntegration placed after stepEnsureCompatdata in pipeline
 
 ### Blockers/Concerns
 
@@ -71,5 +75,5 @@ Progress: [#################░░░] 85% (v1.0 complete, v1.1 phase 7: 1/3 pla
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Completed 07-01-PLAN.md (Steam installation detection)
+Stopped at: Completed 07-02-PLAN.md (Steam integration pipeline wiring)
 Resume file: None
