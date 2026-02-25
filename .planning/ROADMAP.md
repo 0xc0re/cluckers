@@ -68,7 +68,7 @@ Plans:
   2. The proxy reads evdev events from Steam Input's virtual pad and forwards them to the virtual gamepad with sub-frame latency
   3. When Steam Input zeros button data during ServerTravel, the proxy holds the last known button state for a configurable timeout instead of forwarding zeros
   4. Wine prefix is configured with `DisableHidraw=1` and `Enable SDL=1` so the game only sees the proxy's virtual pad
-**Plans:** 1/4 plans executed
+**Plans:** 3/4 plans executed
 
 Plans:
 - [ ] 07.1-01-PLAN.md — Uinput virtual Xbox 360 gamepad creation and Steam Input device detection (TDD)

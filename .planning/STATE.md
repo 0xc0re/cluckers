@@ -1,6 +1,6 @@
 # Project State
 
-Last activity: 2026-02-25 - Phase 07.1 plan 02 complete (dead reckoning state machine + registry patching)
+Last activity: 2026-02-25 - Phase 07.1 plan 03 complete (proxy pipeline integration)
 
 ## Project Reference
 
@@ -12,11 +12,11 @@ See: .planning/PROJECT.md (updated 2026-02-24)
 ## Current Position
 
 Phase: 7.1 of 8 (Steam Deck Controller Input Proxy)
-Plan: 2 of 4 in current phase
-Status: Executing Phase 7.1 -- plan 02 complete
-Last activity: 2026-02-25 -- Completed 07.1-02 dead reckoning state machine and registry patching (TDD)
+Plan: 3 of 4 in current phase
+Status: Executing Phase 7.1 -- plan 03 complete
+Last activity: 2026-02-25 -- Completed 07.1-03 proxy pipeline integration
 
-Progress: [###################░] 95% (v1.0 complete, v1.1 phase 7.1: 2/4 plans, phases 8 remaining)
+Progress: [###################░] 97% (v1.0 complete, v1.1 phase 7.1: 3/4 plans, phase 8 remaining)
 
 ## Performance Metrics
 
@@ -48,6 +48,7 @@ Progress: [###################░] 95% (v1.0 complete, v1.1 phase 7.1: 2/4 plans
 | 7. Controller/Gamescope | 07-03 | 0min | 1 (checkpoint) | 0 |
 | 7.1 Input Proxy | 07.1-01 | 6min | 2 (TDD) | 6 |
 | 7.1 Input Proxy | 07.1-02 | 7min | 2 (TDD) | 6 |
+| 7.1 Input Proxy | 07.1-03 | 3min | 2 | 5 |
 
 ## Accumulated Context
 
@@ -79,6 +80,10 @@ Progress: [###################░] 95% (v1.0 complete, v1.1 phase 7.1: 2/4 plans
 - 07.1-02: hadTrigActivity flag prevents false positive dead reckoning on button-only releases
 - 07.1-02: Button constants (btnA, absZ, etc.) live in uinput.go alongside kernel ABI types
 - 07.1-02: invertY implemented in uinput.go as shared utility
+- 07.1-03: kenshaw/evdev Poll() for event reading (context-aware channel, typed event envelopes)
+- 07.1-03: Proxy non-fatal on all systems; IsSteamDeck gate prevents startup on desktop Linux
+- 07.1-03: 100ms sleep after virtual device creation for udev registration
+- 07.1-03: Proxy cleanup prepended to defer chain for prompt goroutine shutdown
 
 ### Roadmap Evolution
 
@@ -91,5 +96,5 @@ Progress: [###################░] 95% (v1.0 complete, v1.1 phase 7.1: 2/4 plans
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Completed 07.1-02-PLAN.md (dead reckoning state machine + registry patching)
+Stopped at: Completed 07.1-03-PLAN.md (proxy pipeline integration)
 Resume file: None
