@@ -6,19 +6,22 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"strings"
+	"regexp"
+	"strconv"
 
 	"github.com/0xc0re/cluckers/internal/ui"
 	"github.com/0xc0re/cluckers/internal/wine"
 )
 
-// platformSteps returns Linux-specific pipeline steps: Wine detection, prefix
-// creation, and prefix verification.
+// protonMajorVersionRe extracts the major version number from GE-Proton directory names.
+var protonMajorVersionRe = regexp.MustCompile(`GE-Proton(\d+)-(\d+)`)
+
+// platformSteps returns Linux-specific pipeline steps: Proton detection and
+// compatdata environment preparation.
 func platformSteps(_ *LaunchState) []Step {
 	return []Step{
-		{Name: "Detecting Wine", Fn: stepDetectWine},
-		{Name: "Ensuring Wine prefix", Fn: stepEnsurePrefix},
-		{Name: "Verifying Wine prefix", Fn: stepVerifyPrefix},
+		{Name: "Detecting Proton", Fn: stepDetectProton},
+		{Name: "Preparing Proton environment", Fn: stepEnsureCompatdata},
 	}
 }
 
@@ -29,52 +32,58 @@ func platformPostSteps(_ *LaunchState) []Step {
 	}
 }
 
-// stepDetectWine finds a suitable Wine binary.
-func stepDetectWine(_ context.Context, state *LaunchState) error {
-	winePath, err := wine.FindWine(state.Config.WinePath)
+// stepDetectProton finds a suitable Proton-GE installation.
+func stepDetectProton(_ context.Context, state *LaunchState) error {
+	install, err := wine.FindProton(state.Config.WinePath)
 	if err != nil {
 		return err
 	}
-	state.WinePath = winePath
-	ui.Verbose(fmt.Sprintf("Wine: %s", winePath), state.Config.Verbose)
+
+	state.ProtonScript = install.ProtonScript()
+	state.ProtonDir = install.ProtonDir
+	state.ProtonDisplayVersion = install.DisplayVersion()
+	// Keep WinePath populated for backward compatibility.
+	state.WinePath = install.WinePath
+
+	ui.Verbose(fmt.Sprintf("Proton: %s (%s)", install.DisplayVersion(), install.ProtonDir), state.Config.Verbose)
+
+	// Warn if Proton-GE version is older than 9 (recommended minimum).
+	if m := protonMajorVersionRe.FindStringSubmatch(install.DisplayVersion()); m != nil {
+		major, _ := strconv.Atoi(m[1])
+		if major < 9 {
+			ui.Warn(fmt.Sprintf("%s detected, version 9+ recommended", install.DisplayVersion()))
+		}
+	}
+
 	return nil
 }
 
-// stepEnsurePrefix ensures the Wine prefix exists, creating it if needed.
-func stepEnsurePrefix(_ context.Context, state *LaunchState) error {
-	// Determine prefix path: config override or default.
-	prefixPath := state.Config.WinePrefix
-	if prefixPath == "" {
-		prefixPath = wine.PrefixPath()
-	}
+// stepEnsureCompatdata ensures the Proton compatdata directory exists and is healthy.
+// Corrupted compatdata is auto-deleted and recreated with a warning.
+func stepEnsureCompatdata(_ context.Context, state *LaunchState) error {
+	compatdata := wine.CompatdataPath()
 
-	// Check if prefix already exists.
-	if _, err := os.Stat(prefixPath); err == nil {
-		ui.Verbose(fmt.Sprintf("Wine prefix exists: %s", prefixPath), state.Config.Verbose)
-		state.PrefixPath = prefixPath
+	if wine.CompatdataHealthy(compatdata) {
+		state.CompatDataPath = compatdata
+		ui.Verbose(fmt.Sprintf("Proton environment healthy: %s", compatdata), state.Config.Verbose)
 		return nil
 	}
 
-	// Prefix doesn't exist -- create it.
-	if err := wine.CreatePrefix(prefixPath, state.WinePath, state.Config.Verbose); err != nil {
-		return err
-	}
-
-	state.PrefixPath = prefixPath
-	return nil
-}
-
-// stepVerifyPrefix checks that all required DLLs exist in the Wine prefix.
-func stepVerifyPrefix(_ context.Context, state *LaunchState) error {
-	healthy, missing := wine.VerifyPrefix(state.PrefixPath)
-	if !healthy {
-		return &ui.UserError{
-			Message:    "Wine prefix missing required DLLs",
-			Detail:     fmt.Sprintf("Missing: %s", strings.Join(missing, ", ")),
-			Suggestion: wine.RepairInstructions(state.WinePath, missing),
+	// Check if directory exists but is damaged.
+	if _, err := os.Stat(compatdata); err == nil {
+		ui.Warn("Proton environment damaged, recreating...")
+		if err := os.RemoveAll(compatdata); err != nil {
+			return fmt.Errorf("removing damaged compatdata: %w", err)
 		}
 	}
-	ui.Verbose(fmt.Sprintf("Prefix verified: %d DLLs present", len(wine.RequiredDLLs)), state.Config.Verbose)
+
+	// Create the compatdata directory. Proton will populate it on first run.
+	ui.Info("Preparing Proton environment (first launch only)...")
+	if err := os.MkdirAll(compatdata, 0755); err != nil {
+		return fmt.Errorf("creating compatdata directory: %w", err)
+	}
+
+	state.CompatDataPath = compatdata
 	return nil
 }
 

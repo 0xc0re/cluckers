@@ -3,21 +3,23 @@
 package launch
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
-	"strings"
 
 	"github.com/0xc0re/cluckers/internal/game"
 	"github.com/0xc0re/cluckers/internal/ui"
 	"github.com/0xc0re/cluckers/internal/wine"
 )
 
-// LaunchGame launches Realm Royale under Wine with the correct arguments.
+// LaunchGame launches Realm Royale under Proton with the correct arguments.
 // It blocks until the game process exits. Temp files (OIDC token, bootstrap,
 // shm_launcher.exe) are cleaned up after the game exits or on context cancellation.
+// Stderr is captured for error diagnostics; SHM bridge failures produce distinct
+// error messages separate from general Proton crashes.
 func LaunchGame(ctx context.Context, cfg *LaunchConfig) error {
 	// Validate game executable exists.
 	gameExe := game.GameExePath(cfg.GameDir)
@@ -37,7 +39,8 @@ func LaunchGame(ctx context.Context, cfg *LaunchConfig) error {
 		}
 	}()
 
-	// Build game args matching POC exactly.
+	// Build game args matching POC exactly. These are consumed by the Windows
+	// game process running under Proton.
 	gameArgs := []string{
 		fmt.Sprintf("-user=%s", cfg.Username),
 		fmt.Sprintf("-token=%s", cfg.AccessToken),
@@ -50,80 +53,56 @@ func LaunchGame(ctx context.Context, cfg *LaunchConfig) error {
 		"-nohomedir",
 	}
 
-	var args []string
+	var shmPath, bootstrapPath, shmName string
 
 	if cfg.ContentBootstrap != nil && len(cfg.ContentBootstrap) > 0 {
 		// Extract shm_launcher.exe from embedded binary.
-		shmPath, shmCleanup, err := ExtractSHMLauncher()
+		var shmCleanup func()
+		var err error
+		shmPath, shmCleanup, err = ExtractSHMLauncher()
 		if err != nil {
 			return fmt.Errorf("extract shm_launcher: %w", err)
 		}
 		cleanups = append(cleanups, shmCleanup)
 
 		// Write bootstrap data to temp file.
-		bootstrapPath, bootstrapCleanup, err := WriteBootstrapFile(cfg.ContentBootstrap)
+		var bootstrapCleanup func()
+		bootstrapPath, bootstrapCleanup, err = WriteBootstrapFile(cfg.ContentBootstrap)
 		if err != nil {
 			return fmt.Errorf("write bootstrap file: %w", err)
 		}
 		cleanups = append(cleanups, bootstrapCleanup)
 
 		// Build SHM name using current process PID.
-		shmName := fmt.Sprintf(`Local\realm_content_bootstrap_%d`, os.Getpid())
+		shmName = fmt.Sprintf(`Local\realm_content_bootstrap_%d`, os.Getpid())
 		gameArgs = append(gameArgs, fmt.Sprintf("-content_bootstrap_shm=%s", shmName))
-
-		// shm_launcher.exe args: <bootstrap_file> <shm_name> <game_exe> [game_args...]
-		args = append(args,
-			cfg.WinePath,
-			shmPath,
-			wine.LinuxToWinePath(bootstrapPath),
-			shmName,
-			wine.LinuxToWinePath(gameExe),
-		)
-		args = append(args, gameArgs...)
-	} else {
-		// No bootstrap data -- launch game directly.
-		args = append(args, cfg.WinePath, gameExe)
-		args = append(args, gameArgs...)
 	}
 
-	// Clean LD_LIBRARY_PATH before launching Wine to prevent AppImage-bundled
-	// libraries from conflicting with Wine's own library resolution.
-	// AppRun sets LD_LIBRARY_PATH for the Cluckers binary, but Wine must
-	// not inherit these paths or it may load incompatible libraries.
-	env := os.Environ()
-	filteredEnv := make([]string, 0, len(env))
-	for _, e := range env {
-		if strings.HasPrefix(e, "LD_LIBRARY_PATH=") {
-			continue // Strip entirely -- Wine manages its own library paths
-		}
-		filteredEnv = append(filteredEnv, e)
-	}
-	env = filteredEnv
-	if cfg.WinePrefix != "" {
-		env = append(env, "WINEPREFIX="+cfg.WinePrefix)
-	}
-	if wine.IsProtonGE(cfg.WinePath) {
-		env = append(env, "WINEFSYNC=1")
-	}
-	env = append(env, "WINEDLLOVERRIDES=dxgi=n")
+	// Build proton command using helpers from proton_env.go.
+	cmdName, cmdArgs := buildProtonCommand(cfg.ProtonScript, shmPath, bootstrapPath, shmName, gameExe, gameArgs)
+
+	// Build proton environment.
+	env := buildProtonEnv(cfg.CompatDataPath, cfg.Verbose)
 
 	if cfg.Verbose {
-		ui.Verbose(fmt.Sprintf("Wine command: %v", args), true)
+		ui.Verbose(fmt.Sprintf("Proton: %s", cfg.ProtonScript), true)
+		ui.Verbose(fmt.Sprintf("Compatdata: %s", cfg.CompatDataPath), true)
+		ui.Verbose(fmt.Sprintf("Command: %s %v", cmdName, cmdArgs), true)
 	}
 
-	// Execute wine process, blocking until game exits.
-	cmd := exec.CommandContext(ctx, args[0], args[1:]...)
+	// Execute proton process, blocking until game exits.
+	cmd := exec.CommandContext(ctx, cmdName, cmdArgs...)
 	cmd.Env = env
 	cmd.Dir = cfg.GameDir
-	cmd.Stdout = os.Stdout
 
-	// Tee Wine stderr to a log file for diagnostics (DLL loading, errors).
-	wineLog, wineLogErr := os.Create("/tmp/cluckers_wine.log")
-	if wineLogErr == nil {
-		cmd.Stderr = io.MultiWriter(os.Stderr, wineLog)
-		cleanups = append(cleanups, func() { wineLog.Close() })
+	// Capture stderr for error diagnostics.
+	var stderrBuf bytes.Buffer
+	if cfg.Verbose {
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = io.MultiWriter(os.Stderr, &stderrBuf)
 	} else {
-		cmd.Stderr = os.Stderr
+		// Suppress Proton noise in non-verbose mode.
+		cmd.Stderr = &stderrBuf
 	}
 
 	if err := cmd.Run(); err != nil {
@@ -131,9 +110,17 @@ func LaunchGame(ctx context.Context, cfg *LaunchConfig) error {
 		if ctx.Err() != nil {
 			return nil
 		}
+
+		// Check for SHM bridge-specific failure first (distinct error message).
+		if shmErr := shmBridgeError(err, stderrBuf.String(), cfg.CompatDataPath); shmErr != nil {
+			return shmErr
+		}
+
+		// General Proton launch failure with last 10 stderr lines.
 		return &ui.UserError{
-			Message: "Game exited with an error.",
-			Detail:  err.Error(),
+			Message:    "Proton launch failed",
+			Detail:     lastNLines(stderrBuf.String(), 10),
+			Suggestion: protonErrorSuggestion(cfg.CompatDataPath),
 		}
 	}
 
