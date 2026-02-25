@@ -1,14 +1,14 @@
 # Project State
 
-Last activity: 2026-02-25 - Completed quick task 31: split README into user-facing and developer docs
+Last activity: 2026-02-25 - Completed quick task 32: document both Linux release formats (tarball and AppImage)
 
 ## Current Phase Execution
 
 - **Phase:** 05-containers-appimage (COMPLETE - 3/3 plans)
 - **Current Plan:** Not started
 - **Last Completed:** 05-03-PLAN.md (CI/CD integration and AppImage-aware self-update)
-- **Last Session:** 2026-02-25T02:37:13Z
-- **Stopped At:** Completed quick task 31: documentation split (README/CONTRIBUTING)
+- **Last Session:** 2026-02-25T02:56:35.512Z
+- **Stopped At:** Completed quick-32: document both Linux release formats
 
 ### Quick Tasks Completed
 
@@ -34,6 +34,7 @@ Last activity: 2026-02-25 - Completed quick task 31: split README into user-faci
 | 29 | Build-time endpoint configuration via ldflags | 2026-02-24 | db390d9 | [29-implement-changes-that-will-make-it-easi](./quick/29-implement-changes-that-will-make-it-easi/) |
 | 30 | Verify AppImage builds locally and in CI, fix strip/FUSE/zsync issues | 2026-02-25 | cea7ee9 | [30-make-sure-appimage-builds-locally-and-in](./quick/30-make-sure-appimage-builds-locally-and-in/) |
 | 31 | Split README into user-facing docs and CONTRIBUTING.md for developers | 2026-02-25 | bc9122a | [31-breakup-documentation-developer-build-do](./quick/31-breakup-documentation-developer-build-do/) |
+| 32 | Document both Linux release formats (tarball and AppImage) | 2026-02-25 | 782b31a | [32-include-gui-and-cli-as-single-binary-lin](./quick/32-include-gui-and-cli-as-single-binary-lin/) |
 
 ## Accumulated Context
 
@@ -93,3 +94,4 @@ Last activity: 2026-02-25 - Completed quick task 31: split README into user-faci
 - [Phase quick-30]: NO_STRIP=true for linuxdeploy: bundled strip too old for .relr.dyn ELF sections on modern distros
 - [Phase quick-30]: APPIMAGE_EXTRACT_AND_RUN=1 for CI: ubuntu-22.04 runners lack FUSE for AppImage tools
 - [Quick 31]: Documentation split: README for users only, CONTRIBUTING.md for developer/build docs
+- [Phase quick-32]: Both Linux formats presented as equal options; tarball prerequisites include per-distro graphics library packages
