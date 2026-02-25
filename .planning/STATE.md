@@ -1,6 +1,6 @@
 # Project State
 
-Last activity: 2026-02-25 - Completed phase 06 (Core Proton Launch Pipeline) - all 3 plans done
+Last activity: 2026-02-25 - Phase 07 (Controller & Gamescope Integration) in progress - 07-01 complete
 
 ## Project Reference
 
@@ -11,12 +11,12 @@ See: .planning/PROJECT.md (updated 2026-02-24)
 
 ## Current Position
 
-Phase: 6 of 8 (Core Proton Launch Pipeline) -- COMPLETE
-Plan: 3 of 3 in current phase (all done)
-Status: Phase Complete
-Last activity: 2026-02-25 -- Completed 06-03 Proton pipeline integration
+Phase: 7 of 8 (Controller & Gamescope Integration)
+Plan: 1 of 3 in current phase
+Status: In Progress
+Last activity: 2026-02-25 -- Completed 07-01 Steam installation detection
 
-Progress: [################░░░░] 80% (v1.0 complete, v1.1 phase 6: 3/3 plans)
+Progress: [#################░░░] 85% (v1.0 complete, v1.1 phase 7: 1/3 plans)
 
 ## Performance Metrics
 
@@ -43,6 +43,7 @@ Progress: [################░░░░] 80% (v1.0 complete, v1.1 phase 6: 3/3 p
 | 6. Core Proton | 06-01 | 5min | 3 (TDD) | 4 |
 | 6. Core Proton | 06-02 | 3min | 1 (TDD) | 2 |
 | 6. Core Proton | 06-03 | 3min | 2 | 4 |
+| 7. Controller/Gamescope | 07-01 | 1min | 2 (TDD) | 2 |
 
 ## Accumulated Context
 
@@ -60,6 +61,8 @@ Progress: [################░░░░] 80% (v1.0 complete, v1.1 phase 6: 3/3 p
 - 06-02: proton run shmPath uses Linux path, bootstrapPath/gameExe use Wine Z: paths
 - 06-03: Proton info stored as simple strings in cross-platform LaunchState (no wine package import)
 - 06-03: WinePath/WinePrefix kept in structs for Windows compat (Phase 8 cleanup candidate)
+- 07-01: Reuse resolveReal() and userHome() from detect.go for FindSteamInstall consistency
+- 07-01: Priority order native > symlink > Flatpak > Snap; two marker files (steam.sh, steamclient.so)
 
 ### Blockers/Concerns
 
@@ -68,5 +71,5 @@ Progress: [################░░░░] 80% (v1.0 complete, v1.1 phase 6: 3/3 p
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Completed 06-03-PLAN.md (Proton pipeline integration -- phase 06 complete)
+Stopped at: Completed 07-01-PLAN.md (Steam installation detection)
 Resume file: None
