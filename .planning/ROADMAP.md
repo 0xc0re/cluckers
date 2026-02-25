@@ -79,6 +79,7 @@ Phases execute in numeric order: 1 -> 2 -> 3
 | 2. Wine and Game Management | 0/3 | Complete    | 2026-02-22 |
 | 3. First-Run Setup and Steam Deck | 0/2 | Not started | - |
 | 4. Cross-Platform GUI | 5/5 | Complete    | 2026-02-24 |
+| 5. Containers / AppImage | 0/3 | Not started | - |
 
 ### Phase 4: Cross-Platform GUI
 
@@ -101,3 +102,22 @@ Plans:
 - [x] 04-03-PLAN.md -- Main view, launch progress with step checkmarks, GUIReporter
 - [x] 04-04-PLAN.md -- Settings screen, bot name, Steam Deck fullscreen, CLI verification
 - [x] 04-05-PLAN.md -- CI/CD updates: goreleaser dual-build, workflow changes, human verification
+
+### Phase 5: Containers / AppImage
+
+**Goal:** Package Cluckers as a self-contained AppImage that bundles Proton-GE and all dependencies, so Linux users can go from download to playing with zero system-level dependency management
+**Depends on:** Phase 4
+**Requirements:** APIMG-01, APIMG-02, APIMG-03, APIMG-04, APIMG-05, APIMG-06, APIMG-07, APIMG-08
+**Success Criteria** (what must be TRUE):
+  1. User can download a single AppImage, chmod +x, and run it with zero Wine/Proton/library management
+  2. AppImage bundles Proton-GE (GE-Proton10-32) and all Fyne/GL shared libraries
+  3. Self-update correctly downloads new AppImage (not tar.gz) when running in AppImage mode
+  4. GitHub release includes AppImage + zsync file alongside existing tar.gz and zip archives
+  5. Install script defaults to AppImage download for new Linux installations
+  6. Wine prefix stays external at ~/.cluckers/prefix/ (not inside AppImage)
+**Plans:** 3 plans
+
+Plans:
+- [ ] 05-01-PLAN.md -- AppImage deploy assets, detection helpers, bundled Proton-GE detection, LD_LIBRARY_PATH isolation
+- [ ] 05-02-PLAN.md -- Build script (scripts/build-appimage.sh), Proton-GE bundling, license compliance
+- [ ] 05-03-PLAN.md -- CI/CD integration, self-update for AppImage mode, goreleaser extra_files, install script update
