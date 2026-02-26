@@ -23,6 +23,7 @@ func main() {
 	cli.InitFlags()
 
 	if err := cli.Execute(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }
