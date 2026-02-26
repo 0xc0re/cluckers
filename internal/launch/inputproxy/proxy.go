@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/kenshaw/evdev"
+	"golang.org/x/sys/unix"
 )
 
 // DefaultHoldTimeout is the duration to hold button state during ServerTravel.
@@ -107,13 +108,14 @@ func (s *buttonState) shouldHold(timeout time.Duration) bool {
 // ServerTravel transitions (when Steam Input firmware zeros all button data),
 // the proxy holds the last-known button state instead of forwarding zeros.
 type InputProxy struct {
-	source   *os.File      // Steam Input evdev device (read)
-	sourceDev *evdev.Evdev // kenshaw/evdev wrapper for Poll()
-	sink     *os.File      // /dev/uinput virtual gamepad (write)
-	state    buttonState   // Dead reckoning shadow state
-	holdTime time.Duration // How long to hold state on zero detection
-	stopCh   chan struct{} // Signal to stop the proxy
-	done     chan struct{} // Closed when proxy goroutine exits
+	source    *os.File      // Steam Input evdev device (read)
+	sourceDev *evdev.Evdev  // kenshaw/evdev wrapper for Poll()
+	sink      *os.File      // /dev/uinput virtual gamepad (write)
+	grabbed   []*os.File    // All Steam Input pads with EVIOCGRAB (for cleanup)
+	state     buttonState   // Dead reckoning shadow state
+	holdTime  time.Duration // How long to hold state on zero detection
+	stopCh    chan struct{}  // Signal to stop the proxy
+	done      chan struct{}  // Closed when proxy goroutine exits
 }
 
 // NewInputProxy creates a new InputProxy with the given hold timeout.
@@ -135,31 +137,61 @@ func NewInputProxy(holdTimeout time.Duration) *InputProxy {
 // Returns an error if the source device or uinput cannot be opened.
 // The caller decides whether to treat errors as fatal.
 func (p *InputProxy) Start(ctx context.Context) error {
-	// Find the Steam Input virtual pad.
-	sourcePath, err := FindSteamInputPad()
-	if err != nil {
-		return fmt.Errorf("detecting Steam Input pad: %w", err)
+	// Find all Steam Input virtual pads.
+	allPads := FindAllSteamInputPads()
+	if len(allPads) == 0 {
+		return fmt.Errorf("detecting Steam Input pad: Steam Input virtual pad not found -- is Steam running?")
 	}
 
-	// Open source device for reading via kenshaw/evdev.
-	dev, err := evdev.OpenFile(sourcePath)
+	// Open the primary source device with a raw fd for EVIOCGRAB, then wrap
+	// with kenshaw/evdev for event polling.
+	sourcePath := allPads[0]
+	sourceFile, err := os.OpenFile(sourcePath, os.O_RDONLY, 0)
 	if err != nil {
 		return fmt.Errorf("opening source device %s: %w", sourcePath, err)
 	}
+	p.source = sourceFile
+
+	// EVIOCGRAB gives exclusive access — Wine/SDL can no longer read this device.
+	if err := unix.IoctlSetInt(int(sourceFile.Fd()), uint(eviocgrab), 1); err != nil {
+		sourceFile.Close()
+		p.source = nil
+		return fmt.Errorf("grabbing source device %s: %w", sourcePath, err)
+	}
+
+	// Wrap the grabbed fd with kenshaw/evdev for Poll().
+	dev := evdev.Open(sourceFile)
 	p.sourceDev = dev
+
+	// Grab any additional Steam Input pads to prevent Wine from seeing them.
+	for _, padPath := range allPads[1:] {
+		f, err := os.OpenFile(padPath, os.O_RDONLY, 0)
+		if err != nil {
+			continue // Best effort
+		}
+		if err := unix.IoctlSetInt(int(f.Fd()), uint(eviocgrab), 1); err != nil {
+			f.Close()
+			continue
+		}
+		p.grabbed = append(p.grabbed, f)
+	}
 
 	// Open /dev/uinput and create virtual Xbox 360 gamepad.
 	sink, err := openUinput()
 	if err != nil {
-		dev.Close()
+		p.releaseGrabs()
 		p.sourceDev = nil
+		sourceFile.Close()
+		p.source = nil
 		return fmt.Errorf("opening uinput: %w", err)
 	}
 	p.sink = sink
 
 	if err := createVirtualXbox360(sink); err != nil {
-		dev.Close()
+		p.releaseGrabs()
 		p.sourceDev = nil
+		sourceFile.Close()
+		p.source = nil
 		sink.Close()
 		p.sink = nil
 		return fmt.Errorf("creating virtual gamepad: %w", err)
@@ -172,6 +204,15 @@ func (p *InputProxy) Start(ctx context.Context) error {
 	go p.run(ctx)
 
 	return nil
+}
+
+// releaseGrabs releases EVIOCGRAB on all grabbed secondary pads.
+func (p *InputProxy) releaseGrabs() {
+	for _, f := range p.grabbed {
+		unix.IoctlSetInt(int(f.Fd()), uint(eviocgrab), 0)
+		f.Close()
+	}
+	p.grabbed = nil
 }
 
 // run is the main event forwarding loop. It reads events from the Steam Input
@@ -257,10 +298,20 @@ func (p *InputProxy) Stop() {
 		p.sink.Close()
 		p.sink = nil
 	}
+	if p.source != nil {
+		// Release EVIOCGRAB on primary source.
+		unix.IoctlSetInt(int(p.source.Fd()), uint(eviocgrab), 0)
+	}
 	if p.sourceDev != nil {
 		p.sourceDev.Close()
 		p.sourceDev = nil
 	}
+	if p.source != nil {
+		p.source.Close()
+		p.source = nil
+	}
+	// Release grabs on secondary pads.
+	p.releaseGrabs()
 }
 
 // Cleanup returns a function suitable for deferred cleanup calls.

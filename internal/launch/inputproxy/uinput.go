@@ -59,7 +59,7 @@ type linuxInputEvent struct {
 	Value int32
 }
 
-// --- Ioctl constants from linux/uinput.h ---
+// --- Ioctl constants from linux/uinput.h and linux/input.h ---
 
 const (
 	uiSetEvBit   uintptr = 0x40045564 // UI_SET_EVBIT
@@ -69,6 +69,7 @@ const (
 	uiAbsSetup   uintptr = 0x401c5504 // UI_ABS_SETUP
 	uiDevCreate  uintptr = 0x5501     // UI_DEV_CREATE
 	uiDevDestroy uintptr = 0x5502     // UI_DEV_DESTROY
+	eviocgrab    uintptr = 0x40044590 // EVIOCGRAB — exclusive device access
 )
 
 // --- Event type constants ---
