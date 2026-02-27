@@ -1,6 +1,6 @@
 # Project State
 
-Last activity: 2026-02-27 - Phase 08 Plan 01 complete (dead Wine/proxy code removed)
+Last activity: 2026-02-27 - Phase 08 complete (status rewrite + CLAUDE.md update)
 
 ## Project Reference
 
@@ -11,12 +11,12 @@ See: .planning/PROJECT.md (updated 2026-02-24)
 
 ## Current Position
 
-Phase: 8 of 8 (Cleanup and Polish) — IN PROGRESS
-Plan: 1 of 2 in current phase — COMPLETE
-Status: Plan 08-01 complete, Plan 08-02 next
-Last activity: 2026-02-27 -- Dead Wine/proxy code removed (~1900 lines)
+Phase: 8 of 8 (Cleanup and Polish) — COMPLETE
+Plan: 2 of 2 in current phase — COMPLETE
+Status: All v1.1 phases complete
+Last activity: 2026-02-27 -- Status command rewrite + CLAUDE.md update
 
-Progress: [####################] 98% (v1.0 complete, v1.1 phase 8 plan 1/2 complete)
+Progress: [####################] 100% (v1.0 complete, v1.1 all phases complete)
 
 ## Performance Metrics
 
@@ -51,6 +51,7 @@ Progress: [####################] 98% (v1.0 complete, v1.1 phase 8 plan 1/2 compl
 | 7.1 Input Proxy | 07.1-03 | 3min | 2 | 5 |
 | 7.1 Input Proxy | 07.1-04 | ~6h | 14 deploys | 4 |
 | 8. Cleanup | 08-01 | 4min | 2 | 21 |
+| 8. Cleanup | 08-02 | 6min | 2 | 6 |
 
 ## Accumulated Context
 
@@ -80,6 +81,7 @@ Progress: [####################] 98% (v1.0 complete, v1.1 phase 8 plan 1/2 compl
 - 07.1-04: XInput DLL proxy ABANDONED — bypasses Proton's Steam Input IPC, breaks button input
 - 07.1-04: Clean baseline CONFIRMED FAIL — Steam-managed Proton launch alone does not fix ServerTravel drop
 - 07.1-04: Controller fix deferred to v1.2+ — firmware-level issue beyond software fix
+- 08-02: Removed WinePrefix from Config and GUI settings; status command now shows Proton version and compatdata health
 
 ### Roadmap Evolution
 
@@ -94,5 +96,5 @@ Progress: [####################] 98% (v1.0 complete, v1.1 phase 8 plan 1/2 compl
 ## Session Continuity
 
 Last session: 2026-02-27
-Stopped at: Completed 08-01-PLAN.md (dead Wine/proxy code removal). Plan 08-02 next.
+Stopped at: Completed 08-02-PLAN.md (status rewrite + CLAUDE.md update). Phase 08 complete. All v1.1 phases complete.
 Resume file: none
