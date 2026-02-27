@@ -84,7 +84,10 @@ Plans:
   1. Manual Proton prefix management code is removed (createFromProtonTemplate, DLL verification, winetricks dependency detection) -- no dead code paths for Proton-GE users
   2. `cluckers status` displays the detected Proton version and compatdata path instead of Wine prefix DLL status
   3. The GUI launch progress shows Proton-specific step names ("Detecting Proton", "Preparing compatibility data") instead of Wine terminology
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 08-01-PLAN.md — Remove dead Wine/proxy code: delete prefix.go, verify.go, inputproxy/, xinput tools, dead functions and struct fields
+- [ ] 08-02-PLAN.md — Rewrite status command for Proton terminology and update CLAUDE.md
 
 ## Progress
 
@@ -98,4 +101,4 @@ Plans:
 | 6. Core Proton Launch Pipeline | v1.1 | 3/3 | Complete | 2026-02-25 |
 | 7. Controller and Gamescope Integration | v1.1 | Complete    | 2026-02-25 | 2026-02-25 |
 | 7.1 Steam Deck Controller Input Proxy | v1.1 | 1/4 | In Progress | - |
-| 8. Cleanup and Polish | v1.1 | 0/? | Not started | - |
+| 8. Cleanup and Polish | v1.1 | 0/2 | Not started | - |
