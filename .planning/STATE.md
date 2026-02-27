@@ -1,6 +1,6 @@
 # Project State
 
-Last activity: 2026-02-27 - Completed quick task 34: Fix Windows update verification and remove auto-update from launch
+Last activity: 2026-02-27 - Completed quick task 35: Fix permission denied error during game extraction on Linux
 
 ## Project Reference
 
@@ -93,6 +93,7 @@ Progress: [####################] 100% (v1.0 complete, v1.1 all phases complete)
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 34 | Fix Windows update verification and remove auto-update from launch | 2026-02-27 | ebd89b4 | [34-fix-windows-update-verification-and-remo](./quick/34-fix-windows-update-verification-and-remo/) |
+| 35 | Fix permission denied error during game extraction on Linux | 2026-02-27 | cd25d21 | [35-fix-permission-denied-error-during-game-](./quick/35-fix-permission-denied-error-during-game-/) |
 
 ### Blockers/Concerns
 
@@ -102,5 +103,5 @@ Progress: [####################] 100% (v1.0 complete, v1.1 all phases complete)
 ## Session Continuity
 
 Last session: 2026-02-27
-Stopped at: Quick task 34 complete
+Stopped at: Quick task 35 complete
 Resume file: none
