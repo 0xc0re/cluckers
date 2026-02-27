@@ -18,7 +18,7 @@
 - **Game Server (MCTS)**: `157.90.131.105` (direct TCP, separate from gateway)
 - **Updater API**: `https://updater.realmhub.io/builds/version.json` (GET, no auth, returns version info with zip URL and BLAKE3 hash)
 - **Game**: UE3-based Win64 binary (`ShippingPC-RealmGameNoEditor.exe`), runs under Wine/Proton-GE on Linux, directly on Windows
-- **Launch pipeline**: Sequential steps with spinner UI. Shared steps: health check -> auth -> OIDC token -> content bootstrap -> check version -> download game -> launch game. Linux adds: detect Proton -> ensure compatdata -> resolve Steam integration (before version check) and deck config (after download). Windows skips Proton/compatdata/deck steps entirely.
+- **Launch pipeline**: Sequential steps with spinner UI. Shared steps: health check -> auth -> OIDC token -> content bootstrap -> verify game installed -> launch game. Linux adds: detect Proton -> ensure compatdata -> resolve Steam integration (before verify) and deck config (after verify). Windows skips Proton/compatdata/deck steps entirely. The launch pipeline does NOT download or update game files -- users must run `cluckers update` separately.
 - **Shared memory**: Game reads content bootstrap via Win32 named shared memory (`OpenFileMapping`). `shm_launcher.exe` (embedded, compiled from C) creates the mapping and launches game as child process. On Linux it runs under Wine; on Windows it runs natively.
 
 ## 3. CLI Commands
@@ -74,7 +74,7 @@ NaCl secretbox encryption.
 
 ### `internal/launch/`
 Game launch orchestration. Platform-specific behavior uses `_linux.go` / `_windows.go` file naming.
-- `pipeline.go`: Shared pipeline infrastructure -- `LaunchState` struct, `Step` struct, `Run()` loop, signal handling, shared steps (health, auth, OIDC, bootstrap, version, download, launch). Calls `platformSteps()` and `platformPostSteps()` for platform-specific steps.
+- `pipeline.go`: Shared pipeline infrastructure -- `LaunchState` struct, `Step` struct, `Run()` loop, signal handling, shared steps (health, auth, OIDC, bootstrap, verify game installed, launch). Version check and download steps are defined here but only used by the prep pipeline. Calls `platformSteps()` and `platformPostSteps()` for platform-specific steps.
 - `pipeline_linux.go`: `platformSteps()` returns Proton detect/ensure/resolve steps. `platformPostSteps()` returns deck config step. Contains stepDetectProton, stepEnsureCompatdata, stepResolveSteamIntegration, stepDeckConfig.
 - `pipeline_windows.go`: `platformSteps()` and `platformPostSteps()` return empty slices (no Proton/compatdata/deck).
 - `process.go`: `LaunchConfig` struct definition (shared). Fields: ProtonScript, ProtonDir, CompatDataPath, SteamInstallPath, SteamGameId, GameDir, Username, AccessToken, OIDCTokenPath, ContentBootstrap, HostX, Verbose.
@@ -89,7 +89,9 @@ Game file management.
 - `download.go`: `DownloadGameZip()` (HTTP Range resume, progress bar, ~5.3GB), `VerifyBLAKE3()`, `DownloadAndVerify()` (download + verify, deletes corrupt).
 - `diskspace_linux.go`: `checkDiskSpace()` using syscall.Statfs.
 - `diskspace_windows.go`: `checkDiskSpace()` using GetDiskFreeSpaceExW.
-- `extract.go`: `ExtractZip()` (zip-slip protection, progress counter, removes zip after extraction).
+- `extract.go`: `ExtractZip()` (zip-slip protection, progress counter, removes zip after extraction). Calls `prepareTarget()` before each file overwrite.
+- `extract_linux.go`: `prepareTarget()` no-op (Unix allows owner overwrite regardless).
+- `extract_windows.go`: `prepareTarget()` clears read-only attribute via `os.Chmod` before overwrite.
 
 ### `internal/wine/`
 Proton-GE detection, compatdata management, and Steam integration. **Linux-only** (all files have `//go:build linux`).
