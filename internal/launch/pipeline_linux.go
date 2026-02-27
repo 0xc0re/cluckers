@@ -27,7 +27,10 @@ func platformSteps(_ *LaunchState) []Step {
 		{Name: "Preparing Proton environment", Fn: stepEnsureCompatdata},
 		{Name: "Resolving Steam integration", Fn: stepResolveSteamIntegration},
 		{Name: "Configuring controller support", Fn: stepPatchWinebus},
-		{Name: "Starting input proxy", Fn: stepStartInputProxy},
+		// Input proxy disabled: uinput device creation causes Steam Input
+		// to tear down its virtual pads, breaking the entire controller pipeline.
+		// XInput DLL proxy (xinput1_3.dll) handles ServerTravel instead.
+		// {Name: "Starting input proxy", Fn: stepStartInputProxy},
 	}
 }
 
@@ -156,7 +159,7 @@ func stepStartInputProxy(ctx context.Context, state *LaunchState) error {
 		return nil
 	}
 
-	proxy := inputproxy.NewInputProxy(inputproxy.DefaultHoldTimeout)
+	proxy := inputproxy.NewInputProxy(inputproxy.DefaultHoldTimeout, state.Config.Verbose)
 	if err := proxy.Start(ctx); err != nil {
 		ui.Warn(fmt.Sprintf("Input proxy unavailable: %s", err))
 		// Non-fatal: game launches without proxy but may have controller drops.

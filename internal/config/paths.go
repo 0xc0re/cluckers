@@ -15,6 +15,11 @@ func CacheDir() string {
 	return filepath.Join(DataDir(), "cache")
 }
 
+// BinDir returns the bin directory under the data dir (~/.cluckers/bin/).
+func BinDir() string {
+	return filepath.Join(DataDir(), "bin")
+}
+
 // ConfigFile returns the path to the TOML settings file.
 func ConfigFile() string {
 	return filepath.Join(ConfigDir(), "settings.toml")
