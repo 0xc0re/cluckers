@@ -1,6 +1,6 @@
 # Project State
 
-Last activity: 2026-02-27 - Phase 08 complete (status rewrite + CLAUDE.md update)
+Last activity: 2026-02-27 - Completed quick task 34: Fix Windows update verification and remove auto-update from launch
 
 ## Project Reference
 
@@ -88,6 +88,12 @@ Progress: [####################] 100% (v1.0 complete, v1.1 all phases complete)
 - Phase 7.1 inserted after Phase 7: Steam Deck controller input proxy (URGENT)
 - Phase 7.1 outcome: FAIL — proxy cannot fix firmware-level issue, deferred to v1.2+
 
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 34 | Fix Windows update verification and remove auto-update from launch | 2026-02-27 | ebd89b4 | [34-fix-windows-update-verification-and-remo](./quick/34-fix-windows-update-verification-and-remo/) |
+
 ### Blockers/Concerns
 
 - ~~MEDIUM confidence: Standalone `proton run` may not set STEAM_GAME X11 property for Gamescope.~~ **RESOLVED (07-03):** Hardware test confirmed STEAM_GAME absent and controller drops persist. Gamescope window tracking (WM_CLASS, GAMESCOPE_FOCUSED_APP) works correctly but does not prevent Steam Input firmware reconfiguration. Controller fix deferred to v1.2+ -- standalone `proton run` with env vars is correct for Proton integration; controller persistence requires a fundamentally different approach (launch through Steam runtime, external controller, or Valve fix).
@@ -96,5 +102,5 @@ Progress: [####################] 100% (v1.0 complete, v1.1 all phases complete)
 ## Session Continuity
 
 Last session: 2026-02-27
-Stopped at: Completed quick task 34 (fix Windows update verification and remove auto-update from launch pipeline)
+Stopped at: Quick task 34 complete
 Resume file: none
