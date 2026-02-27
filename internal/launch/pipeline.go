@@ -32,8 +32,8 @@ type LaunchState struct {
 	SteamInstallPath    string // Detected Steam root directory (Linux only). Empty if not found.
 	SteamGameId         string // Non-Steam shortcut app ID for Gamescope tracking (Linux only). "0" if not found.
 	GameDir             string
-	VersionInfo         *game.VersionInfo
-	NeedsDownload       bool
+	VersionInfo         *game.VersionInfo // Used by prep pipeline only.
+	NeedsDownload       bool              // Used by prep pipeline only.
 	TokenCache          *auth.TokenCache
 	Reporter            ProgressReporter
 }
@@ -152,8 +152,7 @@ func buildSteps(state *LaunchState) []Step {
 	}
 	steps = append(steps, platformSteps(state)...)
 	steps = append(steps,
-		Step{Name: "Checking game version", Fn: stepCheckVersion},
-		Step{Name: "Downloading game update", Fn: stepDownloadGame},
+		Step{Name: "Verifying game installation", Fn: stepVerifyGameInstalled},
 	)
 	steps = append(steps, platformPostSteps(state)...)
 	steps = append(steps, Step{Name: "Launching game", Fn: stepLaunchGame})
@@ -341,6 +340,7 @@ func stepBootstrap(ctx context.Context, state *LaunchState) error {
 }
 
 // stepCheckVersion checks the remote game version and determines if a download is needed.
+// Used by the prep pipeline (prep.go) -- not used in the launch pipeline.
 func stepCheckVersion(ctx context.Context, state *LaunchState) error {
 	// Resolve game directory.
 	gameDir := state.Config.GameDir
@@ -375,7 +375,7 @@ func stepCheckVersion(ctx context.Context, state *LaunchState) error {
 }
 
 // stepDownloadGame downloads and extracts the game update if needed.
-// This step is a no-op when the game is already up to date.
+// Used by the prep pipeline (prep.go) -- not used in the launch pipeline.
 func stepDownloadGame(ctx context.Context, state *LaunchState) error {
 	if !state.NeedsDownload {
 		ui.Verbose("Game files up to date, skipping download", state.Config.Verbose)
@@ -407,6 +407,28 @@ func stepDownloadGame(ctx context.Context, state *LaunchState) error {
 	}
 
 	ui.Success("Game files updated to version " + state.VersionInfo.LatestVersion)
+	return nil
+}
+
+// stepVerifyGameInstalled checks that the game executable exists on disk.
+// The launch pipeline does not download or update game files -- users must
+// run `cluckers update` separately before launching.
+func stepVerifyGameInstalled(_ context.Context, state *LaunchState) error {
+	// Resolve game directory.
+	gameDir := state.Config.GameDir
+	if gameDir == "" {
+		gameDir = game.GameDir()
+	}
+	state.GameDir = gameDir
+
+	exePath := game.GameExePath(gameDir)
+	if _, err := os.Stat(exePath); err != nil {
+		return &ui.UserError{
+			Message:    "Game not installed.",
+			Suggestion: "Run `cluckers update` to download game files before launching.",
+		}
+	}
+
 	return nil
 }
 
