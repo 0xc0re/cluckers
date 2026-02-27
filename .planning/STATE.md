@@ -1,6 +1,6 @@
 # Project State
 
-Last activity: 2026-02-27 - Phase 07.1 complete (FAIL — controller fix deferred to v1.2+)
+Last activity: 2026-02-27 - Phase 08 Plan 01 complete (dead Wine/proxy code removed)
 
 ## Project Reference
 
@@ -11,12 +11,12 @@ See: .planning/PROJECT.md (updated 2026-02-24)
 
 ## Current Position
 
-Phase: 7.1 of 8 (Steam Deck Controller Input Proxy) — COMPLETE
-Plan: 4 of 4 in current phase — FAIL (hardware validation)
-Status: Phase 7.1 complete, ready for Phase 8
-Last activity: 2026-02-27 -- Deploy 14b confirmed controller drops persist through all approaches
+Phase: 8 of 8 (Cleanup and Polish) — IN PROGRESS
+Plan: 1 of 2 in current phase — COMPLETE
+Status: Plan 08-01 complete, Plan 08-02 next
+Last activity: 2026-02-27 -- Dead Wine/proxy code removed (~1900 lines)
 
-Progress: [###################░] 97% (v1.0 complete, v1.1 phase 7.1 complete, phase 8 remaining)
+Progress: [####################] 98% (v1.0 complete, v1.1 phase 8 plan 1/2 complete)
 
 ## Performance Metrics
 
@@ -50,6 +50,7 @@ Progress: [###################░] 97% (v1.0 complete, v1.1 phase 7.1 complete, 
 | 7.1 Input Proxy | 07.1-02 | 7min | 2 (TDD) | 6 |
 | 7.1 Input Proxy | 07.1-03 | 3min | 2 | 5 |
 | 7.1 Input Proxy | 07.1-04 | ~6h | 14 deploys | 4 |
+| 8. Cleanup | 08-01 | 4min | 2 | 21 |
 
 ## Accumulated Context
 
@@ -66,7 +67,7 @@ Progress: [###################░] 97% (v1.0 complete, v1.1 phase 7.1 complete, 
 - 06-02: SHM bridge error detection via 4 case-insensitive stderr patterns
 - 06-02: proton run shmPath uses Linux path, bootstrapPath/gameExe use Wine Z: paths
 - 06-03: Proton info stored as simple strings in cross-platform LaunchState (no wine package import)
-- 06-03: WinePath/WinePrefix kept in structs for Windows compat (Phase 8 cleanup candidate)
+- 06-03: ~~WinePath/WinePrefix kept in structs for Windows compat (Phase 8 cleanup candidate)~~ **RESOLVED (08-01):** Fields removed from LaunchState and LaunchConfig
 - 07-01: Reuse resolveReal() and userHome() from detect.go for FindSteamInstall consistency
 - 07-01: Priority order native > symlink > Flatpak > Snap; two marker files (steam.sh, steamclient.so)
 - 07-02: SteamAppId set to match SteamGameId for Proton Wine X11 class hints (Gamescope window tracking)
@@ -88,10 +89,10 @@ Progress: [###################░] 97% (v1.0 complete, v1.1 phase 7.1 complete, 
 ### Blockers/Concerns
 
 - ~~MEDIUM confidence: Standalone `proton run` may not set STEAM_GAME X11 property for Gamescope.~~ **RESOLVED (07-03):** Hardware test confirmed STEAM_GAME absent and controller drops persist. Gamescope window tracking (WM_CLASS, GAMESCOPE_FOCUSED_APP) works correctly but does not prevent Steam Input firmware reconfiguration. Controller fix deferred to v1.2+ -- standalone `proton run` with env vars is correct for Proton integration; controller persistence requires a fundamentally different approach (launch through Steam runtime, external controller, or Valve fix).
-- Phase 7.1 proxy code should be removed or disabled in Phase 8 cleanup
+- ~~Phase 7.1 proxy code should be removed or disabled in Phase 8 cleanup~~ **RESOLVED (08-01):** Entire inputproxy package deleted, all proxy references removed
 
 ## Session Continuity
 
 Last session: 2026-02-27
-Stopped at: Phase 7.1 complete (FAIL). Summary written. Ready for Phase 8 (Cleanup and Polish).
-Resume file: none — phase transition point
+Stopped at: Completed 08-01-PLAN.md (dead Wine/proxy code removal). Plan 08-02 next.
+Resume file: none

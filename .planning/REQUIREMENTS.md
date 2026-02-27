@@ -23,9 +23,9 @@ Requirements for Proton launch pipeline migration. Each maps to roadmap phases.
 
 ### Cleanup / Polish
 
-- [ ] **POLISH-01**: Manual prefix management code removed for Proton path (createFromProtonTemplate, DLL verification, winetricks dependency)
+- [x] **POLISH-01**: Manual prefix management code removed for Proton path (createFromProtonTemplate, DLL verification, winetricks dependency)
 - [ ] **POLISH-02**: `cluckers status` shows Proton version and compatdata path instead of Wine prefix DLL status
-- [ ] **POLISH-03**: GUI launch progress displays Proton-specific step names ("Detecting Proton", "Preparing compatibility data")
+- [x] **POLISH-03**: GUI launch progress displays Proton-specific step names ("Detecting Proton", "Preparing compatibility data")
 
 ## v1.2+ Requirements
 
@@ -65,9 +65,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CTRL-01 | Phase 7 | Complete |
 | CTRL-02 | Phase 7 | Complete |
 | CTRL-03 | Phase 7 | FAILED (deferred to v1.2+) |
-| POLISH-01 | Phase 8 | Pending |
+| POLISH-01 | Phase 8 | Complete |
 | POLISH-02 | Phase 8 | Pending |
-| POLISH-03 | Phase 8 | Pending |
+| POLISH-03 | Phase 8 | Complete |
 
 **Coverage:**
 - v1.1 requirements: 11 total
