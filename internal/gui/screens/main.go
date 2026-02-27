@@ -146,6 +146,14 @@ func MakeMainView(w fyne.Window, cfg *config.Config, username, password string, 
 				})
 				return
 			}
+			zipPath := filepath.Join(gameDir, "game.zip")
+			if err := game.ExtractZip(zipPath, gameDir); err != nil {
+				fyne.Do(func() {
+					dialog.ShowError(fmt.Errorf("extraction failed: %s", err), w)
+					updateBtn.Enable()
+				})
+				return
+			}
 			fyne.Do(func() {
 				dialog.ShowInformation("Update Game",
 					"Game updated to version "+info.LatestVersion, w)
@@ -194,6 +202,14 @@ func MakeMainView(w fyne.Window, cfg *config.Config, username, password string, 
 					if err := game.DownloadAndVerify(context.Background(), info, gameDir); err != nil {
 						fyne.Do(func() {
 							dialog.ShowError(fmt.Errorf("download failed: %s", err), w)
+							repairBtn.Enable()
+						})
+						return
+					}
+					zipPath := filepath.Join(gameDir, "game.zip")
+					if err := game.ExtractZip(zipPath, gameDir); err != nil {
+						fyne.Do(func() {
+							dialog.ShowError(fmt.Errorf("extraction failed: %s", err), w)
 							repairBtn.Enable()
 						})
 						return
