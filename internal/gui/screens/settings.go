@@ -47,20 +47,15 @@ func MakeSettingsView(w fyne.Window, cfg *config.Config, onBack func()) fyne.Can
 		widget.NewFormItem("Game Directory", gameDirEntry),
 	}
 
-	// Wine entries (Linux only).
-	var winePathEntry, winePrefixEntry *widget.Entry
+	// Proton path entry (Linux only).
+	var winePathEntry *widget.Entry
 	if runtime.GOOS == "linux" {
 		winePathEntry = widget.NewEntry()
 		winePathEntry.SetText(cfg.WinePath)
 		winePathEntry.PlaceHolder = "auto-detect"
 
-		winePrefixEntry = widget.NewEntry()
-		winePrefixEntry.SetText(cfg.WinePrefix)
-		winePrefixEntry.PlaceHolder = "~/.cluckers/prefix (default)"
-
 		formItems = append(formItems,
-			widget.NewFormItem("Wine Path", winePathEntry),
-			widget.NewFormItem("Wine Prefix", winePrefixEntry),
+			widget.NewFormItem("Proton Path", winePathEntry),
 		)
 	}
 
@@ -77,7 +72,6 @@ func MakeSettingsView(w fyne.Window, cfg *config.Config, onBack func()) fyne.Can
 
 		if runtime.GOOS == "linux" && winePathEntry != nil {
 			viper.Set("wine_path", winePathEntry.Text)
-			viper.Set("wine_prefix", winePrefixEntry.Text)
 		}
 
 		// Ensure config directory exists.
@@ -98,7 +92,6 @@ func MakeSettingsView(w fyne.Window, cfg *config.Config, onBack func()) fyne.Can
 		cfg.GameDir = gameDirEntry.Text
 		if runtime.GOOS == "linux" && winePathEntry != nil {
 			cfg.WinePath = winePathEntry.Text
-			cfg.WinePrefix = winePrefixEntry.Text
 		}
 
 		dialog.ShowInformation("Settings Saved", "Configuration updated.", w)

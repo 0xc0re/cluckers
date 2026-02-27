@@ -7,26 +7,28 @@ import (
 )
 
 // platformStatusCheck returns Proton and compatdata status on Linux.
-// Uses the legacy wineStatusResult/prefixStatusResult types for compatibility
-// with the shared status.go display code (will be fully rewritten in Plan 02).
-func platformStatusCheck() (*wineStatusResult, *prefixStatusResult) {
-	ws := checkProtonStatus()
-	ps := checkCompatdataStatus()
-	return &ws, &ps
+func platformStatusCheck() (*protonStatusResult, *compatdataStatusResult) {
+	ps := checkProtonStatus()
+	cs := checkCompatdataStatus()
+	return &ps, &cs
 }
 
-func checkProtonStatus() wineStatusResult {
+func checkProtonStatus() protonStatusResult {
 	install, err := wine.FindProton(Cfg.WinePath)
 	if err != nil {
-		return wineStatusResult{found: false, err: err}
+		return protonStatusResult{found: false, err: err}
 	}
-	return wineStatusResult{found: true, path: install.ProtonDir, wineType: "Proton-GE"}
+	return protonStatusResult{
+		found:     true,
+		version:   install.DisplayVersion(),
+		protonDir: install.ProtonDir,
+	}
 }
 
-func checkCompatdataStatus() prefixStatusResult {
+func checkCompatdataStatus() compatdataStatusResult {
 	compatdata := wine.CompatdataPath()
 	healthy := wine.CompatdataHealthy(compatdata)
-	return prefixStatusResult{
+	return compatdataStatusResult{
 		path:    compatdata,
 		healthy: healthy,
 	}

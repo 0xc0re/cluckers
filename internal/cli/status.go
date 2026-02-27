@@ -20,14 +20,14 @@ var statusCmd = &cobra.Command{
 		verbose := Cfg.Verbose
 
 		// Collect all status checks (non-fatal -- gather results then display).
-		ws, ps := platformStatusCheck()
+		ps, cs := platformStatusCheck()
 		gameStatus := checkGameStatus(cmd.Context())
 		gatewayStatus := checkGatewayStatus(cmd.Context())
 
 		if verbose {
-			printVerboseStatus(ws, ps, gameStatus, gatewayStatus)
+			printVerboseStatus(ps, cs, gameStatus, gatewayStatus)
 		} else {
-			printCompactStatus(ws, ps, gameStatus, gatewayStatus)
+			printCompactStatus(ps, cs, gameStatus, gatewayStatus)
 		}
 
 		return nil
@@ -40,18 +40,16 @@ func init() {
 
 // Status check result types.
 
-type wineStatusResult struct {
-	found    bool
-	path     string
-	wineType string // "Proton-GE" or "System Wine"
-	err      error
+type protonStatusResult struct {
+	found     bool
+	version   string // e.g. "GE-Proton10-1"
+	protonDir string // e.g. "/home/user/.steam/..."
+	err       error
 }
 
-type prefixStatusResult struct {
-	path        string
-	healthy     bool
-	missing     []string
-	requiredDLLs []string // DLL paths for verbose display.
+type compatdataStatusResult struct {
+	path    string // e.g. "/home/user/.cluckers/compatdata"
+	healthy bool
 }
 
 type gameStatusResult struct {
@@ -121,7 +119,7 @@ func checkGatewayStatus(ctx context.Context) gatewayStatusResult {
 
 // Compact (default) output.
 
-func printCompactStatus(ws *wineStatusResult, ps *prefixStatusResult, gs gameStatusResult, gws gatewayStatusResult) {
+func printCompactStatus(ps *protonStatusResult, cs *compatdataStatusResult, gs gameStatusResult, gws gatewayStatusResult) {
 	green := color.New(color.FgGreen).SprintFunc()
 	red := color.New(color.FgRed).SprintFunc()
 	yellow := color.New(color.FgYellow).SprintFunc()
@@ -130,25 +128,21 @@ func printCompactStatus(ws *wineStatusResult, ps *prefixStatusResult, gs gameSta
 	fmt.Println(bold("Cluckers Status"))
 	fmt.Println()
 
-	// Wine (Linux only)
-	if ws != nil {
-		if ws.found {
-			label := truncatePath(ws.path, 40)
-			fmt.Printf("  %-10s %-45s %s\n", "Wine:", ws.wineType+" ("+label+")", green("[OK]"))
+	// Proton (Linux only)
+	if ps != nil {
+		if ps.found {
+			fmt.Printf("  %-10s %-45s %s\n", "Proton:", ps.version, green("[OK]"))
 		} else {
-			fmt.Printf("  %-10s %-45s %s\n", "Wine:", "", red("[NOT FOUND]"))
+			fmt.Printf("  %-10s %-45s %s\n", "Proton:", "", red("[NOT FOUND]"))
 		}
 	}
 
-	// Prefix (Linux only)
-	if ps != nil {
-		if ps.healthy {
-			fmt.Printf("  %-10s %-45s %s\n", "Prefix:", truncatePath(ps.path, 40), green("[OK]"))
-		} else if len(ps.missing) > 0 {
-			detail := fmt.Sprintf("%d missing DLLs", len(ps.missing))
-			fmt.Printf("  %-10s %-45s %s\n", "Prefix:", truncatePath(ps.path, 40), red("["+detail+"]"))
+	// Compatibility data (Linux only)
+	if cs != nil {
+		if cs.healthy {
+			fmt.Printf("  %-10s %-45s %s\n", "Compat:", truncatePath(cs.path, 40), green("[OK]"))
 		} else {
-			fmt.Printf("  %-10s %-45s %s\n", "Prefix:", truncatePath(ps.path, 40), red("[not created]"))
+			fmt.Printf("  %-10s %-45s %s\n", "Compat:", truncatePath(cs.path, 40), red("[not created]"))
 		}
 	}
 
@@ -179,12 +173,12 @@ func printCompactStatus(ws *wineStatusResult, ps *prefixStatusResult, gs gameSta
 
 	// Actionable hints
 	fmt.Println()
-	printHints(ws, ps, gs, gws)
+	printHints(ps, cs, gs, gws)
 }
 
 // Verbose output.
 
-func printVerboseStatus(ws *wineStatusResult, ps *prefixStatusResult, gs gameStatusResult, gws gatewayStatusResult) {
+func printVerboseStatus(ps *protonStatusResult, cs *compatdataStatusResult, gs gameStatusResult, gws gatewayStatusResult) {
 	green := color.New(color.FgGreen).SprintFunc()
 	red := color.New(color.FgRed).SprintFunc()
 	yellow := color.New(color.FgYellow).SprintFunc()
@@ -193,48 +187,26 @@ func printVerboseStatus(ws *wineStatusResult, ps *prefixStatusResult, gs gameSta
 	fmt.Println(bold("Cluckers Status (verbose)"))
 	fmt.Println()
 
-	// Wine (Linux only)
-	if ws != nil {
-		fmt.Println(bold("Wine:"))
-		if ws.found {
-			fmt.Printf("  Binary:  %s\n", ws.path)
-			fmt.Printf("  Type:    %s\n", ws.wineType)
+	// Proton (Linux only)
+	if ps != nil {
+		fmt.Println(bold("Proton:"))
+		if ps.found {
+			fmt.Printf("  Version: %s\n", ps.version)
+			fmt.Printf("  Path:    %s\n", ps.protonDir)
 		} else {
 			fmt.Printf("  Status:  %s\n", red("Not found"))
 		}
 		fmt.Println()
 	}
 
-	// Prefix (Linux only)
-	if ps != nil {
-		fmt.Println(bold("Prefix:"))
-		fmt.Printf("  Path:    %s\n", ps.path)
-		if ps.healthy && len(ps.requiredDLLs) > 0 {
-			fmt.Printf("  DLLs:    ")
-			for i, dll := range ps.requiredDLLs {
-				if i > 0 {
-					fmt.Print("  ")
-				}
-				fmt.Printf("%s %s", dll, green("[OK]"))
-			}
-			fmt.Println()
-		} else if len(ps.missing) > 0 && len(ps.requiredDLLs) > 0 {
-			fmt.Printf("  DLLs:    ")
-			missingSet := make(map[string]bool)
-			for _, m := range ps.missing {
-				missingSet[m] = true
-			}
-			for i, dll := range ps.requiredDLLs {
-				if i > 0 {
-					fmt.Print("  ")
-				}
-				if missingSet[dll] {
-					fmt.Printf("%s %s", dll, red("[MISSING]"))
-				} else {
-					fmt.Printf("%s %s", dll, green("[OK]"))
-				}
-			}
-			fmt.Println()
+	// Compatibility data (Linux only)
+	if cs != nil {
+		fmt.Println(bold("Compatibility Data:"))
+		fmt.Printf("  Path:    %s\n", cs.path)
+		if cs.healthy {
+			fmt.Printf("  Status:  %s\n", green("Ready"))
+		} else {
+			fmt.Printf("  Status:  %s\n", yellow("Not yet created (will be created on first launch)"))
 		}
 		fmt.Println()
 	}
@@ -280,28 +252,28 @@ func printVerboseStatus(ws *wineStatusResult, ps *prefixStatusResult, gs gameSta
 	fmt.Println()
 
 	// Actionable hints
-	printHints(ws, ps, gs, gws)
+	printHints(ps, cs, gs, gws)
 }
 
 // printHints shows actionable fix suggestions for detected problems.
-func printHints(ws *wineStatusResult, ps *prefixStatusResult, gs gameStatusResult, gws gatewayStatusResult) {
+func printHints(ps *protonStatusResult, cs *compatdataStatusResult, gs gameStatusResult, gws gatewayStatusResult) {
 	dim := color.New(color.Faint).SprintFunc()
 	hasHints := false
 
-	if ws != nil && !ws.found {
+	if ps != nil && !ps.found {
 		if !hasHints {
 			fmt.Println(dim("Hints:"))
 			hasHints = true
 		}
-		fmt.Println(dim("  - Install Wine or Proton-GE for your distribution"))
+		fmt.Println(dim("  - Install Proton-GE for your distribution (see https://github.com/GloriousEggroll/proton-ge-custom)"))
 	}
 
-	if ps != nil && !ps.healthy && len(ps.missing) > 0 {
+	if cs != nil && !cs.healthy {
 		if !hasHints {
 			fmt.Println(dim("Hints:"))
 			hasHints = true
 		}
-		fmt.Println(dim("  - Run `cluckers launch` to auto-create prefix"))
+		fmt.Println(dim("  - Run `cluckers launch` to auto-create Proton environment"))
 	}
 
 	if gs.localVersion == "not installed" || gs.needsUpdate {

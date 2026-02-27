@@ -34,12 +34,11 @@ func SetBuildDefaults(gateway, hostx string) {
 
 // Config holds all launcher configuration values.
 type Config struct {
-	Gateway    string `mapstructure:"gateway"`
-	WinePath   string `mapstructure:"wine_path"`
-	WinePrefix string `mapstructure:"wine_prefix"`
-	GameDir    string `mapstructure:"game_dir"`
-	HostX      string `mapstructure:"hostx"`
-	Verbose    bool   `mapstructure:"verbose"`
+	Gateway  string `mapstructure:"gateway"`
+	WinePath string `mapstructure:"wine_path"`
+	GameDir  string `mapstructure:"game_dir"`
+	HostX    string `mapstructure:"hostx"`
+	Verbose  bool   `mapstructure:"verbose"`
 }
 
 // Load reads configuration from the TOML file (if it exists), applies defaults,
@@ -52,7 +51,6 @@ func Load() (*Config, error) {
 	viper.SetDefault("hostx", defaultHostX)
 	viper.SetDefault("verbose", false)
 	viper.SetDefault("wine_path", "")
-	viper.SetDefault("wine_prefix", "")
 	viper.SetDefault("game_dir", "")
 
 	// TOML config file
