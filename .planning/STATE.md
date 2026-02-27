@@ -87,6 +87,7 @@ Progress: [####################] 100% (v1.0 complete, v1.1 all phases complete)
 
 - Phase 7.1 inserted after Phase 7: Steam Deck controller input proxy (URGENT)
 - Phase 7.1 outcome: FAIL — proxy cannot fix firmware-level issue, deferred to v1.2+
+- Phase 9 added: Steam Deck Input (again)
 
 ### Quick Tasks Completed
 
