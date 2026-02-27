@@ -1,6 +1,6 @@
 # Project State
 
-Last activity: 2026-02-25 - Phase 07.1 plan 03 complete (proxy pipeline integration)
+Last activity: 2026-02-27 - Phase 07.1 complete (FAIL — controller fix deferred to v1.2+)
 
 ## Project Reference
 
@@ -11,12 +11,12 @@ See: .planning/PROJECT.md (updated 2026-02-24)
 
 ## Current Position
 
-Phase: 7.1 of 8 (Steam Deck Controller Input Proxy)
-Plan: 3 of 4 in current phase
-Status: Executing Phase 7.1 -- plan 03 complete
-Last activity: 2026-02-25 -- Completed 07.1-03 proxy pipeline integration
+Phase: 7.1 of 8 (Steam Deck Controller Input Proxy) — COMPLETE
+Plan: 4 of 4 in current phase — FAIL (hardware validation)
+Status: Phase 7.1 complete, ready for Phase 8
+Last activity: 2026-02-27 -- Deploy 14b confirmed controller drops persist through all approaches
 
-Progress: [###################░] 97% (v1.0 complete, v1.1 phase 7.1: 3/4 plans, phase 8 remaining)
+Progress: [###################░] 97% (v1.0 complete, v1.1 phase 7.1 complete, phase 8 remaining)
 
 ## Performance Metrics
 
@@ -49,6 +49,7 @@ Progress: [###################░] 97% (v1.0 complete, v1.1 phase 7.1: 3/4 plans
 | 7.1 Input Proxy | 07.1-01 | 6min | 2 (TDD) | 6 |
 | 7.1 Input Proxy | 07.1-02 | 7min | 2 (TDD) | 6 |
 | 7.1 Input Proxy | 07.1-03 | 3min | 2 | 5 |
+| 7.1 Input Proxy | 07.1-04 | ~6h | 14 deploys | 4 |
 
 ## Accumulated Context
 
@@ -74,27 +75,23 @@ Progress: [###################░] 97% (v1.0 complete, v1.1 phase 7.1: 3/4 plans
 - 07-03: CTRL-03 hardware test FAILED -- Gamescope window tracking hypothesis disproven; controller loss is Steam Input firmware behavior independent of window class/focus
 - 07-03: Env var changes (SteamGameId, STEAM_COMPAT_CLIENT_INSTALL_PATH) retained for correct Proton integration despite not fixing controller drop
 - 07-03: Controller persistence deferred to v1.2+ (fallback: launch through Steam, external USB controller, or Valve fix)
-- 07.1-01: Raw uinput ioctls via unix.Syscall instead of kenshaw/evdev UserInput (WithAbsoluteTypes is empty/no-op)
-- 07.1-01: kenshaw/evdev for device detection (OpenFile + ID()), not for uinput creation
-- 07.1-01: Button/axis constants as named Go constants in uinput.go for package-wide reuse
-- 07.1-02: hadTrigActivity flag prevents false positive dead reckoning on button-only releases
-- 07.1-02: Button constants (btnA, absZ, etc.) live in uinput.go alongside kernel ABI types
-- 07.1-02: invertY implemented in uinput.go as shared utility
-- 07.1-03: kenshaw/evdev Poll() for event reading (context-aware channel, typed event envelopes)
-- 07.1-03: Proxy non-fatal on all systems; IsSteamDeck gate prevents startup on desktop Linux
-- 07.1-03: 100ms sleep after virtual device creation for udev registration
-- 07.1-03: Proxy cleanup prepended to defer chain for prompt goroutine shutdown
+- 07.1-04: evdev proxy ABANDONED — uinput gamepad creation kills Steam Input virtual pads (14 deploys)
+- 07.1-04: XInput DLL proxy ABANDONED — bypasses Proton's Steam Input IPC, breaks button input
+- 07.1-04: Clean baseline CONFIRMED FAIL — Steam-managed Proton launch alone does not fix ServerTravel drop
+- 07.1-04: Controller fix deferred to v1.2+ — firmware-level issue beyond software fix
 
 ### Roadmap Evolution
 
 - Phase 7.1 inserted after Phase 7: Steam Deck controller input proxy (URGENT)
+- Phase 7.1 outcome: FAIL — proxy cannot fix firmware-level issue, deferred to v1.2+
 
 ### Blockers/Concerns
 
 - ~~MEDIUM confidence: Standalone `proton run` may not set STEAM_GAME X11 property for Gamescope.~~ **RESOLVED (07-03):** Hardware test confirmed STEAM_GAME absent and controller drops persist. Gamescope window tracking (WM_CLASS, GAMESCOPE_FOCUSED_APP) works correctly but does not prevent Steam Input firmware reconfiguration. Controller fix deferred to v1.2+ -- standalone `proton run` with env vars is correct for Proton integration; controller persistence requires a fundamentally different approach (launch through Steam runtime, external controller, or Valve fix).
+- Phase 7.1 proxy code should be removed or disabled in Phase 8 cleanup
 
 ## Session Continuity
 
-Last session: 2026-02-25
-Stopped at: Completed 07.1-03-PLAN.md (proxy pipeline integration)
-Resume file: None
+Last session: 2026-02-27
+Stopped at: Phase 7.1 complete (FAIL). Summary written. Ready for Phase 8 (Cleanup and Polish).
+Resume file: none — phase transition point
