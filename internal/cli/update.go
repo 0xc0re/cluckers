@@ -53,6 +53,23 @@ var updateCmd = &cobra.Command{
 			return err
 		}
 
+		// Verify the extraction actually produced matching game files.
+		stillNeedsUpdate, verifyErr := game.NeedsUpdate(gameDir, info)
+		if verifyErr != nil {
+			return &ui.UserError{
+				Message:    "Could not verify game files after extraction.",
+				Detail:     verifyErr.Error(),
+				Suggestion: "Try running `cluckers update` again.",
+			}
+		}
+		if stillNeedsUpdate {
+			return &ui.UserError{
+				Message:    "Game files were extracted but verification failed.",
+				Detail:     "GameVersion.dat hash does not match expected value after extraction.",
+				Suggestion: "The download may be corrupted. Delete the game directory and run `cluckers update` again.",
+			}
+		}
+
 		ui.Success("Game updated to version " + info.LatestVersion)
 		return nil
 	},

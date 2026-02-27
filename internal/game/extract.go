@@ -78,6 +78,10 @@ func extractFile(entry *zip.File, target string) error {
 		return fmt.Errorf("creating parent directory for %s: %w", target, err)
 	}
 
+	// On Windows, files extracted with mode 0444 get the read-only attribute,
+	// which prevents subsequent extractions from overwriting them. Clear it first.
+	prepareTarget(target)
+
 	src, err := entry.Open()
 	if err != nil {
 		return fmt.Errorf("opening archive entry %s: %w", entry.Name, err)
