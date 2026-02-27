@@ -10,7 +10,6 @@ import (
 	"regexp"
 	"strconv"
 
-	"github.com/0xc0re/cluckers/internal/launch/inputproxy"
 	"github.com/0xc0re/cluckers/internal/ui"
 	"github.com/0xc0re/cluckers/internal/wine"
 )
@@ -19,18 +18,12 @@ import (
 var protonMajorVersionRe = regexp.MustCompile(`GE-Proton(\d+)-(\d+)`)
 
 // platformSteps returns Linux-specific pipeline steps: Proton detection,
-// compatdata environment preparation, Steam integration, winebus patching,
-// and input proxy startup.
+// compatdata environment preparation, and Steam integration.
 func platformSteps(_ *LaunchState) []Step {
 	return []Step{
 		{Name: "Detecting Proton", Fn: stepDetectProton},
 		{Name: "Preparing Proton environment", Fn: stepEnsureCompatdata},
 		{Name: "Resolving Steam integration", Fn: stepResolveSteamIntegration},
-		{Name: "Configuring controller support", Fn: stepPatchWinebus},
-		// Input proxy disabled: uinput device creation causes Steam Input
-		// to tear down its virtual pads, breaking the entire controller pipeline.
-		// XInput DLL proxy (xinput1_3.dll) handles ServerTravel instead.
-		// {Name: "Starting input proxy", Fn: stepStartInputProxy},
 	}
 }
 
@@ -51,8 +44,6 @@ func stepDetectProton(_ context.Context, state *LaunchState) error {
 	state.ProtonScript = install.ProtonScript()
 	state.ProtonDir = install.ProtonDir
 	state.ProtonDisplayVersion = install.DisplayVersion()
-	// Keep WinePath populated for backward compatibility.
-	state.WinePath = install.WinePath
 
 	ui.Verbose(fmt.Sprintf("Proton: %s (%s)", install.DisplayVersion(), install.ProtonDir), state.Config.Verbose)
 
@@ -124,50 +115,6 @@ func stepResolveSteamIntegration(_ context.Context, state *LaunchState) error {
 	}
 
 	ui.Verbose("Cluckers shortcut not found in Steam, using default game ID", state.Config.Verbose)
-	return nil
-}
-
-// stepPatchWinebus patches Wine's winebus registry to disable hidraw (so Wine
-// does not see physical controllers) and enable SDL (so Wine sees the proxy's
-// virtual uinput gamepad). Idempotent and non-fatal: skips if already patched,
-// warns and continues on failure.
-func stepPatchWinebus(_ context.Context, state *LaunchState) error {
-	if !inputproxy.NeedsWinebusPatching(state.CompatDataPath) {
-		ui.Verbose("Winebus already configured", state.Config.Verbose)
-		return nil
-	}
-
-	env := buildProtonEnv(state.CompatDataPath, state.SteamInstallPath, state.SteamGameId, state.Config.Verbose)
-	if err := inputproxy.ApplyWinebusRegistry(state.CompatDataPath, state.ProtonScript, env); err != nil {
-		ui.Warn(fmt.Sprintf("Winebus registry patching failed: %s", err))
-		// Non-fatal: game may still work without patching.
-		return nil
-	}
-
-	ui.Verbose("Winebus registry patched for controller isolation", state.Config.Verbose)
-	return nil
-}
-
-// stepStartInputProxy starts the evdev-to-uinput input proxy for Steam Deck.
-// The proxy reads from the Steam Input virtual pad and creates a virtual Xbox
-// 360 gamepad. Skips silently on non-Deck systems. Non-fatal on failure: logs
-// a warning and continues (game works without proxy but may have controller
-// drops during ServerTravel).
-func stepStartInputProxy(ctx context.Context, state *LaunchState) error {
-	if !wine.IsSteamDeck() {
-		ui.Verbose("Not on Steam Deck, skipping input proxy", state.Config.Verbose)
-		return nil
-	}
-
-	proxy := inputproxy.NewInputProxy(inputproxy.DefaultHoldTimeout, state.Config.Verbose)
-	if err := proxy.Start(ctx); err != nil {
-		ui.Warn(fmt.Sprintf("Input proxy unavailable: %s", err))
-		// Non-fatal: game launches without proxy but may have controller drops.
-		return nil
-	}
-
-	state.InputProxyCleanup = proxy.Cleanup()
-	ui.Verbose("Input proxy started (dead reckoning active)", state.Config.Verbose)
 	return nil
 }
 

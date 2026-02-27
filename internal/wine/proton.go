@@ -102,7 +102,6 @@ func (p ProtonGEInstall) DisplayVersion() string {
 }
 
 // ProtonInstallInstructions returns per-distro Proton-GE install instructions.
-// Unlike WineInstallInstructions, this does NOT offer system Wine as a fallback.
 func ProtonInstallInstructions(distro string) string {
 	switch distro {
 	case "arch", "steamos":

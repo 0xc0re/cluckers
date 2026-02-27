@@ -3,48 +3,31 @@
 package cli
 
 import (
-	"path/filepath"
-
 	"github.com/0xc0re/cluckers/internal/wine"
 )
 
-// platformStatusCheck returns Wine and prefix status on Linux.
+// platformStatusCheck returns Proton and compatdata status on Linux.
+// Uses the legacy wineStatusResult/prefixStatusResult types for compatibility
+// with the shared status.go display code (will be fully rewritten in Plan 02).
 func platformStatusCheck() (*wineStatusResult, *prefixStatusResult) {
-	ws := checkWineStatus()
-	ps := checkPrefixStatus()
+	ws := checkProtonStatus()
+	ps := checkCompatdataStatus()
 	return &ws, &ps
 }
 
-func checkWineStatus() wineStatusResult {
-	path, err := wine.FindWine(Cfg.WinePath)
+func checkProtonStatus() wineStatusResult {
+	install, err := wine.FindProton(Cfg.WinePath)
 	if err != nil {
 		return wineStatusResult{found: false, err: err}
 	}
-	wineType := "System Wine"
-	if wine.IsProtonGE(path) {
-		wineType = "Proton-GE"
-	}
-	return wineStatusResult{found: true, path: path, wineType: wineType}
+	return wineStatusResult{found: true, path: install.ProtonDir, wineType: "Proton-GE"}
 }
 
-func checkPrefixStatus() prefixStatusResult {
-	prefixPath := Cfg.WinePrefix
-	if prefixPath == "" {
-		prefixPath = wine.PrefixPath()
-	}
-
-	healthy, missing := wine.VerifyPrefix(prefixPath)
-
-	// Build base names for verbose display.
-	dllNames := make([]string, len(wine.RequiredDLLs))
-	for i, dll := range wine.RequiredDLLs {
-		dllNames[i] = filepath.Base(dll)
-	}
-
+func checkCompatdataStatus() prefixStatusResult {
+	compatdata := wine.CompatdataPath()
+	healthy := wine.CompatdataHealthy(compatdata)
 	return prefixStatusResult{
-		path:         prefixPath,
-		healthy:      healthy,
-		missing:      missing,
-		requiredDLLs: dllNames,
+		path:    compatdata,
+		healthy: healthy,
 	}
 }

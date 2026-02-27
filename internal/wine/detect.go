@@ -5,14 +5,11 @@ package wine
 import (
 	"bufio"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
-
-	"github.com/0xc0re/cluckers/internal/ui"
 )
 
 // protonVersionRe extracts the numeric version from GE-Proton directory names.
@@ -170,56 +167,6 @@ func ProtonBaseDir(winePath string) string {
 	return filepath.Dir(filepath.Dir(filepath.Dir(winePath)))
 }
 
-// FindWine locates a Wine binary. Checks in order:
-// 1. configOverride (from config file or CLI flag)
-// 2. Proton-GE installations (newest version first)
-// 3. System wine via PATH
-// Returns a UserError with per-distro install instructions if nothing found.
-func FindWine(configOverride string) (string, error) {
-	// If user explicitly configured a Wine path, use it.
-	if configOverride != "" {
-		if _, err := os.Stat(configOverride); err != nil {
-			return "", &ui.UserError{
-				Message:    "Configured Wine binary not found: " + configOverride,
-				Detail:     err.Error(),
-				Suggestion: "Check your wine_path setting in ~/.cluckers/config/settings.toml",
-			}
-		}
-		return configOverride, nil
-	}
-
-	// Check for bundled Proton-GE (AppImage mode).
-	// Set by AppRun via CLUCKERS_BUNDLED_PROTON env var.
-	if bundled := os.Getenv("CLUCKERS_BUNDLED_PROTON"); bundled != "" {
-		winePath := filepath.Join(bundled, "files", "bin", "wine64")
-		if _, err := os.Stat(winePath); err == nil {
-			return winePath, nil
-		}
-		// Bundled Proton-GE declared but wine64 not found -- warn and continue to system search.
-		ui.Warn("Bundled Proton-GE not found at " + winePath + ", searching system...")
-	}
-
-	// Check Proton-GE installations (sorted newest first).
-	home := userHome()
-	installs := FindProtonGE(home)
-	if len(installs) > 0 {
-		return installs[0].WinePath, nil
-	}
-
-	// Check system wine in PATH.
-	if p, err := exec.LookPath("wine"); err == nil {
-		return p, nil
-	}
-
-	// Nothing found -- return helpful error.
-	distro := DetectDistro()
-	instructions := WineInstallInstructions(distro)
-	return "", &ui.UserError{
-		Message:    "Wine not found. Wine or Proton-GE is required to run Realm Royale.",
-		Suggestion: instructions,
-	}
-}
-
 // IsProtonGE returns true if the Wine binary path indicates Proton-GE.
 // Matches both proton-ge-custom (system package) and GE-Proton* (versioned) paths.
 func IsProtonGE(winePath string) bool {
@@ -252,20 +199,6 @@ func DetectDistro() string {
 		}
 	}
 	return "unknown"
-}
-
-// WineInstallInstructions returns per-distro Wine install commands.
-func WineInstallInstructions(distro string) string {
-	switch distro {
-	case "arch", "steamos":
-		return "Install Wine: sudo pacman -S wine\n  Or install Proton-GE via ProtonUp-Qt for best compatibility."
-	case "ubuntu", "debian", "linuxmint", "pop":
-		return "Install Wine: sudo apt install wine\n  Or install Proton-GE via ProtonUp-Qt for best compatibility."
-	case "fedora":
-		return "Install Wine: sudo dnf install wine\n  Or install Proton-GE via ProtonUp-Qt for best compatibility."
-	default:
-		return "Install Wine or Proton-GE (https://github.com/GloriousEggroll/proton-ge-custom)"
-	}
 }
 
 // IsSteamDeck returns true if running on a Steam Deck.
