@@ -31,6 +31,7 @@ type LaunchState struct {
 	CompatDataPath      string // Path to Proton compatdata directory (Linux only).
 	SteamInstallPath    string // Detected Steam root directory (Linux only). Empty if not found.
 	SteamGameId         string // Non-Steam shortcut app ID for Gamescope tracking (Linux only). "0" if not found.
+	SteamShortcutAppID  uint32 // Non-Steam shortcut appid (parsed from shortcuts.vdf). 0 if not found.
 	GameDir             string
 	VersionInfo         *game.VersionInfo // Used by prep pipeline only.
 	NeedsDownload       bool              // Used by prep pipeline only.
@@ -155,7 +156,7 @@ func buildSteps(state *LaunchState) []Step {
 		Step{Name: "Verifying game installation", Fn: stepVerifyGameInstalled},
 	)
 	steps = append(steps, platformPostSteps(state)...)
-	steps = append(steps, Step{Name: "Launching game", Fn: stepLaunchGame})
+	steps = append(steps, platformLaunchStep())
 	return steps
 }
 
