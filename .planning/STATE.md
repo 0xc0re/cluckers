@@ -1,6 +1,6 @@
 # Project State
 
-Last activity: 2026-02-28 - Completed 09-01: VDF shortcut writer and WINEDLLOVERRIDES removal
+Last activity: 2026-02-28 - Completed 09-02: Steam-managed launch and shortcut automation
 
 ## Project Reference
 
@@ -12,11 +12,11 @@ See: .planning/PROJECT.md (updated 2026-02-24)
 ## Current Position
 
 Phase: 9 (Steam Deck Input Again)
-Plan: 1 of 3 in current phase — COMPLETE
+Plan: 2 of 3 in current phase — COMPLETE
 Status: Executing Phase 9
-Last activity: 2026-02-28 -- VDF shortcut writer + WINEDLLOVERRIDES removal
+Last activity: 2026-02-28 -- Steam-managed launch + shortcut automation
 
-Progress: [######              ] 33% (Phase 9: 1/3 plans complete)
+Progress: [#############       ] 67% (Phase 9: 2/3 plans complete)
 
 ## Performance Metrics
 
@@ -53,6 +53,7 @@ Progress: [######              ] 33% (Phase 9: 1/3 plans complete)
 | 8. Cleanup | 08-01 | 4min | 2 | 21 |
 | 8. Cleanup | 08-02 | 6min | 2 | 6 |
 | 9. Steam Deck Input | 09-01 | 2min | 2 | 6 |
+| 9. Steam Deck Input | 09-02 | 2min | 2 | 4 |
 
 ## Accumulated Context
 
@@ -85,6 +86,9 @@ Progress: [######              ] 33% (Phase 9: 1/3 plans complete)
 - 08-02: Removed WinePrefix from Config and GUI settings; status command now shows Proton version and compatdata health
 - 09-01: VDF writer uses appid=0 placeholder; Steam assigns real appid on restart
 - 09-01: WINEDLLOVERRIDES kept in strippedEnvKeys but never re-added to env (dxgi=n causes instant crash)
+- 09-02: Steam-managed launch writes prep config then triggers steam://rungameid/ instead of direct proton run
+- 09-02: Deck without shortcut falls back to direct proton run with warning
+- 09-02: platformLaunchStep() replaces hardcoded stepLaunchGame for cross-platform dispatch
 
 ### Roadmap Evolution
 
@@ -106,5 +110,5 @@ Progress: [######              ] 33% (Phase 9: 1/3 plans complete)
 ## Session Continuity
 
 Last session: 2026-02-28
-Stopped at: Completed 09-01-PLAN.md
+Stopped at: Completed 09-02-PLAN.md
 Resume file: none
