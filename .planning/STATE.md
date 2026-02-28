@@ -1,6 +1,6 @@
 # Project State
 
-Last activity: 2026-02-27 - Completed quick task 34: Fix Windows update verification and remove auto-update from launch
+Last activity: 2026-02-28 - Completed 09-01: VDF shortcut writer and WINEDLLOVERRIDES removal
 
 ## Project Reference
 
@@ -11,12 +11,12 @@ See: .planning/PROJECT.md (updated 2026-02-24)
 
 ## Current Position
 
-Phase: 8 of 8 (Cleanup and Polish) — COMPLETE
-Plan: 2 of 2 in current phase — COMPLETE
-Status: All v1.1 phases complete
-Last activity: 2026-02-27 -- Status command rewrite + CLAUDE.md update
+Phase: 9 (Steam Deck Input Again)
+Plan: 1 of 3 in current phase — COMPLETE
+Status: Executing Phase 9
+Last activity: 2026-02-28 -- VDF shortcut writer + WINEDLLOVERRIDES removal
 
-Progress: [####################] 100% (v1.0 complete, v1.1 all phases complete)
+Progress: [######              ] 33% (Phase 9: 1/3 plans complete)
 
 ## Performance Metrics
 
@@ -52,6 +52,7 @@ Progress: [####################] 100% (v1.0 complete, v1.1 all phases complete)
 | 7.1 Input Proxy | 07.1-04 | ~6h | 14 deploys | 4 |
 | 8. Cleanup | 08-01 | 4min | 2 | 21 |
 | 8. Cleanup | 08-02 | 6min | 2 | 6 |
+| 9. Steam Deck Input | 09-01 | 2min | 2 | 6 |
 
 ## Accumulated Context
 
@@ -82,6 +83,8 @@ Progress: [####################] 100% (v1.0 complete, v1.1 all phases complete)
 - 07.1-04: Clean baseline CONFIRMED FAIL — Steam-managed Proton launch alone does not fix ServerTravel drop
 - 07.1-04: Controller fix deferred to v1.2+ — firmware-level issue beyond software fix
 - 08-02: Removed WinePrefix from Config and GUI settings; status command now shows Proton version and compatdata health
+- 09-01: VDF writer uses appid=0 placeholder; Steam assigns real appid on restart
+- 09-01: WINEDLLOVERRIDES kept in strippedEnvKeys but never re-added to env (dxgi=n causes instant crash)
 
 ### Roadmap Evolution
 
@@ -102,6 +105,6 @@ Progress: [####################] 100% (v1.0 complete, v1.1 all phases complete)
 
 ## Session Continuity
 
-Last session: 2026-02-27
-Stopped at: Quick task 34 complete
+Last session: 2026-02-28
+Stopped at: Completed 09-01-PLAN.md
 Resume file: none
