@@ -90,7 +90,7 @@ func runSteamAdd() error {
 		fmt.Println("  5. Right-click the game in your Library > Properties")
 		fmt.Println("  6. Set Launch Options to:")
 		fmt.Println()
-		fmt.Printf("     %s prep && WINEDLLOVERRIDES=dxgi=n %%command%%\n", exePath)
+		fmt.Printf("     %s prep && %%command%%\n", exePath)
 		fmt.Println()
 		fmt.Println("  7. Switch back to Game Mode")
 		fmt.Println("  8. The game will appear in the Non-Steam section of your library")
