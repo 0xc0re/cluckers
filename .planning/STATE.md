@@ -1,6 +1,6 @@
 # Project State
 
-Last activity: 2026-03-01 - Completed quick task 39: Windows code review (no issues found)
+Last activity: 2026-03-01 - Completed quick task 40: Fix install.sh checksum verification
 
 ## Project Reference
 
@@ -106,6 +106,7 @@ Progress: [#############       ] 67% (Phase 9: 2/3 plans complete)
 | 37 | Disable conflicting file-operation buttons during Verify/Update/Repair | 2026-03-01 | c690cc2 | [37-update-ui-button-states-dim-disable-butt](./quick/37-update-ui-button-states-dim-disable-butt/) |
 | 38 | GUI background launch, system tray, download progress | 2026-03-01 | 5ae3793 | [38-update-gui-to-launch-in-background-minim](./quick/38-update-gui-to-launch-in-background-minim/) |
 | 39 | Windows code review: all 11 _windows.go files verified correct | 2026-03-01 | (review-only) | [39-review-for-issues-running-in-windows](./quick/39-review-for-issues-running-in-windows/) |
+| 40 | Fix install.sh checksum verification (AppImage grep anchor) | 2026-03-01 | 9a8cdbb | [40-fix-install-sh-checksum-verification](./quick/40-fix-install-sh-checksum-verification/) |
 
 ### Blockers/Concerns
 
@@ -115,5 +116,5 @@ Progress: [#############       ] 67% (Phase 9: 2/3 plans complete)
 ## Session Continuity
 
 Last session: 2026-03-01
-Stopped at: Completed quick task 39 (Windows code review -- no issues found)
+Stopped at: Completed quick task 40 (fix install.sh checksum verification)
 Resume file: none
