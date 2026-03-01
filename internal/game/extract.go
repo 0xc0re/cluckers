@@ -7,13 +7,27 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/0xc0re/cluckers/internal/ui"
 )
 
+// ExtractProgressFunc is called during extraction with the number of files
+// extracted so far and the total number of files in the archive.
+type ExtractProgressFunc func(extracted, total int)
+
 // ExtractZip extracts a zip archive to destDir with zip-slip protection.
 // After successful extraction, the zip file is removed to reclaim disk space.
 func ExtractZip(zipPath string, destDir string) error {
+	return ExtractZipWithProgress(zipPath, destDir, nil)
+}
+
+// ExtractZipWithProgress extracts a zip archive to destDir with zip-slip protection.
+// If onProgress is non-nil, it is called with extraction progress instead of
+// printing to stdout. The callback is throttled to at most every 100ms.
+// If onProgress is nil, terminal output is used (identical to CLI behavior).
+// After successful extraction, the zip file is removed to reclaim disk space.
+func ExtractZipWithProgress(zipPath string, destDir string, onProgress ExtractProgressFunc) error {
 	reader, err := zip.OpenReader(zipPath)
 	if err != nil {
 		return &ui.UserError{
@@ -25,6 +39,7 @@ func ExtractZip(zipPath string, destDir string) error {
 	}
 
 	totalFiles := len(reader.File)
+	var lastProgressCall time.Time
 
 	for i, entry := range reader.File {
 		target := filepath.Join(destDir, entry.Name)
@@ -36,9 +51,18 @@ func ExtractZip(zipPath string, destDir string) error {
 			continue
 		}
 
-		// Progress indicator every 100 files.
-		if (i+1)%100 == 0 || i+1 == totalFiles {
-			fmt.Printf("\rExtracting... %d/%d files", i+1, totalFiles)
+		// Progress reporting.
+		if onProgress != nil {
+			now := time.Now()
+			if now.Sub(lastProgressCall) >= 100*time.Millisecond || i+1 == totalFiles {
+				lastProgressCall = now
+				onProgress(i+1, totalFiles)
+			}
+		} else {
+			// Terminal progress indicator every 100 files.
+			if (i+1)%100 == 0 || i+1 == totalFiles {
+				fmt.Printf("\rExtracting... %d/%d files", i+1, totalFiles)
+			}
 		}
 
 		if entry.FileInfo().IsDir() {
@@ -53,8 +77,10 @@ func ExtractZip(zipPath string, destDir string) error {
 		}
 	}
 
-	// Newline after progress indicator.
-	fmt.Println()
+	// Newline after progress indicator (CLI mode only).
+	if onProgress == nil {
+		fmt.Println()
+	}
 
 	// Close the zip reader before removing the file. On Windows, os.Remove fails
 	// if the file handle is still open ("The process cannot access the file").

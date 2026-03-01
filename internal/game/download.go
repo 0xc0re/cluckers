@@ -8,15 +8,55 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sync"
+	"time"
 
 	"github.com/0xc0re/cluckers/internal/ui"
 	"github.com/schollz/progressbar/v3"
 	"github.com/zeebo/blake3"
 )
 
-// DownloadGameZip downloads the game zip file with resume support and a progress bar.
+// ProgressFunc is called during download with the number of bytes downloaded
+// so far and the total expected bytes.
+type ProgressFunc func(downloaded, total int64)
+
+// DownloadGameZip downloads the game zip file with resume support and a terminal progress bar.
 // It uses HTTP Range headers to resume interrupted downloads.
 func DownloadGameZip(ctx context.Context, info *VersionInfo, destDir string) error {
+	return DownloadGameZipWithProgress(ctx, info, destDir, nil)
+}
+
+// progressCallbackWriter wraps a ProgressFunc as an io.Writer, tracking cumulative
+// bytes and throttling callbacks to at most every 250ms to avoid overwhelming the GUI.
+type progressCallbackWriter struct {
+	onProgress ProgressFunc
+	total      int64
+	written    int64
+	mu         sync.Mutex
+	lastCall   time.Time
+}
+
+func (w *progressCallbackWriter) Write(p []byte) (int, error) {
+	n := len(p)
+	w.mu.Lock()
+	w.written += int64(n)
+	now := time.Now()
+	if now.Sub(w.lastCall) >= 250*time.Millisecond {
+		w.lastCall = now
+		downloaded := w.written
+		w.mu.Unlock()
+		w.onProgress(downloaded, w.total)
+	} else {
+		w.mu.Unlock()
+	}
+	return n, nil
+}
+
+// DownloadGameZipWithProgress downloads the game zip file with resume support.
+// If onProgress is non-nil, it is called with download progress instead of
+// printing a terminal progress bar. If onProgress is nil, the terminal progress
+// bar is used (identical to CLI behavior).
+func DownloadGameZipWithProgress(ctx context.Context, info *VersionInfo, destDir string, onProgress ProgressFunc) error {
 	if err := os.MkdirAll(destDir, 0755); err != nil {
 		return fmt.Errorf("creating download directory: %w", err)
 	}
@@ -88,24 +128,39 @@ func DownloadGameZip(ctx context.Context, info *VersionInfo, destDir string) err
 	}
 	defer file.Close()
 
-	// Create progress bar.
-	bar := progressbar.NewOptions64(
-		info.ZipSize,
-		progressbar.OptionSetDescription("Downloading game files"),
-		progressbar.OptionShowBytes(true),
-		progressbar.OptionSetPredictTime(true),
-		progressbar.OptionFullWidth(),
-		progressbar.OptionSetElapsedTime(true),
-		progressbar.OptionShowTotalBytes(true),
-	)
+	var writer io.Writer
+	if onProgress != nil {
+		// GUI mode: use callback writer instead of terminal progress bar.
+		cbWriter := &progressCallbackWriter{
+			onProgress: onProgress,
+			total:      info.ZipSize,
+			written:    offset,
+		}
+		// Send initial progress for resumed downloads.
+		if offset > 0 {
+			onProgress(offset, info.ZipSize)
+		}
+		writer = io.MultiWriter(file, cbWriter)
+	} else {
+		// CLI mode: use terminal progress bar.
+		bar := progressbar.NewOptions64(
+			info.ZipSize,
+			progressbar.OptionSetDescription("Downloading game files"),
+			progressbar.OptionShowBytes(true),
+			progressbar.OptionSetPredictTime(true),
+			progressbar.OptionFullWidth(),
+			progressbar.OptionSetElapsedTime(true),
+			progressbar.OptionShowTotalBytes(true),
+		)
 
-	// Set initial position for resume.
-	if offset > 0 {
-		_ = bar.Set64(offset)
+		// Set initial position for resume.
+		if offset > 0 {
+			_ = bar.Set64(offset)
+		}
+
+		writer = io.MultiWriter(file, bar)
 	}
 
-	// Stream response body through both the file and the progress bar.
-	writer := io.MultiWriter(file, bar)
 	if _, err := io.Copy(writer, resp.Body); err != nil {
 		// Leave .partial file in place for future resume.
 		return &ui.UserError{
@@ -116,8 +171,10 @@ func DownloadGameZip(ctx context.Context, info *VersionInfo, destDir string) err
 		}
 	}
 
-	// Newline after progress bar.
-	fmt.Println()
+	// Newline after progress bar (CLI mode only).
+	if onProgress == nil {
+		fmt.Println()
+	}
 
 	// Close file before rename so the handle is released.
 	file.Close()
@@ -154,13 +211,23 @@ func VerifyBLAKE3(filePath string, expectedHash string) error {
 // DownloadAndVerify downloads the game zip and verifies its BLAKE3 hash.
 // If verification fails, the corrupt file is deleted.
 func DownloadAndVerify(ctx context.Context, info *VersionInfo, destDir string) error {
-	if err := DownloadGameZip(ctx, info, destDir); err != nil {
+	return DownloadAndVerifyWithProgress(ctx, info, destDir, nil)
+}
+
+// DownloadAndVerifyWithProgress downloads the game zip and verifies its BLAKE3 hash.
+// If onProgress is non-nil, it is passed to DownloadGameZipWithProgress and the
+// terminal "Verifying download integrity..." message is skipped (the GUI handles
+// its own status text). If onProgress is nil, CLI behavior is identical to DownloadAndVerify.
+func DownloadAndVerifyWithProgress(ctx context.Context, info *VersionInfo, destDir string, onProgress ProgressFunc) error {
+	if err := DownloadGameZipWithProgress(ctx, info, destDir, onProgress); err != nil {
 		return err
 	}
 
 	zipPath := filepath.Join(destDir, "game.zip")
 
-	ui.Info("Verifying download integrity...")
+	if onProgress == nil {
+		ui.Info("Verifying download integrity...")
+	}
 
 	if err := VerifyBLAKE3(zipPath, info.ZipBLAKE3); err != nil {
 		// Delete corrupt download so it doesn't get reused.
