@@ -23,7 +23,7 @@ var gameRunning bool
 // It checks for saved credentials and either shows the login screen or skips
 // directly to the main view.
 func Run(cfg *config.Config) error {
-	a := app.New()
+	a := app.NewWithID("com.projectcrown.cluckers")
 	a.SetIcon(guiassets.LogoResource())
 	a.Settings().SetTheme(NewCluckersTheme())
 
