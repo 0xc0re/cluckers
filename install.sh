@@ -227,7 +227,7 @@ if [ -n "$APPIMAGE_URL" ]; then
         fi
 
         if [ -n "$SHA_CMD" ]; then
-            EXPECTED=$(grep "Cluckers-x86_64\.AppImage" "$TMPDIR/checksums.txt" | awk '{print $1}')
+            EXPECTED=$(grep "Cluckers-x86_64\.AppImage$" "$TMPDIR/checksums.txt" | awk '{print $1}')
             if [ -n "$EXPECTED" ]; then
                 ACTUAL=$($SHA_CMD "$TMPDIR/Cluckers-x86_64.AppImage" | awk '{print $1}')
                 if [ "$EXPECTED" != "$ACTUAL" ]; then
