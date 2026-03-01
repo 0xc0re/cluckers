@@ -63,17 +63,13 @@ func buildProtonEnvFrom(baseEnv []string, compatDataPath, steamInstallPath, stea
 	// Required Proton environment variables.
 	// SteamAppId is set to match SteamGameId — Proton Wine reads SteamAppId
 	// for X11 class hints (steam_app_{id}), which Gamescope uses for window tracking.
-	//
-	// xinput1_3=n,b: prefer our caching shim in the game directory (native)
-	// over Proton's builtin. The shim delegates to Proton's real xinput
-	// and caches state across UE3 ServerTravel re-enumeration.
-	// NOT the same as dxgi=n (which crashes -- Proton manages DXVK internally).
+	// No WINEDLLOVERRIDES -- Proton manages DXVK internally.
+	// Setting dxgi=n causes instant crash (Phase 7.1 Deploy 14a).
 	env = append(env,
 		"STEAM_COMPAT_DATA_PATH="+compatDataPath,
 		"STEAM_COMPAT_CLIENT_INSTALL_PATH="+steamInstallPath,
 		"SteamGameId="+steamGameId,
 		"SteamAppId="+steamGameId,
-		"WINEDLLOVERRIDES=xinput1_3=n,b",
 	)
 
 	if verbose {

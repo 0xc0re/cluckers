@@ -15,10 +15,3 @@ var SHMLauncherExe []byte
 //
 //go:embed controller_neptune_config.vdf
 var ControllerLayout []byte
-
-// XInputCacheDLL is the embedded xinput1_3_cache.dll XInput caching shim.
-// It wraps Proton's builtin xinput and caches device state across UE3's
-// ServerTravel XInput re-enumeration, preventing transient controller drops.
-//
-//go:embed xinput1_3_cache.dll
-var XInputCacheDLL []byte

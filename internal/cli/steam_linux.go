@@ -89,7 +89,7 @@ func runSteamAddDeck(exePath string) error {
 		AppName:       "Realm Royale (Cluckers)",
 		Exe:           fmt.Sprintf(`"%s"`, shmDest),
 		StartDir:      fmt.Sprintf(`"%s"`, config.BinDir()),
-		LaunchOptions: fmt.Sprintf("%s prep && WINEDLLOVERRIDES=xinput1_3=n,b %%command%%", exePath),
+		LaunchOptions: fmt.Sprintf("%s prep && %%command%%", exePath),
 	}
 
 	// Write the new shortcut to VDF.

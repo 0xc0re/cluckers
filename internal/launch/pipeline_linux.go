@@ -28,11 +28,9 @@ func platformSteps(_ *LaunchState) []Step {
 	}
 }
 
-// platformPostSteps returns Linux-specific post-download steps: XInput shim
-// deployment and Steam Deck config.
+// platformPostSteps returns Linux-specific post-download steps: Steam Deck config.
 func platformPostSteps(_ *LaunchState) []Step {
 	return []Step{
-		{Name: "Deploying XInput shim", Fn: stepDeployXInputShim},
 		{Name: "Configuring for Steam Deck", Fn: stepDeckConfig},
 	}
 }
@@ -164,19 +162,6 @@ func launchViaSteam(appID uint32) error {
 			Suggestion: "Make sure Steam is running. On Desktop Mode, start Steam first.",
 		}
 	}
-	return nil
-}
-
-// stepDeployXInputShim deploys the XInput caching shim DLL to the game's
-// Win64 directory. The shim caches device state across UE3's ServerTravel
-// XInput re-enumeration to prevent transient controller drops.
-// Non-fatal: if deployment fails the game still launches, just without cache.
-func stepDeployXInputShim(_ context.Context, state *LaunchState) error {
-	if err := DeployXInputShim(state.GameDir); err != nil {
-		ui.Warn(fmt.Sprintf("XInput shim deployment failed: %v", err))
-		return nil // Non-fatal -- game still launches, just without cache.
-	}
-	ui.Verbose("XInput caching shim deployed", state.Config.Verbose)
 	return nil
 }
 

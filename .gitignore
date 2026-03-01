@@ -32,7 +32,6 @@ vendor/
 # Build with: x86_64-w64-mingw32-gcc -o assets/shm_launcher.exe tools/shm_launcher.c -municode
 assets/shm_launcher.exe
 assets/xinput1_3_remap.dll
-assets/xinput1_3_cache.dll
 
 dist/
 build/

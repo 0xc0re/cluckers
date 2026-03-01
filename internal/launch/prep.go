@@ -114,12 +114,6 @@ func stepWriteLaunchConfig(_ context.Context, state *LaunchState) error {
 		return fmt.Errorf("extracting shm_launcher.exe: %w", err)
 	}
 
-	// 3b. Deploy XInput caching shim to game directory (idempotent).
-	// Non-fatal: game still works without the shim.
-	if err := DeployXInputShim(state.GameDir); err != nil {
-		ui.Warn(fmt.Sprintf("XInput shim deployment failed: %v", err))
-	}
-
 	// 4. Build and write launch-config.txt
 	gameExe := game.GameExePath(state.GameDir)
 

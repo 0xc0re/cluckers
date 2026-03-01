@@ -63,17 +63,11 @@ func TestBuildProtonEnv_StripsWINEESYNC(t *testing.T) {
 	assertEnvNotContainsKey(t, got, "WINEESYNC")
 }
 
-func TestBuildProtonEnv_StripsUserWINEDLLOVERRIDES_AddsXInput(t *testing.T) {
+func TestBuildProtonEnv_StripsWINEDLLOVERRIDES_DoesNotReAdd(t *testing.T) {
 	base := []string{"WINEDLLOVERRIDES=something", "HOME=/home/user"}
 	got := buildProtonEnvFrom(base, "/compat", "", "", false)
-	// User-set WINEDLLOVERRIDES should be stripped and replaced with our xinput override.
-	assertEnvContains(t, got, "WINEDLLOVERRIDES=xinput1_3=n,b")
-	// Ensure the user's original value is gone (only our value remains).
-	for _, e := range got {
-		if e == "WINEDLLOVERRIDES=something" {
-			t.Error("user WINEDLLOVERRIDES=something should have been stripped")
-		}
-	}
+	// User-set WINEDLLOVERRIDES should be stripped and NOT replaced.
+	assertEnvNotContainsKey(t, got, "WINEDLLOVERRIDES")
 }
 
 func TestBuildProtonEnv_SetsSTEAM_COMPAT_DATA_PATH(t *testing.T) {
@@ -96,10 +90,10 @@ func TestBuildProtonEnv_SetsSTEAM_COMPAT_CLIENT_INSTALL_PATH_Empty(t *testing.T)
 	assertEnvContains(t, got, "STEAM_COMPAT_CLIENT_INSTALL_PATH=")
 }
 
-func TestBuildProtonEnv_XInputOverride(t *testing.T) {
+func TestBuildProtonEnv_NoWINEDLLOVERRIDES(t *testing.T) {
 	got := buildProtonEnvFrom([]string{"HOME=/home/user"}, "/compat", "", "", false)
-	// WINEDLLOVERRIDES should contain xinput1_3=n,b for the caching shim.
-	assertEnvContains(t, got, "WINEDLLOVERRIDES=xinput1_3=n,b")
+	// No WINEDLLOVERRIDES should be present when none is in input either.
+	assertEnvNotContainsKey(t, got, "WINEDLLOVERRIDES")
 }
 
 func TestBuildProtonEnv_VerboseTrue_SetsPROTON_LOG(t *testing.T) {
