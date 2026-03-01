@@ -6,6 +6,7 @@ import (
 
 	"github.com/0xc0re/cluckers/internal/cli"
 	"github.com/0xc0re/cluckers/internal/config"
+	"github.com/0xc0re/cluckers/internal/ui"
 )
 
 // Set via ldflags at build time (goreleaser).
@@ -23,7 +24,17 @@ func main() {
 	cli.InitFlags()
 
 	if err := cli.Execute(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		// Use FormatError to show suggestions and details for UserErrors.
+		// Verbose is not available here (config loads inside Cobra), so
+		// check if -v was passed by looking at os.Args.
+		verbose := false
+		for _, arg := range os.Args {
+			if arg == "-v" || arg == "--verbose" {
+				verbose = true
+				break
+			}
+		}
+		fmt.Fprintln(os.Stderr, ui.FormatError(err, verbose))
 		os.Exit(1)
 	}
 }

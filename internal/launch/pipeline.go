@@ -83,7 +83,6 @@ func RunWithReporter(ctx context.Context, cfg *config.Config, reporter ProgressR
 
 		if err := step.Fn(ctx, state); err != nil {
 			reporter.StepFailed(step.Name, err)
-			ui.Error(ui.FormatError(err, cfg.Verbose))
 			return err
 		}
 
