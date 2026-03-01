@@ -22,7 +22,11 @@ func PromptUsername() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to read username: %w", err)
 	}
-	return strings.TrimSpace(line), nil
+	username := strings.TrimSpace(line)
+	if username == "" {
+		return "", fmt.Errorf("username cannot be empty")
+	}
+	return username, nil
 }
 
 // PromptPassword prints "Password: " and reads hidden input from stdin.
@@ -38,5 +42,9 @@ func PromptPassword() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to read password: %w", err)
 	}
-	return string(pw), nil
+	password := string(pw)
+	if password == "" {
+		return "", fmt.Errorf("password cannot be empty")
+	}
+	return password, nil
 }

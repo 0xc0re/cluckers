@@ -15,7 +15,7 @@ var (
 
 var rootCmd = &cobra.Command{
 	Use:   "cluckers",
-	Short: "Project Crown Linux Launcher",
+	Short: "Project Crown Launcher",
 	Long:  "Cluckers Central — a native launcher for Realm Royale on the Project Crown private server.",
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		cfg, err := config.Load()
