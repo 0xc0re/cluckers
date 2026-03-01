@@ -6,6 +6,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/driver/desktop"
 
 	"github.com/0xc0re/cluckers/internal/auth"
 	"github.com/0xc0re/cluckers/internal/config"
@@ -13,6 +14,10 @@ import (
 	"github.com/0xc0re/cluckers/internal/gui/screens"
 	"github.com/0xc0re/cluckers/internal/ui"
 )
+
+// gameRunning tracks whether the game process has been launched. When true,
+// the window close button hides to system tray instead of quitting.
+var gameRunning bool
 
 // Run starts the Fyne GUI application. This is the main entry point for GUI mode.
 // It checks for saved credentials and either shows the login screen or skips
@@ -23,6 +28,30 @@ func Run(cfg *config.Config) error {
 	a.Settings().SetTheme(NewCluckersTheme())
 
 	w := a.NewWindow("Cluckers")
+
+	// System tray setup (desktop only, not Steam Deck).
+	if !isSteamDeck() {
+		if deskApp, ok := a.(desktop.App); ok {
+			deskApp.SetSystemTrayIcon(guiassets.LogoResource())
+			showItem := fyne.NewMenuItem("Show Cluckers", func() {
+				w.Show()
+				w.RequestFocus()
+			})
+			quitItem := fyne.NewMenuItem("Quit", func() {
+				a.Quit()
+			})
+			deskApp.SetSystemTrayMenu(fyne.NewMenu("Cluckers", showItem, quitItem))
+		}
+
+		// Close intercept: hide to tray when game is running, quit otherwise.
+		w.SetCloseIntercept(func() {
+			if gameRunning {
+				w.Hide()
+			} else {
+				a.Quit()
+			}
+		})
+	}
 
 	// Check for saved credentials.
 	creds, err := auth.LoadCredentials()
@@ -81,13 +110,24 @@ func showMainView(w fyne.Window, cfg *config.Config, username, password string) 
 }
 
 // showLaunchProgress sets the window content to the launch progress view.
-// On successful pipeline completion, the window closes (launcher exits when game launches).
+// On successful pipeline completion, the window hides to system tray (desktop)
+// or closes (Steam Deck). The main view content is restored so the window is
+// ready if the user returns from the tray.
 // On error, an error dialog is shown and the user returns to the main view.
 func showLaunchProgress(w fyne.Window, cfg *config.Config, username, password string) {
 	content := screens.MakeLaunchProgressView(w, cfg, username, password,
 		func() {
-			// onComplete: close the launcher window (game has launched).
-			w.Close()
+			// onComplete: game has launched.
+			gameRunning = true
+			// Restore main view content so tray restore shows the main view.
+			showMainView(w, cfg, username, password)
+			if isSteamDeck() {
+				// Steam Deck: no tray, just close.
+				w.Close()
+			} else {
+				// Desktop: hide to system tray.
+				w.Hide()
+			}
 		},
 		func(err error) {
 			// onError: show error dialog, then return to main view.

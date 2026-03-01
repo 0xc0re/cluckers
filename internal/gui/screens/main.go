@@ -26,6 +26,25 @@ import (
 	guiassets "github.com/0xc0re/cluckers/internal/gui/assets"
 )
 
+// formatBytes converts a byte count to a human-readable string (B/KB/MB/GB).
+func formatBytes(b int64) string {
+	const (
+		kb = 1024
+		mb = 1024 * kb
+		gb = 1024 * mb
+	)
+	switch {
+	case b >= gb:
+		return fmt.Sprintf("%.1f GB", float64(b)/float64(gb))
+	case b >= mb:
+		return fmt.Sprintf("%.1f MB", float64(b)/float64(mb))
+	case b >= kb:
+		return fmt.Sprintf("%.1f KB", float64(b)/float64(kb))
+	default:
+		return fmt.Sprintf("%d B", b)
+	}
+}
+
 // MakeMainView builds the main application view with launch button, game management,
 // community links, and navigation. This is the primary hub of the GUI launcher.
 //
@@ -68,6 +87,15 @@ func MakeMainView(w fyne.Window, cfg *config.Config, username, password string, 
 	updateBtn := widget.NewButtonWithIcon("Update Game", theme.DownloadIcon(), nil)
 	repairBtn := widget.NewButtonWithIcon("Repair Game", theme.ViewRefreshIcon(), nil)
 
+	// ---- Progress bar and status label for download/extract operations ----
+	progressBar := widget.NewProgressBar()
+	progressBar.Hide()
+
+	progressStatus := widget.NewLabelWithStyle("", fyne.TextAlignCenter, fyne.TextStyle{Italic: true})
+	progressStatus.Hide()
+
+	progressSection := container.NewVBox(progressBar, container.NewCenter(progressStatus))
+
 	// setFileOpsLocked disables or enables all buttons that conflict with file
 	// operations (Verify, Update, Repair, Launch). Called at the start of each
 	// file-operation handler and again on every completion/error path.
@@ -82,6 +110,52 @@ func MakeMainView(w fyne.Window, cfg *config.Config, username, password string, 
 			verifyBtn.Enable()
 			updateBtn.Enable()
 			repairBtn.Enable()
+		}
+	}
+
+	// showProgress makes the progress bar and status label visible with initial text.
+	showProgress := func(statusText string) {
+		progressBar.SetValue(0)
+		progressStatus.SetText(statusText)
+		progressBar.Show()
+		progressStatus.Show()
+	}
+
+	// hideProgress hides the progress bar and status label.
+	hideProgress := func() {
+		progressBar.Hide()
+		progressStatus.Hide()
+	}
+
+	// makeDownloadProgressFunc creates a game.ProgressFunc that updates the
+	// progress bar and status label. All GUI updates are wrapped in fyne.Do().
+	makeDownloadProgressFunc := func() game.ProgressFunc {
+		return func(downloaded, total int64) {
+			if total <= 0 {
+				return
+			}
+			pct := float64(downloaded) / float64(total)
+			text := fmt.Sprintf("Downloading... %s / %s", formatBytes(downloaded), formatBytes(total))
+			fyne.Do(func() {
+				progressBar.SetValue(pct)
+				progressStatus.SetText(text)
+			})
+		}
+	}
+
+	// makeExtractProgressFunc creates a game.ExtractProgressFunc that updates
+	// the progress bar and status label. All GUI updates are wrapped in fyne.Do().
+	makeExtractProgressFunc := func() game.ExtractProgressFunc {
+		return func(extracted, total int) {
+			if total <= 0 {
+				return
+			}
+			pct := float64(extracted) / float64(total)
+			text := fmt.Sprintf("Extracting... %d / %d files", extracted, total)
+			fyne.Do(func() {
+				progressBar.SetValue(pct)
+				progressStatus.SetText(text)
+			})
 		}
 	}
 
@@ -158,22 +232,34 @@ func MakeMainView(w fyne.Window, cfg *config.Config, username, password string, 
 				})
 				return
 			}
-			if err := game.DownloadAndVerify(context.Background(), info, gameDir); err != nil {
+			fyne.Do(func() { showProgress("Downloading...") })
+			if err := game.DownloadAndVerifyWithProgress(context.Background(), info, gameDir, makeDownloadProgressFunc()); err != nil {
 				fyne.Do(func() {
+					hideProgress()
 					dialog.ShowError(fmt.Errorf("download failed: %s", err), w)
 					setFileOpsLocked(false)
 				})
 				return
 			}
+			fyne.Do(func() {
+				progressBar.SetValue(1.0)
+				progressStatus.SetText("Verifying download...")
+			})
 			zipPath := filepath.Join(gameDir, "game.zip")
-			if err := game.ExtractZip(zipPath, gameDir); err != nil {
+			fyne.Do(func() {
+				progressBar.SetValue(0)
+				progressStatus.SetText("Extracting...")
+			})
+			if err := game.ExtractZipWithProgress(zipPath, gameDir, makeExtractProgressFunc()); err != nil {
 				fyne.Do(func() {
+					hideProgress()
 					dialog.ShowError(fmt.Errorf("extraction failed: %s", err), w)
 					setFileOpsLocked(false)
 				})
 				return
 			}
 			fyne.Do(func() {
+				hideProgress()
 				dialog.ShowInformation("Update Game",
 					"Game updated to version "+info.LatestVersion, w)
 				setFileOpsLocked(false)
@@ -217,22 +303,34 @@ func MakeMainView(w fyne.Window, cfg *config.Config, username, password string, 
 						})
 						return
 					}
-					if err := game.DownloadAndVerify(context.Background(), info, gameDir); err != nil {
+					fyne.Do(func() { showProgress("Downloading...") })
+					if err := game.DownloadAndVerifyWithProgress(context.Background(), info, gameDir, makeDownloadProgressFunc()); err != nil {
 						fyne.Do(func() {
+							hideProgress()
 							dialog.ShowError(fmt.Errorf("download failed: %s", err), w)
 							setFileOpsLocked(false)
 						})
 						return
 					}
+					fyne.Do(func() {
+						progressBar.SetValue(1.0)
+						progressStatus.SetText("Verifying download...")
+					})
 					zipPath := filepath.Join(gameDir, "game.zip")
-					if err := game.ExtractZip(zipPath, gameDir); err != nil {
+					fyne.Do(func() {
+						progressBar.SetValue(0)
+						progressStatus.SetText("Extracting...")
+					})
+					if err := game.ExtractZipWithProgress(zipPath, gameDir, makeExtractProgressFunc()); err != nil {
 						fyne.Do(func() {
+							hideProgress()
 							dialog.ShowError(fmt.Errorf("extraction failed: %s", err), w)
 							setFileOpsLocked(false)
 						})
 						return
 					}
 					fyne.Do(func() {
+						hideProgress()
 						dialog.ShowInformation("Repair Game",
 							"Game files repaired and updated to version "+info.LatestVersion, w)
 						setFileOpsLocked(false)
@@ -451,6 +549,7 @@ func MakeMainView(w fyne.Window, cfg *config.Config, username, password string, 
 		launchBtnRow,
 		widget.NewSeparator(),
 		container.NewCenter(gameManagementGrid),
+		progressSection,
 		botNameSep,
 		botNameSection,
 		widget.NewSeparator(),
