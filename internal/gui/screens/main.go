@@ -65,8 +65,28 @@ func MakeMainView(w fyne.Window, cfg *config.Config, username, password string, 
 
 	// ---- Game management section ----
 	verifyBtn := widget.NewButtonWithIcon("Verify Files", theme.SearchIcon(), nil)
+	updateBtn := widget.NewButtonWithIcon("Update Game", theme.DownloadIcon(), nil)
+	repairBtn := widget.NewButtonWithIcon("Repair Game", theme.ViewRefreshIcon(), nil)
+
+	// setFileOpsLocked disables or enables all buttons that conflict with file
+	// operations (Verify, Update, Repair, Launch). Called at the start of each
+	// file-operation handler and again on every completion/error path.
+	setFileOpsLocked := func(locked bool) {
+		if locked {
+			launchBtn.Disable()
+			verifyBtn.Disable()
+			updateBtn.Disable()
+			repairBtn.Disable()
+		} else {
+			launchBtn.Enable()
+			verifyBtn.Enable()
+			updateBtn.Enable()
+			repairBtn.Enable()
+		}
+	}
+
 	verifyBtn.OnTapped = func() {
-		verifyBtn.Disable()
+		setFileOpsLocked(true)
 		go func() {
 			gameDir := cfg.GameDir
 			if gameDir == "" {
@@ -76,7 +96,7 @@ func MakeMainView(w fyne.Window, cfg *config.Config, username, password string, 
 			if err != nil {
 				fyne.Do(func() {
 					dialog.ShowError(fmt.Errorf("could not check version: %s", err), w)
-					verifyBtn.Enable()
+					setFileOpsLocked(false)
 				})
 				return
 			}
@@ -84,7 +104,7 @@ func MakeMainView(w fyne.Window, cfg *config.Config, username, password string, 
 			if err != nil {
 				fyne.Do(func() {
 					dialog.ShowError(fmt.Errorf("verification error: %s", err), w)
-					verifyBtn.Enable()
+					setFileOpsLocked(false)
 				})
 				return
 			}
@@ -96,14 +116,13 @@ func MakeMainView(w fyne.Window, cfg *config.Config, username, password string, 
 					dialog.ShowInformation("Verify Game Files",
 						"Game files are up to date and verified.", w)
 				}
-				verifyBtn.Enable()
+				setFileOpsLocked(false)
 			})
 		}()
 	}
 
-	updateBtn := widget.NewButtonWithIcon("Update Game", theme.DownloadIcon(), nil)
 	updateBtn.OnTapped = func() {
-		updateBtn.Disable()
+		setFileOpsLocked(true)
 		go func() {
 			gameDir := cfg.GameDir
 			if gameDir == "" {
@@ -113,7 +132,7 @@ func MakeMainView(w fyne.Window, cfg *config.Config, username, password string, 
 			if err != nil {
 				fyne.Do(func() {
 					dialog.ShowError(fmt.Errorf("could not check version: %s", err), w)
-					updateBtn.Enable()
+					setFileOpsLocked(false)
 				})
 				return
 			}
@@ -121,28 +140,28 @@ func MakeMainView(w fyne.Window, cfg *config.Config, username, password string, 
 			if err != nil {
 				fyne.Do(func() {
 					dialog.ShowError(fmt.Errorf("version check error: %s", err), w)
-					updateBtn.Enable()
+					setFileOpsLocked(false)
 				})
 				return
 			}
 			if !needsUpdate {
 				fyne.Do(func() {
 					dialog.ShowInformation("Update Game", "Game is already up to date.", w)
-					updateBtn.Enable()
+					setFileOpsLocked(false)
 				})
 				return
 			}
 			if err := config.EnsureDir(gameDir); err != nil {
 				fyne.Do(func() {
 					dialog.ShowError(fmt.Errorf("could not create game directory: %s", err), w)
-					updateBtn.Enable()
+					setFileOpsLocked(false)
 				})
 				return
 			}
 			if err := game.DownloadAndVerify(context.Background(), info, gameDir); err != nil {
 				fyne.Do(func() {
 					dialog.ShowError(fmt.Errorf("download failed: %s", err), w)
-					updateBtn.Enable()
+					setFileOpsLocked(false)
 				})
 				return
 			}
@@ -150,19 +169,18 @@ func MakeMainView(w fyne.Window, cfg *config.Config, username, password string, 
 			if err := game.ExtractZip(zipPath, gameDir); err != nil {
 				fyne.Do(func() {
 					dialog.ShowError(fmt.Errorf("extraction failed: %s", err), w)
-					updateBtn.Enable()
+					setFileOpsLocked(false)
 				})
 				return
 			}
 			fyne.Do(func() {
 				dialog.ShowInformation("Update Game",
 					"Game updated to version "+info.LatestVersion, w)
-				updateBtn.Enable()
+				setFileOpsLocked(false)
 			})
 		}()
 	}
 
-	repairBtn := widget.NewButtonWithIcon("Repair Game", theme.ViewRefreshIcon(), nil)
 	repairBtn.OnTapped = func() {
 		dialog.ShowConfirm("Repair Game",
 			"This will delete all game files and re-download them.\nContinue?",
@@ -170,7 +188,7 @@ func MakeMainView(w fyne.Window, cfg *config.Config, username, password string, 
 				if !confirmed {
 					return
 				}
-				repairBtn.Disable()
+				setFileOpsLocked(true)
 				go func() {
 					gameDir := cfg.GameDir
 					if gameDir == "" {
@@ -180,7 +198,7 @@ func MakeMainView(w fyne.Window, cfg *config.Config, username, password string, 
 					if err := removeGameFiles(gameDir); err != nil {
 						fyne.Do(func() {
 							dialog.ShowError(fmt.Errorf("could not delete game files: %s", err), w)
-							repairBtn.Enable()
+							setFileOpsLocked(false)
 						})
 						return
 					}
@@ -188,21 +206,21 @@ func MakeMainView(w fyne.Window, cfg *config.Config, username, password string, 
 					if err != nil {
 						fyne.Do(func() {
 							dialog.ShowError(fmt.Errorf("could not check version: %s", err), w)
-							repairBtn.Enable()
+							setFileOpsLocked(false)
 						})
 						return
 					}
 					if err := config.EnsureDir(gameDir); err != nil {
 						fyne.Do(func() {
 							dialog.ShowError(fmt.Errorf("could not create game directory: %s", err), w)
-							repairBtn.Enable()
+							setFileOpsLocked(false)
 						})
 						return
 					}
 					if err := game.DownloadAndVerify(context.Background(), info, gameDir); err != nil {
 						fyne.Do(func() {
 							dialog.ShowError(fmt.Errorf("download failed: %s", err), w)
-							repairBtn.Enable()
+							setFileOpsLocked(false)
 						})
 						return
 					}
@@ -210,14 +228,14 @@ func MakeMainView(w fyne.Window, cfg *config.Config, username, password string, 
 					if err := game.ExtractZip(zipPath, gameDir); err != nil {
 						fyne.Do(func() {
 							dialog.ShowError(fmt.Errorf("extraction failed: %s", err), w)
-							repairBtn.Enable()
+							setFileOpsLocked(false)
 						})
 						return
 					}
 					fyne.Do(func() {
 						dialog.ShowInformation("Repair Game",
 							"Game files repaired and updated to version "+info.LatestVersion, w)
-						repairBtn.Enable()
+						setFileOpsLocked(false)
 					})
 				}()
 			}, w)
