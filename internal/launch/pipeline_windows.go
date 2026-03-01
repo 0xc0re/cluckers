@@ -18,6 +18,11 @@ func platformSteps(_ *LaunchState) []Step {
 	return []Step{}
 }
 
+// platformLaunchStep returns the Windows launch step (direct native launch).
+func platformLaunchStep() Step {
+	return Step{Name: "Launching game", Fn: stepLaunchGame}
+}
+
 // platformPostSteps returns Windows-specific post-download steps.
 // On Windows, we patch display settings for borderless fullscreen and make INI files writable.
 func platformPostSteps(_ *LaunchState) []Step {

@@ -17,7 +17,7 @@ Use this with Steam's %command% mechanism so Steam manages the Proton lifecycle,
 keeping Steam Input controller bindings stable through map transitions.
 
 Launch Options in Steam:
-  /path/to/cluckers prep && WINEDLLOVERRIDES=dxgi=n %command%`,
+  /path/to/cluckers prep && %command%`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return launch.RunPrep(cmd.Context(), Cfg)
 	},

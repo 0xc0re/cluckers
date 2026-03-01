@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -109,12 +110,58 @@ func stepResolveSteamIntegration(_ context.Context, state *LaunchState) error {
 		}
 		if appID := FindCluckersAppID(data); appID != 0 {
 			state.SteamGameId = fmt.Sprintf("%d", appID)
+			state.SteamShortcutAppID = appID
 			ui.Verbose(fmt.Sprintf("Steam shortcut app ID: %s", state.SteamGameId), state.Config.Verbose)
 			return nil
 		}
 	}
 
 	ui.Verbose("Cluckers shortcut not found in Steam, using default game ID", state.Config.Verbose)
+	return nil
+}
+
+// platformLaunchStep returns the Linux launch step, which dispatches between
+// Steam-managed launch (on Deck with shortcut) and direct proton run (desktop).
+func platformLaunchStep() Step {
+	return Step{Name: "Launching game", Fn: stepLaunchGameLinux}
+}
+
+// stepLaunchGameLinux dispatches between Steam-managed launch and direct proton run.
+// On Steam Deck with a configured shortcut, it writes prep config then launches
+// via steam://rungameid/. On desktop Linux (or Deck without shortcut), it falls
+// back to the standard direct proton run.
+func stepLaunchGameLinux(ctx context.Context, state *LaunchState) error {
+	if wine.IsSteamDeck() && state.SteamShortcutAppID != 0 {
+		// Steam-managed mode: write prep config then launch via Steam.
+		if err := stepWriteLaunchConfig(ctx, state); err != nil {
+			return err
+		}
+		ui.Success("Launching via Steam...")
+		return launchViaSteam(state.SteamShortcutAppID)
+	}
+
+	if wine.IsSteamDeck() {
+		ui.Warn("No Steam shortcut found. Run 'cluckers steam add' for better controller support.")
+	}
+
+	// Desktop Linux or Deck without shortcut: direct proton run.
+	return stepLaunchGame(ctx, state)
+}
+
+// launchViaSteam launches the game through Steam using the steam://rungameid/ protocol.
+// This lets Steam manage the Proton lifecycle, keeping Steam Input controller
+// bindings stable through game map transitions (ServerTravel).
+func launchViaSteam(appID uint32) error {
+	bpid := CalculateBPID(appID)
+	url := fmt.Sprintf("steam://rungameid/%d", bpid)
+	cmd := exec.Command("steam", url)
+	if err := cmd.Start(); err != nil {
+		return &ui.UserError{
+			Message:    "Could not launch via Steam",
+			Detail:     err.Error(),
+			Suggestion: "Make sure Steam is running. On Desktop Mode, start Steam first.",
+		}
+	}
 	return nil
 }
 

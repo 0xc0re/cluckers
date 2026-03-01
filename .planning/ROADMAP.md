@@ -102,3 +102,21 @@ Plans:
 | 7. Controller and Gamescope Integration | v1.1 | Complete    | 2026-02-25 | 2026-02-25 |
 | 7.1 Steam Deck Controller Input Proxy | v1.1 | 1/4 | In Progress | - |
 | 8. Cleanup and Polish | v1.1 | 0/2 | Not started | - |
+
+### Phase 9: Steam Deck Input (again)
+
+**Goal:** Controller buttons persist through lobby-to-match transition on Steam Deck via Steam-managed Proton launch (proper non-Steam shortcut with forced Proton-GE, Gamescope window tracking, Steam Input game mode)
+**Requirements**: CTRL-03
+**Depends on:** Phase 8
+**Success Criteria** (what must be TRUE):
+  1. Running `cluckers steam add` on Steam Deck writes a non-Steam shortcut to shortcuts.vdf with shm_launcher.exe as target and `cluckers prep && %command%` as launch options
+  2. Running `cluckers launch` on Steam Deck auto-detects Deck hardware, runs prep pipeline, then launches via `steam://rungameid/` for Steam-managed Proton lifecycle
+  3. Controller buttons (A/B/X/Y, bumpers, triggers) persist through UE3 ServerTravel (lobby-to-match transition) on actual Steam Deck hardware
+  4. Desktop Linux launch behavior is unchanged (direct `proton run`)
+  5. `WINEDLLOVERRIDES=dxgi=n` is removed from all code paths (confirmed crash trigger)
+**Plans:** 3 plans
+
+Plans:
+- [ ] 09-01-PLAN.md -- Binary VDF shortcut writer (TDD) and remove WINEDLLOVERRIDES crash trigger
+- [ ] 09-02-PLAN.md -- Wire Steam-managed launch: automate shortcuts.vdf, add Deck launch mode auto-detection
+- [ ] 09-03-PLAN.md -- Hardware validation of controller persistence on Steam Deck

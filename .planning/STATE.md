@@ -1,6 +1,6 @@
 # Project State
 
-Last activity: 2026-02-27 - Completed quick task 35: Fix permission denied error during game extraction on Linux
+Last activity: 2026-02-28 - Phase 9 complete (09-04 XInput shim failed, reverted)
 
 ## Project Reference
 
@@ -11,12 +11,12 @@ See: .planning/PROJECT.md (updated 2026-02-24)
 
 ## Current Position
 
-Phase: 8 of 8 (Cleanup and Polish) — COMPLETE
-Plan: 2 of 2 in current phase — COMPLETE
-Status: All v1.1 phases complete
-Last activity: 2026-02-27 -- Status command rewrite + CLAUDE.md update
+Phase: 9 (Steam Deck Input Again)
+Plan: 2 of 3 in current phase — COMPLETE
+Status: Executing Phase 9
+Last activity: 2026-02-28 -- Steam-managed launch + shortcut automation
 
-Progress: [####################] 100% (v1.0 complete, v1.1 all phases complete)
+Progress: [#############       ] 67% (Phase 9: 2/3 plans complete)
 
 ## Performance Metrics
 
@@ -52,6 +52,8 @@ Progress: [####################] 100% (v1.0 complete, v1.1 all phases complete)
 | 7.1 Input Proxy | 07.1-04 | ~6h | 14 deploys | 4 |
 | 8. Cleanup | 08-01 | 4min | 2 | 21 |
 | 8. Cleanup | 08-02 | 6min | 2 | 6 |
+| 9. Steam Deck Input | 09-01 | 2min | 2 | 6 |
+| 9. Steam Deck Input | 09-02 | 2min | 2 | 4 |
 
 ## Accumulated Context
 
@@ -82,11 +84,17 @@ Progress: [####################] 100% (v1.0 complete, v1.1 all phases complete)
 - 07.1-04: Clean baseline CONFIRMED FAIL — Steam-managed Proton launch alone does not fix ServerTravel drop
 - 07.1-04: Controller fix deferred to v1.2+ — firmware-level issue beyond software fix
 - 08-02: Removed WinePrefix from Config and GUI settings; status command now shows Proton version and compatdata health
+- 09-01: VDF writer uses appid=0 placeholder; Steam assigns real appid on restart
+- 09-01: WINEDLLOVERRIDES kept in strippedEnvKeys but never re-added to env (dxgi=n causes instant crash)
+- 09-02: Steam-managed launch writes prep config then triggers steam://rungameid/ instead of direct proton run
+- 09-02: Deck without shortcut falls back to direct proton run with warning
+- 09-02: platformLaunchStep() replaces hardcoded stepLaunchGame for cross-platform dispatch
 
 ### Roadmap Evolution
 
 - Phase 7.1 inserted after Phase 7: Steam Deck controller input proxy (URGENT)
 - Phase 7.1 outcome: FAIL — proxy cannot fix firmware-level issue, deferred to v1.2+
+- Phase 9 added: Steam Deck Input (again)
 
 ### Quick Tasks Completed
 
@@ -102,6 +110,6 @@ Progress: [####################] 100% (v1.0 complete, v1.1 all phases complete)
 
 ## Session Continuity
 
-Last session: 2026-02-27
-Stopped at: Quick task 35 complete
+Last session: 2026-02-28
+Stopped at: Phase 9 complete
 Resume file: none
