@@ -1,6 +1,6 @@
 # Project State
 
-Last activity: 2026-03-01 - Completed quick task 38: GUI background launch, system tray, download progress
+Last activity: 2026-03-01 - Completed quick task 39: Windows code review (no issues found)
 
 ## Project Reference
 
@@ -105,6 +105,7 @@ Progress: [#############       ] 67% (Phase 9: 2/3 plans complete)
 | 36 | UI/CLI review: fix double errors, dead code, stale descriptions | 2026-03-01 | cfd1760 | [36-complete-ui-and-cli-review-look-for-issu](./quick/36-complete-ui-and-cli-review-look-for-issu/) |
 | 37 | Disable conflicting file-operation buttons during Verify/Update/Repair | 2026-03-01 | c690cc2 | [37-update-ui-button-states-dim-disable-butt](./quick/37-update-ui-button-states-dim-disable-butt/) |
 | 38 | GUI background launch, system tray, download progress | 2026-03-01 | 5ae3793 | [38-update-gui-to-launch-in-background-minim](./quick/38-update-gui-to-launch-in-background-minim/) |
+| 39 | Windows code review: all 11 _windows.go files verified correct | 2026-03-01 | (review-only) | [39-review-for-issues-running-in-windows](./quick/39-review-for-issues-running-in-windows/) |
 
 ### Blockers/Concerns
 
@@ -114,5 +115,5 @@ Progress: [#############       ] 67% (Phase 9: 2/3 plans complete)
 ## Session Continuity
 
 Last session: 2026-03-01
-Stopped at: Completed quick task 38 (GUI background launch, system tray, download progress)
+Stopped at: Completed quick task 39 (Windows code review -- no issues found)
 Resume file: none
