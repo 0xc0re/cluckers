@@ -1,6 +1,6 @@
 # Project State
 
-Last activity: 2026-02-28 - Phase 9 complete (09-04 XInput shim failed, reverted)
+Last activity: 2026-03-01 - Completed quick task 36: complete UI and CLI review
 
 ## Project Reference
 
@@ -102,6 +102,7 @@ Progress: [#############       ] 67% (Phase 9: 2/3 plans complete)
 |---|-------------|------|--------|-----------|
 | 34 | Fix Windows update verification and remove auto-update from launch | 2026-02-27 | ebd89b4 | [34-fix-windows-update-verification-and-remo](./quick/34-fix-windows-update-verification-and-remo/) |
 | 35 | Fix permission denied error during game extraction on Linux | 2026-02-27 | cd25d21 | [35-fix-permission-denied-error-during-game-](./quick/35-fix-permission-denied-error-during-game-/) |
+| 36 | UI/CLI review: fix double errors, dead code, stale descriptions | 2026-03-01 | cfd1760 | [36-complete-ui-and-cli-review-look-for-issu](./quick/36-complete-ui-and-cli-review-look-for-issu/) |
 
 ### Blockers/Concerns
 
@@ -110,6 +111,6 @@ Progress: [#############       ] 67% (Phase 9: 2/3 plans complete)
 
 ## Session Continuity
 
-Last session: 2026-02-28
-Stopped at: Phase 9 complete
+Last session: 2026-03-01
+Stopped at: Completed quick task 36 (UI/CLI review)
 Resume file: none
