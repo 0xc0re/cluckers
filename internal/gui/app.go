@@ -79,12 +79,27 @@ func Run(cfg *config.Config) error {
 }
 
 // showLoginScreen sets the window content to the login screen. On successful
-// login, it transitions to the main view.
+// login, it transitions to the main view. The "Create Account" button navigates
+// to the registration screen.
 func showLoginScreen(w fyne.Window, cfg *config.Config) {
 	loginContent := screens.MakeLoginScreen(w, cfg, func(username, password string) {
 		showMainView(w, cfg, username, password)
+	}, func() {
+		showRegisterScreen(w, cfg)
 	})
 	w.SetContent(loginContent)
+}
+
+// showRegisterScreen sets the window content to the registration screen. On
+// successful registration (with or without Discord linking), it transitions to
+// the main view. The "Back to Login" button returns to the login screen.
+func showRegisterScreen(w fyne.Window, cfg *config.Config) {
+	content := screens.MakeRegisterScreen(w, cfg, func(username, password string) {
+		showMainView(w, cfg, username, password)
+	}, func() {
+		showLoginScreen(w, cfg)
+	})
+	w.SetContent(content)
 }
 
 // showMainView sets the window content to the main application view with

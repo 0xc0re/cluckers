@@ -19,9 +19,10 @@ import (
 )
 
 // MakeLoginScreen builds the login screen with logo, username/password fields,
-// login button, and inline error display. On successful login, credentials are
-// saved and onSuccess is called with the username and password.
-func MakeLoginScreen(w fyne.Window, cfg *config.Config, onSuccess func(username, password string)) fyne.CanvasObject {
+// login button, create account button, and inline error display. On successful
+// login, credentials are saved and onSuccess is called with the username and
+// password. The onRegister callback navigates to the registration screen.
+func MakeLoginScreen(w fyne.Window, cfg *config.Config, onSuccess func(username, password string), onRegister func()) fyne.CanvasObject {
 	// Logo.
 	logo := canvas.NewImageFromResource(guiassets.LogoResource())
 	logo.FillMode = canvas.ImageFillContain
@@ -104,9 +105,13 @@ func MakeLoginScreen(w fyne.Window, cfg *config.Config, onSuccess func(username,
 	formWidth := float32(300)
 	formHeight := float32(40)
 
+	// Create Account button.
+	registerBtn := widget.NewButton("Create Account", onRegister)
+
 	usernameRow := container.NewGridWrap(fyne.NewSize(formWidth, formHeight), usernameEntry)
 	passwordRow := container.NewGridWrap(fyne.NewSize(formWidth, formHeight), passwordEntry)
 	buttonRow := container.NewGridWrap(fyne.NewSize(formWidth, formHeight), loginBtn)
+	registerRow := container.NewGridWrap(fyne.NewSize(formWidth, formHeight), registerBtn)
 
 	// Vertical form stack.
 	form := container.NewVBox(
@@ -118,6 +123,7 @@ func MakeLoginScreen(w fyne.Window, cfg *config.Config, onSuccess func(username,
 		container.NewCenter(passwordRow),
 		container.NewCenter(errorLabel),
 		container.NewCenter(buttonRow),
+		container.NewCenter(registerRow),
 	)
 
 	// Center the form vertically within the window.
