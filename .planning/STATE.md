@@ -1,6 +1,19 @@
+---
+gsd_state_version: 1.0
+milestone: v1.1
+milestone_name: Full Controller Functionality on Steam Deck
+status: unknown
+last_updated: "2026-03-03T02:24:01.717Z"
+progress:
+  total_phases: 5
+  completed_phases: 5
+  total_plans: 16
+  completed_plans: 16
+---
+
 # Project State
 
-Last activity: 2026-03-03 - Completed quick task 41: Add account creation (register) command
+Last activity: 2026-03-03 - Completed quick task 42: Add Discord linking poll after registration
 
 ## Project Reference
 
@@ -89,6 +102,8 @@ Progress: [#############       ] 67% (Phase 9: 2/3 plans complete)
 - 09-02: Steam-managed launch writes prep config then triggers steam://rungameid/ instead of direct proton run
 - 09-02: Deck without shortcut falls back to direct proton run with warning
 - 09-02: platformLaunchStep() replaces hardcoded stepLaunchGame for cross-platform dispatch
+- [Phase quick-42]: Gateway errors during Discord status polling are non-fatal (verbose warning, continue)
+- [Phase quick-42]: Polling timeout returns nil since registration succeeded (linking is follow-up)
 
 ### Roadmap Evolution
 
@@ -108,6 +123,7 @@ Progress: [#############       ] 67% (Phase 9: 2/3 plans complete)
 | 39 | Windows code review: all 11 _windows.go files verified correct | 2026-03-01 | (review-only) | [39-review-for-issues-running-in-windows](./quick/39-review-for-issues-running-in-windows/) |
 | 40 | Fix install.sh checksum verification (AppImage grep anchor) | 2026-03-01 | 9a8cdbb | [40-fix-install-sh-checksum-verification](./quick/40-fix-install-sh-checksum-verification/) |
 | 41 | Add account creation (register) command with Discord link code | 2026-03-03 | 24626e9 | [41-add-account-creation-functionality-rever](./quick/41-add-account-creation-functionality-rever/) |
+| 42 | Add Discord linking poll after registration | 2026-03-03 | 6ecf259 | [42-add-discord-linking-poll-after-registrat](./quick/42-add-discord-linking-poll-after-registrat/) |
 
 ### Blockers/Concerns
 
@@ -117,5 +133,5 @@ Progress: [#############       ] 67% (Phase 9: 2/3 plans complete)
 ## Session Continuity
 
 Last session: 2026-03-03
-Stopped at: Completed quick task 41 (add account creation register command)
+Stopped at: Completed quick task 42 (add Discord linking poll after registration)
 Resume file: none
