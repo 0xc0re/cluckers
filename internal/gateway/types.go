@@ -71,7 +71,7 @@ type GenericRequest struct {
 }
 
 // BotNameUpsertRequest is the request body for LAUNCHER_SUPPORTER_BOT_NAME_UPSERT.
-// Each call sets one bot name at a specific slot index (0 or 1).
+// Each call sets one bot name at a specific slot index (1-indexed).
 type BotNameUpsertRequest struct {
 	UserName     string `json:"user_name"`
 	AccessToken  string `json:"access_token"`
