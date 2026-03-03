@@ -14,7 +14,7 @@
 
 ## 2. Architecture
 
-- **Gateway API**: `https://gateway-dev.project-crown.com` (behind Cloudflare). All API calls are `POST /json/<COMMAND>` with JSON body/response. Commands: `LAUNCHER_HEALTH`, `LAUNCHER_LOGIN_OR_LINK`, `LAUNCHER_EAC_OIDC_TOKEN`, `LAUNCHER_CONTENT_BOOTSTRAP`.
+- **Gateway API**: `https://gateway-dev.project-crown.com` (behind Cloudflare). All API calls are `POST /json/<COMMAND>` with JSON body/response. Commands: `LAUNCHER_HEALTH`, `LAUNCHER_LOGIN_OR_LINK`, `LAUNCHER_REGISTER`, `LAUNCHER_REQUEST_LINK_CODE`, `LAUNCHER_DISCORD_STATUS`, `LAUNCHER_EAC_OIDC_TOKEN`, `LAUNCHER_CONTENT_BOOTSTRAP`, `LAUNCHER_SUPPORTER_BOT_NAME_UPSERT`, `LAUNCHER_SUPPORTER_BOT_NAMES_LIST`, `LAUNCHER_SUPPORTER_BOT_NAME_DELETE`.
 - **Game Server (MCTS)**: `157.90.131.105` (direct TCP, separate from gateway)
 - **Updater API**: `https://updater.realmhub.io/builds/version.json` (GET, no auth, returns version info with zip URL and BLAKE3 hash)
 - **Game**: UE3-based Win64 binary (`ShippingPC-RealmGameNoEditor.exe`), runs under Wine/Proton-GE on Linux, directly on Windows
@@ -24,11 +24,14 @@
 ## 3. CLI Commands
 
 - `cluckers login` -- Authenticate with gateway, save credentials and cache tokens
+- `cluckers register` -- Create a new account, save credentials, request Discord link code with optional poll for linking
 - `cluckers launch` -- Full pipeline: auth, tokens, bootstrap, platform setup, game launch
-- `cluckers update` -- Check remote version, download if needed, verify BLAKE3, extract
+- `cluckers update` -- Check for game updates and download if needed, verify BLAKE3, extract
 - `cluckers status` -- Show game, server, gateway status (+ Proton/compatdata on Linux). Compact + verbose modes.
 - `cluckers logout` -- Delete encrypted credentials and token cache
+- `cluckers self-update` -- Check GitHub releases for a newer launcher binary and download/replace if available
 - `cluckers steam add` -- Create .desktop file (Linux) or .bat launcher (Windows) for Steam integration
+- `cluckers prep` (Linux only) -- Run auth/tokens/bootstrap/update pipeline and write persistent files for Steam-managed Proton launch
 - `cluckers --version` -- Version info (set via ldflags at build time)
 
 ## 4. Code Map
@@ -49,6 +52,13 @@ Cobra command definitions. Platform-specific behavior uses `_linux.go` / `_windo
 - `steam.go`: `steam add` subcommand, shared Cobra command definition. Calls `runSteamAdd()`.
 - `steam_linux.go`: Linux `runSteamAdd()` -- creates `.desktop` file, detects Steam Deck.
 - `steam_windows.go`: Windows `runSteamAdd()` -- creates `.bat` launcher, prints Steam add instructions.
+- `register.go`: `register` subcommand, creates account via `auth.Register()`, saves credentials, requests Discord link code, polls for Discord linking status.
+- `selfupdate.go`: `self-update` subcommand, checks GitHub releases via `selfupdate` package, downloads and replaces binary.
+- `prep_linux.go`: Linux-only `prep` subcommand, runs full pipeline then writes persistent config for Steam-managed launch.
+- `root_gui.go`: GUI build tag. Sets root command `RunE` to launch GUI if display available, with terminal detach support.
+- `root_nogui.go`: Non-GUI build tag. Root command shows CLI help (default cobra behavior).
+- `detach_linux.go`: Linux `detachSysProcAttr()` for background GUI launch.
+- `detach_windows.go`: Windows `detachSysProcAttr()` for background GUI launch.
 
 ### `internal/config/`
 Configuration and paths. Platform-specific `DataDir()` uses `_linux.go` / `_windows.go` file naming.
@@ -60,12 +70,13 @@ Configuration and paths. Platform-specific `DataDir()` uses `_linux.go` / `_wind
 ### `internal/gateway/`
 HTTP client for Project Crown gateway.
 - `client.go`: `Client` struct with retryablehttp (3 retries, 500ms-5s backoff, 15s timeout). `Post()` method for JSON POST to `/json/<command>`. `HealthCheck()`. User-Agent: `CluckersCentral/1.1.68`. Returns `*ui.UserError` on failures.
-- `types.go`: Request/response types (`LoginRequest`, `LoginResponse`, `OIDCTokenResponse`, `BootstrapResponse`, `GenericRequest`). `FlexBool` custom type handles bool/number/string JSON variants.
+- `types.go`: Request/response types (`LoginRequest`, `LoginResponse`, `OIDCTokenResponse`, `BootstrapResponse`, `GenericRequest`, `RegisterRequest`, `RegisterResponse`, `LinkCodeRequest`, `LinkCodeResponse`, `DiscordStatusResponse`, `BotNameUpsertRequest`, `BotNameDeleteRequest`, `BotNameResponse`). `FlexBool` custom type handles bool/number/string JSON variants.
 
 ### `internal/auth/`
 Authentication and credential management.
 - `login.go`: `Login()` (LAUNCHER_LOGIN_OR_LINK), `GetOIDCToken()` (LAUNCHER_EAC_OIDC_TOKEN, tries PORTAL_INFO_1 -> STRING_VALUE -> TEXT_VALUE), `GetContentBootstrap()` (LAUNCHER_CONTENT_BOOTSTRAP, base64-decodes PORTAL_INFO_1, fixes padding, returns raw bytes with BPS1 magic header).
 - `credentials.go`: `SaveCredentials()` / `LoadCredentials()` / `DeleteCredentials()`. JSON marshal -> NaCl secretbox encrypt -> write to `credentials.enc` (0600 perms). Machine-bound (key from machine ID).
+- `register.go`: `Register()` (LAUNCHER_REGISTER), `RequestLinkCode()` (LAUNCHER_REQUEST_LINK_CODE), `CheckDiscordStatus()` (LAUNCHER_DISCORD_STATUS).
 - `cache.go`: `TokenCache` struct with `AccessToken`, `OIDCToken`, `Username`, `CachedAt`. TTLs: access=24h, OIDC=55min. Stored as JSON in cache dir `tokens.json` (0600 perms).
 
 ### `internal/crypto/`
@@ -106,6 +117,30 @@ Terminal output helpers.
 - `errors.go`: `UserError` struct (Message, Detail, Suggestion, Err). `FormatError()` formats based on verbose mode. Implements `error` interface and `Unwrap()`.
 - `prompt.go`: `PromptUsername()` (reads line), `PromptPassword()` (hidden input via x/term). Both check `term.IsTerminal()`.
 - `spinner.go`: `StepSpinner` wraps briandowns/spinner. `StartStep()`, `Stop()`, `Success()`, `Fail()`. Non-TTY fallback prints plain text.
+
+### `internal/gui/`
+Fyne-based graphical user interface. Built only with `gui` build tag.
+- `app.go`: GUI entry point. `Run()` checks credentials, shows login or main view. System tray support (desktop only), close-to-tray when game running. Screen navigation: login -> register -> Discord linking -> main -> settings -> launch progress.
+- `theme.go`: `cluckersTheme` custom dark theme (Material green primary, dark backgrounds).
+- `detect.go` / `detect_linux.go` / `detect_windows.go`: `CanShowGUI()` display detection. `deck_linux.go` / `deck_windows.go`: `isSteamDeck()` detection.
+- `assets/`: Embedded logo resource.
+
+### `internal/gui/screens/`
+GUI screen implementations.
+- `login.go`: `MakeLoginScreen()` -- username/password form, inline error display, Enter-to-submit, Create Account button.
+- `register.go`: `MakeRegisterScreen()` -- username/password/email form, Discord link code flow with `showDiscordLinking()` polling view.
+- `main.go`: `MakeMainView()` -- launch button, game management (verify/update/repair) with progress bars, supporter bot names section (auto-detected), community links, settings/logout buttons.
+- `settings.go`: `MakeSettingsView()` -- gateway URL, verbose mode, game directory, Proton path (Linux only). Persists via viper TOML.
+- `launch_progress.go`: `MakeLaunchProgressView()` -- pipeline step list with live status updates, cancel button.
+
+### `internal/gui/widgets/`
+Reusable GUI components.
+- `step_list.go`: `StepListWidget` -- vertical list of pipeline steps with status icons (pending/running/done/failed/skipped).
+
+### `internal/selfupdate/`
+Launcher self-update via GitHub releases.
+- `selfupdate.go`: Checks latest release tag, compares semantic versions, downloads platform-appropriate archive, verifies checksums, replaces binary.
+- `replace_linux.go` / `replace_windows.go`: Platform-specific binary replacement.
 
 ### `assets/`
 Embedded binary assets.
