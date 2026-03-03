@@ -5,6 +5,7 @@ package screens
 import (
 	"context"
 	"image/color"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -74,7 +75,7 @@ func MakeLoginScreen(w fyne.Window, cfg *config.Config, onSuccess func(username,
 
 		go func() {
 			client := gateway.NewClient(cfg.Gateway, cfg.Verbose)
-			_, err := auth.Login(context.Background(), client, username, password)
+			result, err := auth.Login(context.Background(), client, username, password)
 			if err != nil {
 				fyne.Do(func() {
 					// Extract user-friendly message.
@@ -87,6 +88,13 @@ func MakeLoginScreen(w fyne.Window, cfg *config.Config, onSuccess func(username,
 
 			// Save credentials for future launches.
 			_ = auth.SaveCredentials(username, password)
+
+			// Cache the access token so downstream features (bot names) work without re-auth.
+			_ = auth.SaveTokenCache(&auth.TokenCache{
+				Username:       username,
+				AccessToken:    result.AccessToken,
+				AccessCachedAt: time.Now(),
+			})
 
 			fyne.Do(func() {
 				onSuccess(username, password)
