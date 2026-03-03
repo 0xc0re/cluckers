@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Full Controller Functionality on Steam Deck
 status: executing
-stopped_at: Completed quick task 46 (fix hardcoded content bootstrap size)
-last_updated: "2026-03-03T19:32:23.188Z"
-last_activity: "2026-03-03 - Completed quick task 45: Fix content bootstrap base64 decoding"
+stopped_at: Completed quick task 47 (fix bootstrap failure on Bazzite)
+last_updated: "2026-03-03T20:59:13.606Z"
+last_activity: "2026-03-03 - Completed quick task 46: Fix hardcoded content bootstrap size"
 progress:
   total_phases: 5
   completed_phases: 5
@@ -16,7 +16,7 @@ progress:
 
 # Project State
 
-Last activity: 2026-03-03 - Completed quick task 46: Fix hardcoded content bootstrap size
+Last activity: 2026-03-03 - Completed quick task 47: Fix bootstrap failure on Bazzite (move temp files to ~/.cluckers/tmp/)
 
 ## Project Reference
 
@@ -110,6 +110,7 @@ Progress: [#############       ] 67% (Phase 9: 2/3 plans complete)
 - [Phase quick-44]: GUI login caches access token only (no OIDC pre-fetch) since launch pipeline handles OIDC
 - [Phase quick-45]: Multi-strategy base64 decoding: try StdEncoding, URLEncoding, RawStdEncoding, RawURLEncoding before failing
 - [Phase quick-46]: Bootstrap size arg moved inside conditional block, uses len() of actual data instead of hardcoded 136
+- [Phase quick-47]: TmpDir uses DataDir()/tmp for Wine-accessible temp files, fixing Bazzite SELinux/container namespace restrictions
 
 ### Roadmap Evolution
 
@@ -134,6 +135,7 @@ Progress: [#############       ] 67% (Phase 9: 2/3 plans complete)
 | 44 | Review CLI/GUI: fix token caching, doc comment, update CLAUDE.md | 2026-03-03 | eb0c96e | [44-review-cli-and-gui-now-that-we-have-adde](./quick/44-review-cli-and-gui-now-that-we-have-adde/) |
 | 45 | Fix content bootstrap base64 decoding (all variants) | 2026-03-03 | 205daa1 | [45-users-are-reporting-an-error-failed-to-d](./quick/45-users-are-reporting-an-error-failed-to-d/) |
 | 46 | Fix hardcoded content bootstrap size (136 -> dynamic len) | 2026-03-03 | 88f1be8 | [46-fix-hardcoded-content-bootstrap-size-cau](./quick/46-fix-hardcoded-content-bootstrap-size-cau/) |
+| 47 | Fix bootstrap failure on Bazzite (move temp files to ~/.cluckers/tmp/) | 2026-03-03 | 8305b0c | [47-investigate-bootstrap-failure-on-bazzite](./quick/47-investigate-bootstrap-failure-on-bazzite/) |
 
 ### Blockers/Concerns
 
@@ -142,6 +144,6 @@ Progress: [#############       ] 67% (Phase 9: 2/3 plans complete)
 
 ## Session Continuity
 
-Last session: 2026-03-03T19:32:22.180Z
-Stopped at: Completed quick task 46 (fix hardcoded content bootstrap size)
+Last session: 2026-03-03T20:59:12.888Z
+Stopped at: Completed quick task 47 (fix bootstrap failure on Bazzite)
 Resume file: None
