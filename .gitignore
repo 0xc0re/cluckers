@@ -1,5 +1,6 @@
 # Build output
 /cluckers
+cluckers-central.exe
 
 # Planning/scratch
 .planning/
@@ -35,3 +36,5 @@ assets/xinput1_3_remap.dll
 
 dist/
 build/
+
+planning/
