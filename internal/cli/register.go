@@ -68,9 +68,35 @@ var registerCmd = &cobra.Command{
 		fmt.Println()
 		fmt.Printf("  Your verification code: %s\n", code)
 		fmt.Println()
-		ui.Info("After linking, you can launch the game with: cluckers launch")
 
-		return nil
+		// Poll for Discord linking status.
+		sp := ui.StartStep("Waiting for Discord linking...")
+		ticker := time.NewTicker(5 * time.Second)
+		defer ticker.Stop()
+		timeout := time.After(5 * time.Minute)
+
+		for {
+			select {
+			case <-cmd.Context().Done():
+				sp.Stop()
+				return cmd.Context().Err()
+			case <-timeout:
+				sp.Stop()
+				ui.Info("Linking timed out. You can check your status later with: cluckers login")
+				return nil
+			case <-ticker.C:
+				linked, err := auth.CheckDiscordStatus(cmd.Context(), client, result.Username, result.AccessToken)
+				if err != nil {
+					ui.Verbose(fmt.Sprintf("Discord status check failed: %s", err), Cfg.Verbose)
+					continue
+				}
+				if linked {
+					sp.Success()
+					ui.Success("Discord account linked! You can now launch the game with: cluckers launch")
+					return nil
+				}
+			}
+		}
 	},
 }
 
