@@ -13,7 +13,7 @@ progress:
 
 # Project State
 
-Last activity: 2026-03-03 - Completed quick task 43: Add registration to GUI
+Last activity: 2026-03-03 - Completed quick task 44: Review CLI and GUI, fix token caching and docs
 
 ## Project Reference
 
@@ -104,6 +104,7 @@ Progress: [#############       ] 67% (Phase 9: 2/3 plans complete)
 - 09-02: platformLaunchStep() replaces hardcoded stepLaunchGame for cross-platform dispatch
 - [Phase quick-42]: Gateway errors during Discord status polling are non-fatal (verbose warning, continue)
 - [Phase quick-42]: Polling timeout returns nil since registration succeeded (linking is follow-up)
+- [Phase quick-44]: GUI login caches access token only (no OIDC pre-fetch) since launch pipeline handles OIDC
 
 ### Roadmap Evolution
 
@@ -125,6 +126,7 @@ Progress: [#############       ] 67% (Phase 9: 2/3 plans complete)
 | 41 | Add account creation (register) command with Discord link code | 2026-03-03 | 24626e9 | [41-add-account-creation-functionality-rever](./quick/41-add-account-creation-functionality-rever/) |
 | 42 | Add Discord linking poll after registration | 2026-03-03 | 6ecf259 | [42-add-discord-linking-poll-after-registrat](./quick/42-add-discord-linking-poll-after-registrat/) |
 | 43 | Add registration to GUI with Discord linking | 2026-03-03 | 1c6947d | [43-add-registration-to-gui](./quick/43-add-registration-to-gui/) |
+| 44 | Review CLI/GUI: fix token caching, doc comment, update CLAUDE.md | 2026-03-03 | eb0c96e | [44-review-cli-and-gui-now-that-we-have-adde](./quick/44-review-cli-and-gui-now-that-we-have-adde/) |
 
 ### Blockers/Concerns
 
@@ -134,5 +136,5 @@ Progress: [#############       ] 67% (Phase 9: 2/3 plans complete)
 ## Session Continuity
 
 Last session: 2026-03-03
-Stopped at: Completed quick task 43 (add registration to GUI)
+Stopped at: Completed quick task 44 (review CLI/GUI, fix token caching and docs)
 Resume file: none
