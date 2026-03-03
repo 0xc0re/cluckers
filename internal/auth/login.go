@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"encoding/base64"
+	"fmt"
 	"strings"
 
 	"github.com/0xc0re/cluckers/internal/gateway"
@@ -110,18 +111,50 @@ func GetContentBootstrap(ctx context.Context, client *gateway.Client, username, 
 		return nil, nil // No bootstrap data — not an error.
 	}
 
-	// Fix base64 padding if needed (some servers omit trailing '=').
-	if m := len(encoded) % 4; m != 0 {
-		encoded += strings.Repeat("=", 4-m)
-	}
-
-	data, err := base64.StdEncoding.DecodeString(encoded)
+	data, err := decodeBase64Resilient(encoded)
 	if err != nil {
 		return nil, &ui.UserError{
-			Message: "Failed to decode content bootstrap",
-			Detail:  err.Error(),
+			Message:    "Failed to decode content bootstrap",
+			Detail:     err.Error(),
+			Suggestion: "This may be a server-side issue. Try again later or contact support on Discord.",
 		}
 	}
 
 	return data, nil
+}
+
+// decodeBase64Resilient tries multiple base64 encoding strategies to handle
+// standard (+/), URL-safe (-_), padded, and unpadded variants. It also strips
+// whitespace/newlines that some APIs may include in responses.
+func decodeBase64Resilient(encoded string) ([]byte, error) {
+	// Strip whitespace/newlines (some APIs wrap long base64 lines).
+	encoded = strings.NewReplacer(" ", "", "\n", "", "\r", "", "\t", "").Replace(encoded)
+
+	// Try padded variants first (add padding if missing).
+	padded := encoded
+	if m := len(padded) % 4; m != 0 {
+		padded += strings.Repeat("=", 4-m)
+	}
+
+	// 1. Standard base64 with padding (+/ alphabet).
+	if data, err := base64.StdEncoding.DecodeString(padded); err == nil {
+		return data, nil
+	}
+
+	// 2. URL-safe base64 with padding (-_ alphabet).
+	if data, err := base64.URLEncoding.DecodeString(padded); err == nil {
+		return data, nil
+	}
+
+	// 3. Raw standard base64 without padding.
+	if data, err := base64.RawStdEncoding.DecodeString(encoded); err == nil {
+		return data, nil
+	}
+
+	// 4. Raw URL-safe base64 without padding.
+	if data, err := base64.RawURLEncoding.DecodeString(encoded); err == nil {
+		return data, nil
+	}
+
+	return nil, fmt.Errorf("all base64 decode strategies failed for input of length %d", len(encoded))
 }
