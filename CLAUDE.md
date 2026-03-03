@@ -247,6 +247,6 @@ GOOS=windows go vet ./...
 
 - Credentials encrypted with NaCl secretbox (XSalsa20-Poly1305)
 - Key derived from machine ID via scrypt (machine-bound, non-portable)
-- Access tokens in memory only, not persisted (only cached token hashes)
+- Access and OIDC tokens cached in plaintext JSON (~/.cluckers/cache/tokens.json, 0600 permissions) for session reuse (access TTL: 24h, OIDC TTL: 55min)
 - No system keyring dependency (works in Steam Deck Gaming Mode)
 - See SECURITY.md for full threat model
