@@ -92,3 +92,32 @@ type BotNameResponse struct {
 	TextValue   string   `json:"TEXT_VALUE"`
 	StringValue string   `json:"STRING_VALUE"`
 }
+
+// RegisterRequest is the request body for LAUNCHER_REGISTER.
+type RegisterRequest struct {
+	UserName string `json:"user_name"`
+	Password string `json:"password"`
+	Email    string `json:"email"`
+}
+
+// RegisterResponse is the response from LAUNCHER_REGISTER.
+type RegisterResponse struct {
+	Success     FlexBool `json:"SUCCESS"`
+	AccessToken string   `json:"ACCESS_TOKEN"`
+	StringValue string   `json:"STRING_VALUE"`
+	TextValue   string   `json:"TEXT_VALUE"`
+}
+
+// LinkCodeRequest is the request body for LAUNCHER_REQUEST_LINK_CODE.
+type LinkCodeRequest struct {
+	UserName    string `json:"user_name"`
+	AccessToken string `json:"access_token"`
+}
+
+// LinkCodeResponse is the response from LAUNCHER_REQUEST_LINK_CODE.
+type LinkCodeResponse struct {
+	Success     FlexBool `json:"SUCCESS"`
+	LinkedFlag  FlexBool `json:"LINKED_FLAG"`
+	StringValue string   `json:"STRING_VALUE"`
+	AccessToken string   `json:"ACCESS_TOKEN"`
+}
