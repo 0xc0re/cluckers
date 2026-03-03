@@ -459,7 +459,12 @@ func stepLaunchGame(ctx context.Context, state *LaunchState) error {
 
 // writeOIDCTokenFile writes the OIDC token string to a temp file.
 func writeOIDCTokenFile(token string) (path string, cleanup func(), err error) {
-	f, err := os.CreateTemp("", "realm_eac_oidc_*.txt")
+	tmpDir := config.TmpDir()
+	if err := config.EnsureDir(tmpDir); err != nil {
+		return "", nil, fmt.Errorf("create temp dir for OIDC token: %w", err)
+	}
+
+	f, err := os.CreateTemp(tmpDir, "realm_eac_oidc_*.txt")
 	if err != nil {
 		return "", nil, fmt.Errorf("create temp file for OIDC token: %w", err)
 	}

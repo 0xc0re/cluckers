@@ -5,12 +5,18 @@ import (
 	"os"
 
 	"github.com/0xc0re/cluckers/assets"
+	"github.com/0xc0re/cluckers/internal/config"
 )
 
 // ExtractSHMLauncher writes the embedded shm_launcher.exe to a temp file and
 // returns the path, a cleanup function that removes the file, and any error.
 func ExtractSHMLauncher() (path string, cleanup func(), err error) {
-	f, err := os.CreateTemp("", "shm_launcher_*.exe")
+	tmpDir := config.TmpDir()
+	if err := config.EnsureDir(tmpDir); err != nil {
+		return "", nil, fmt.Errorf("create temp dir for shm_launcher: %w", err)
+	}
+
+	f, err := os.CreateTemp(tmpDir, "shm_launcher_*.exe")
 	if err != nil {
 		return "", nil, fmt.Errorf("create temp file for shm_launcher: %w", err)
 	}
@@ -41,7 +47,12 @@ func ExtractSHMLauncher() (path string, cleanup func(), err error) {
 // WriteBootstrapFile writes content bootstrap bytes to a temp file and returns
 // the path, a cleanup function, and any error. File permissions are set to 0600.
 func WriteBootstrapFile(data []byte) (path string, cleanup func(), err error) {
-	f, err := os.CreateTemp("", "realm_bootstrap_*.bin")
+	tmpDir := config.TmpDir()
+	if err := config.EnsureDir(tmpDir); err != nil {
+		return "", nil, fmt.Errorf("create temp dir for bootstrap: %w", err)
+	}
+
+	f, err := os.CreateTemp(tmpDir, "realm_bootstrap_*.bin")
 	if err != nil {
 		return "", nil, fmt.Errorf("create temp file for bootstrap: %w", err)
 	}

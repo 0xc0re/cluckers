@@ -20,6 +20,14 @@ func BinDir() string {
 	return filepath.Join(DataDir(), "bin")
 }
 
+// TmpDir returns the tmp directory under the data dir.
+// Used instead of os.TempDir() so that Wine/Proton can always access
+// temp files via the Z: drive, even on systems where /tmp is restricted
+// (SELinux, container namespaces, noexec mounts).
+func TmpDir() string {
+	return filepath.Join(DataDir(), "tmp")
+}
+
 // ConfigFile returns the path to the TOML settings file.
 func ConfigFile() string {
 	return filepath.Join(ConfigDir(), "settings.toml")
