@@ -48,3 +48,23 @@ func PromptPassword() (string, error) {
 	}
 	return password, nil
 }
+
+// PromptEmail prints "Email: " and reads a line from stdin.
+// Returns an error if stdin is not a terminal.
+func PromptEmail() (string, error) {
+	if !term.IsTerminal(int(os.Stdin.Fd())) {
+		return "", fmt.Errorf("cannot prompt for email: stdin is not a terminal")
+	}
+
+	fmt.Print("Email: ")
+	reader := bufio.NewReader(os.Stdin)
+	line, err := reader.ReadString('\n')
+	if err != nil {
+		return "", fmt.Errorf("failed to read email: %w", err)
+	}
+	email := strings.TrimSpace(line)
+	if email == "" {
+		return "", fmt.Errorf("email cannot be empty")
+	}
+	return email, nil
+}
