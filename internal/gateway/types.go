@@ -121,3 +121,9 @@ type LinkCodeResponse struct {
 	StringValue string   `json:"STRING_VALUE"`
 	AccessToken string   `json:"ACCESS_TOKEN"`
 }
+
+// DiscordStatusResponse is the response from LAUNCHER_DISCORD_STATUS.
+type DiscordStatusResponse struct {
+	Success    FlexBool `json:"SUCCESS"`
+	LinkedFlag FlexBool `json:"LINKED_FLAG"`
+}

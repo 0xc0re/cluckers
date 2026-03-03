@@ -83,3 +83,17 @@ func RequestLinkCode(ctx context.Context, client *gateway.Client, username, acce
 
 	return code, nil
 }
+
+// CheckDiscordStatus checks whether the user's Discord account has been linked
+// by calling LAUNCHER_DISCORD_STATUS. Returns true if LINKED_FLAG is set.
+func CheckDiscordStatus(ctx context.Context, client *gateway.Client, username, accessToken string) (bool, error) {
+	req := gateway.GenericRequest{
+		UserName:    username,
+		AccessToken: accessToken,
+	}
+	var resp gateway.DiscordStatusResponse
+	if err := client.Post(ctx, "LAUNCHER_DISCORD_STATUS", req, &resp); err != nil {
+		return false, err
+	}
+	return bool(resp.LinkedFlag), nil
+}
