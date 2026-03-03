@@ -48,7 +48,6 @@ func LaunchGame(ctx context.Context, cfg *LaunchConfig) error {
 		fmt.Sprintf("-hostx=%s", cfg.HostX),
 		"-Language=INT",
 		"-dx11",
-		"-content_bootstrap_size=136",
 		"-seekfreeloadingpcconsole",
 		"-nohomedir",
 	}
@@ -75,7 +74,10 @@ func LaunchGame(ctx context.Context, cfg *LaunchConfig) error {
 
 		// Build SHM name using current process PID.
 		shmName = fmt.Sprintf(`Local\realm_content_bootstrap_%d`, os.Getpid())
-		gameArgs = append(gameArgs, fmt.Sprintf("-content_bootstrap_shm=%s", shmName))
+		gameArgs = append(gameArgs,
+			fmt.Sprintf("-content_bootstrap_size=%d", len(cfg.ContentBootstrap)),
+			fmt.Sprintf("-content_bootstrap_shm=%s", shmName),
+		)
 	}
 
 	// Build proton command using helpers from proton_env.go.
