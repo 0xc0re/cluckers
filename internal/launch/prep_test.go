@@ -4,6 +4,7 @@ package launch
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -147,7 +148,7 @@ func TestStepWriteLaunchConfig_LaunchConfigFormat(t *testing.T) {
 		"-hostx=157.90.131.105",
 		"-Language=INT",
 		"-dx11",
-		"-content_bootstrap_size=136",
+		fmt.Sprintf("-content_bootstrap_size=%d", len(state.Bootstrap)),
 		"-seekfreeloadingpcconsole",
 		"-nohomedir",
 		"-content_bootstrap_shm=" + prepSHMName,
@@ -206,5 +207,31 @@ func TestStepWriteLaunchConfig_NilBootstrap(t *testing.T) {
 
 	if !strings.Contains(err.Error(), "bootstrap") {
 		t.Errorf("error should mention bootstrap, got: %v", err)
+	}
+}
+
+func TestStepWriteLaunchConfig_DynamicBootstrapSize(t *testing.T) {
+	state := newTestPrepState(t)
+	// Use a small bootstrap (21 bytes) to prove size is dynamic, not hardcoded.
+	state.Bootstrap = []byte("BPS1" + strings.Repeat("\x00", 17))
+
+	if err := stepWriteLaunchConfig(context.Background(), state); err != nil {
+		t.Fatalf("stepWriteLaunchConfig() error: %v", err)
+	}
+
+	configPath := filepath.Join(config.BinDir(), "launch-config.txt")
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("reading launch-config.txt: %v", err)
+	}
+
+	content := string(data)
+	expected := fmt.Sprintf("-content_bootstrap_size=%d", len(state.Bootstrap))
+	if !strings.Contains(content, expected) {
+		t.Errorf("launch-config.txt should contain %q, got:\n%s", expected, content)
+	}
+	// Verify the old hardcoded value is NOT present.
+	if strings.Contains(content, "-content_bootstrap_size=136") {
+		t.Error("launch-config.txt still contains hardcoded -content_bootstrap_size=136")
 	}
 }
