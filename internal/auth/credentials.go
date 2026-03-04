@@ -10,6 +10,7 @@ import (
 
 	"github.com/0xc0re/cluckers/internal/config"
 	"github.com/0xc0re/cluckers/internal/crypto"
+	"github.com/0xc0re/cluckers/internal/ui"
 )
 
 // Credentials holds a user's login credentials for encrypted persistence.
@@ -64,12 +65,22 @@ func LoadCredentials() (*Credentials, error) {
 
 	key, err := crypto.DeriveKey()
 	if err != nil {
-		return nil, fmt.Errorf("derive encryption key: %w", err)
+		return nil, &ui.UserError{
+			Message:    "Could not decrypt saved credentials.",
+			Detail:     fmt.Sprintf("derive encryption key: %s", err),
+			Suggestion: "This can happen after hardware changes. Run `cluckers logout` to clear saved credentials, then `cluckers login`.",
+			Err:        err,
+		}
 	}
 
 	plaintext, err := crypto.Decrypt(data, &key)
 	if err != nil {
-		return nil, fmt.Errorf("decrypt credentials: %w", err)
+		return nil, &ui.UserError{
+			Message:    "Could not decrypt saved credentials.",
+			Detail:     fmt.Sprintf("decrypt credentials: %s", err),
+			Suggestion: "This can happen after hardware changes or if credentials were copied from another machine. Run `cluckers logout` to clear, then `cluckers login`.",
+			Err:        err,
+		}
 	}
 
 	var creds Credentials

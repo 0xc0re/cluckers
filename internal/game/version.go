@@ -81,7 +81,13 @@ func FetchVersionInfo(ctx context.Context) (*VersionInfo, error) {
 
 // NeedsUpdate checks whether the local game files need updating by comparing
 // the local GameVersion.dat BLAKE3 hash against the remote version.
+// Also returns true if a previous extraction was interrupted.
 func NeedsUpdate(gameDir string, remote *VersionInfo) (bool, error) {
+	// Interrupted extraction means files are inconsistent — force re-download.
+	if IsExtractionIncomplete(gameDir) {
+		return true, nil
+	}
+
 	datPath := filepath.Join(gameDir, remote.GameVersionDatPath)
 
 	data, err := os.ReadFile(datPath)

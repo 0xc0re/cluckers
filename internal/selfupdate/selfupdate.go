@@ -346,13 +346,14 @@ func verifyChecksum(ctx context.Context, archivePath, assetName string, checksum
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		// Non-fatal: skip checksum verification if checksums.txt fails to download.
+		ui.Warn("Checksum file unavailable (HTTP " + resp.Status + ") — skipping integrity verification")
 		return nil
 	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil // Non-fatal: skip verification.
+		ui.Warn("Could not read checksum file — skipping integrity verification")
+		return nil
 	}
 
 	// Parse checksums.txt -- format: "sha256hash  filename\n"
@@ -563,6 +564,9 @@ func extractFromZip(archivePath, destDir string) (string, error) {
 // replaceAppImage replaces the running AppImage file with a downloaded new version.
 // The APPIMAGE env var (set by the AppImage runtime) provides the path to the
 // running .AppImage file on disk.
+//
+// Uses atomic os.Rename when possible (same filesystem). Falls back to
+// write-in-place on cross-device rename failure.
 func replaceAppImage(downloadedPath string) error {
 	appImagePath := config.AppImagePath()
 	if appImagePath == "" {
@@ -573,7 +577,8 @@ func replaceAppImage(downloadedPath string) error {
 		}
 	}
 
-	// Read the downloaded AppImage.
+	// Write downloaded data to a temp file adjacent to the target for atomic rename.
+	tempPath := appImagePath + ".new"
 	data, err := os.ReadFile(downloadedPath)
 	if err != nil {
 		return &ui.UserError{
@@ -584,13 +589,26 @@ func replaceAppImage(downloadedPath string) error {
 		}
 	}
 
-	// Write to the AppImage path (overwrite in place).
-	if err := os.WriteFile(appImagePath, data, 0755); err != nil {
+	if err := os.WriteFile(tempPath, data, 0755); err != nil {
 		return &ui.UserError{
-			Message:    "Failed to replace AppImage file.",
+			Message:    "Failed to write new AppImage.",
 			Detail:     err.Error(),
-			Suggestion: fmt.Sprintf("Check write permissions for %s and try again.", appImagePath),
+			Suggestion: fmt.Sprintf("Check write permissions and disk space for %s.", filepath.Dir(appImagePath)),
 			Err:        err,
+		}
+	}
+
+	// Atomic rename (same filesystem).
+	if err := os.Rename(tempPath, appImagePath); err != nil {
+		// Cross-device fallback: remove temp, write in place.
+		os.Remove(tempPath)
+		if writeErr := os.WriteFile(appImagePath, data, 0755); writeErr != nil {
+			return &ui.UserError{
+				Message:    "Failed to replace AppImage file.",
+				Detail:     writeErr.Error(),
+				Suggestion: fmt.Sprintf("Check write permissions for %s and try again.", appImagePath),
+				Err:        writeErr,
+			}
 		}
 	}
 

@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/0xc0re/cluckers/internal/auth"
 	"github.com/0xc0re/cluckers/internal/config"
 	"github.com/0xc0re/cluckers/internal/launch"
 	"github.com/0xc0re/cluckers/internal/ui"
@@ -194,6 +195,15 @@ func runSteamAddDesktop(exePath string) error {
 
 	ui.Success("Created " + desktopPath)
 	fmt.Println()
+
+	// Warn if no credentials saved — desktop shortcut has Terminal=false,
+	// so login prompts won't work when launched from Steam.
+	creds, _ := auth.LoadCredentials()
+	if creds == nil {
+		ui.Warn("No saved credentials found. Run `cluckers login` in a terminal before launching from Steam.")
+		fmt.Println()
+	}
+
 	fmt.Println("  Next steps:")
 	fmt.Println()
 	fmt.Println("  1. Open Steam in Desktop Mode")

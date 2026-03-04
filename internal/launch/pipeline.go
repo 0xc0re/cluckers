@@ -38,6 +38,7 @@ type LaunchState struct {
 	NeedsDownload       bool              // Used by prep pipeline only.
 	TokenCache          *auth.TokenCache
 	Reporter            ProgressReporter
+	OIDCTempFile        string // Path to OIDC JWT temp file for cleanup on interrupt.
 }
 
 // Step represents a single step in the launch pipeline.
@@ -61,14 +62,7 @@ func RunWithReporter(ctx context.Context, cfg *config.Config, reporter ProgressR
 	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	// Force exit on Ctrl+C — stdin reads block and don't check context.
-	go func() {
-		<-ctx.Done()
-		fmt.Println("\nInterrupted.")
-		os.Exit(130)
-	}()
-
-	// Create gateway client.
+	// Create gateway client and state before signal handler (goroutine captures state).
 	client := gateway.NewClient(cfg.Gateway, cfg.Verbose)
 
 	state := &LaunchState{
@@ -76,6 +70,17 @@ func RunWithReporter(ctx context.Context, cfg *config.Config, reporter ProgressR
 		Client:   client,
 		Reporter: reporter,
 	}
+
+	// Force exit on Ctrl+C — stdin reads block and don't check context.
+	// Clean up sensitive OIDC temp files before exiting.
+	go func() {
+		<-ctx.Done()
+		if state.OIDCTempFile != "" {
+			os.Remove(state.OIDCTempFile)
+		}
+		fmt.Println("\nInterrupted.")
+		os.Exit(130)
+	}()
 
 	steps := buildSteps(state)
 
@@ -356,10 +361,42 @@ func stepOIDCToken(ctx context.Context, state *LaunchState) error {
 
 // stepBootstrap retrieves the content bootstrap from the gateway.
 // Nil bootstrap is OK -- the game can launch without it.
+// If the server rejects the token, re-authenticates once and retries
+// (same pattern as stepOIDCToken stale-token handling).
 func stepBootstrap(ctx context.Context, state *LaunchState) error {
 	data, err := auth.GetContentBootstrap(ctx, state.Client, state.Username, state.AccessToken)
 	if err != nil {
-		return err
+		if !errors.Is(err, auth.ErrTokenRejected) {
+			return err
+		}
+
+		// Stale access token — re-authenticate and retry once.
+		ui.Verbose("Access token rejected during bootstrap, re-authenticating...", state.Config.Verbose)
+
+		if clearErr := auth.ClearTokenCache(); clearErr != nil {
+			ui.Verbose(fmt.Sprintf("Could not clear token cache: %s", clearErr), state.Config.Verbose)
+		}
+
+		result, loginErr := auth.Login(ctx, state.Client, state.Username, state.Password)
+		if loginErr != nil {
+			return loginErr
+		}
+		state.AccessToken = result.AccessToken
+
+		// Save fresh token cache.
+		state.TokenCache = &auth.TokenCache{
+			Username:       result.Username,
+			AccessToken:    result.AccessToken,
+			AccessCachedAt: time.Now(),
+		}
+		if saveErr := auth.SaveTokenCache(state.TokenCache); saveErr != nil {
+			ui.Verbose(fmt.Sprintf("Could not save token cache: %s", saveErr), state.Config.Verbose)
+		}
+
+		data, err = auth.GetContentBootstrap(ctx, state.Client, state.Username, state.AccessToken)
+		if err != nil {
+			return err
+		}
 	}
 	state.Bootstrap = data
 	if data == nil {
@@ -441,7 +478,8 @@ func stepDownloadGame(ctx context.Context, state *LaunchState) error {
 	return nil
 }
 
-// stepVerifyGameInstalled checks that the game executable exists on disk.
+// stepVerifyGameInstalled checks that the game executable exists on disk and
+// that no previous extraction was interrupted.
 // The launch pipeline does not download or update game files -- users must
 // run `cluckers update` separately before launching.
 func stepVerifyGameInstalled(_ context.Context, state *LaunchState) error {
@@ -451,6 +489,14 @@ func stepVerifyGameInstalled(_ context.Context, state *LaunchState) error {
 		gameDir = game.GameDir()
 	}
 	state.GameDir = gameDir
+
+	// Check for interrupted extraction before checking exe.
+	if game.IsExtractionIncomplete(gameDir) {
+		return &ui.UserError{
+			Message:    "Game extraction was interrupted.",
+			Suggestion: "Run `cluckers update` to re-extract the game files.",
+		}
+	}
 
 	exePath := game.GameExePath(gameDir)
 	if _, err := os.Stat(exePath); err != nil {
@@ -471,6 +517,9 @@ func stepLaunchGame(ctx context.Context, state *LaunchState) error {
 		return err
 	}
 	defer oidcCleanup()
+
+	// Store path for signal handler cleanup (os.Exit bypasses defers).
+	state.OIDCTempFile = oidcPath
 
 	return LaunchGame(ctx, &LaunchConfig{
 		ProtonScript:       state.ProtonScript,

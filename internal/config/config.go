@@ -1,6 +1,9 @@
 package config
 
 import (
+	"fmt"
+
+	"github.com/0xc0re/cluckers/internal/ui"
 	"github.com/spf13/viper"
 )
 
@@ -61,7 +64,12 @@ func Load() (*Config, error) {
 	// Read config file; ignore "not found" — config file is optional.
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
-			return nil, err
+			return nil, &ui.UserError{
+				Message:    "Could not parse configuration file.",
+				Detail:     err.Error(),
+				Suggestion: fmt.Sprintf("Check syntax or delete %s to reset to defaults.", ConfigFile()),
+				Err:        err,
+			}
 		}
 	}
 

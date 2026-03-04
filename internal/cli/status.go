@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/0xc0re/cluckers/internal/auth"
 	"github.com/0xc0re/cluckers/internal/game"
 	"github.com/0xc0re/cluckers/internal/gateway"
 	"github.com/fatih/color"
@@ -21,13 +22,14 @@ var statusCmd = &cobra.Command{
 
 		// Collect all status checks (non-fatal -- gather results then display).
 		ps, cs := platformStatusCheck()
+		authStatus := checkAuthStatus()
 		gameStatus := checkGameStatus(cmd.Context())
 		gatewayStatus := checkGatewayStatus(cmd.Context())
 
 		if verbose {
-			printVerboseStatus(ps, cs, gameStatus, gatewayStatus)
+			printVerboseStatus(ps, cs, authStatus, gameStatus, gatewayStatus)
 		} else {
-			printCompactStatus(ps, cs, gameStatus, gatewayStatus)
+			printCompactStatus(ps, cs, authStatus, gameStatus, gatewayStatus)
 		}
 
 		return nil
@@ -61,6 +63,17 @@ type gameStatusResult struct {
 	exeExists     bool
 }
 
+type authStatusResult struct {
+	credsSaved     bool
+	username       string
+	accessValid    bool
+	accessRemain   time.Duration
+	oidcValid      bool
+	oidcRemain     time.Duration
+	cacheErr       error
+	credsErr       error
+}
+
 type gatewayStatusResult struct {
 	url    string
 	online bool
@@ -68,6 +81,39 @@ type gatewayStatusResult struct {
 }
 
 // Status check functions with short timeouts.
+
+func checkAuthStatus() authStatusResult {
+	var result authStatusResult
+
+	creds, err := auth.LoadCredentials()
+	if err != nil {
+		result.credsErr = err
+	}
+	if creds != nil {
+		result.credsSaved = true
+		result.username = creds.Username
+	}
+
+	cache, err := auth.LoadTokenCache()
+	if err != nil {
+		result.cacheErr = err
+	}
+	if cache != nil {
+		if cache.AccessTokenValid() {
+			result.accessValid = true
+			result.accessRemain = auth.AccessTokenTTL - time.Since(cache.AccessCachedAt)
+		}
+		if cache.OIDCTokenValid() {
+			result.oidcValid = true
+			result.oidcRemain = auth.OIDCTokenTTL - time.Since(cache.OIDCCachedAt)
+		}
+		if result.username == "" {
+			result.username = cache.Username
+		}
+	}
+
+	return result
+}
 
 func checkGameStatus(ctx context.Context) gameStatusResult {
 	gameDir := Cfg.GameDir
@@ -119,7 +165,7 @@ func checkGatewayStatus(ctx context.Context) gatewayStatusResult {
 
 // Compact (default) output.
 
-func printCompactStatus(ps *protonStatusResult, cs *compatdataStatusResult, gs gameStatusResult, gws gatewayStatusResult) {
+func printCompactStatus(ps *protonStatusResult, cs *compatdataStatusResult, as authStatusResult, gs gameStatusResult, gws gatewayStatusResult) {
 	green := color.New(color.FgGreen).SprintFunc()
 	red := color.New(color.FgRed).SprintFunc()
 	yellow := color.New(color.FgYellow).SprintFunc()
@@ -144,6 +190,15 @@ func printCompactStatus(ps *protonStatusResult, cs *compatdataStatusResult, gs g
 		} else {
 			fmt.Printf("  %-10s %-45s %s\n", "Compat:", truncatePath(cs.path, 40), red("[not created]"))
 		}
+	}
+
+	// Auth
+	if as.credsSaved && as.accessValid {
+		fmt.Printf("  %-10s %-45s %s\n", "Auth:", "Logged in as "+as.username, green("[OK]"))
+	} else if as.credsSaved {
+		fmt.Printf("  %-10s %-45s %s\n", "Auth:", "Credentials saved ("+as.username+")", yellow("[Token expired]"))
+	} else {
+		fmt.Printf("  %-10s %-45s %s\n", "Auth:", "Not logged in", red("[No credentials]"))
 	}
 
 	// Game
@@ -173,12 +228,12 @@ func printCompactStatus(ps *protonStatusResult, cs *compatdataStatusResult, gs g
 
 	// Actionable hints
 	fmt.Println()
-	printHints(ps, cs, gs, gws)
+	printHints(ps, cs, as, gs, gws)
 }
 
 // Verbose output.
 
-func printVerboseStatus(ps *protonStatusResult, cs *compatdataStatusResult, gs gameStatusResult, gws gatewayStatusResult) {
+func printVerboseStatus(ps *protonStatusResult, cs *compatdataStatusResult, as authStatusResult, gs gameStatusResult, gws gatewayStatusResult) {
 	green := color.New(color.FgGreen).SprintFunc()
 	red := color.New(color.FgRed).SprintFunc()
 	yellow := color.New(color.FgYellow).SprintFunc()
@@ -210,6 +265,29 @@ func printVerboseStatus(ps *protonStatusResult, cs *compatdataStatusResult, gs g
 		}
 		fmt.Println()
 	}
+
+	// Auth
+	fmt.Println(bold("Auth:"))
+	if as.credsSaved {
+		fmt.Printf("  User:    %s\n", as.username)
+		fmt.Printf("  Creds:   %s\n", green("Saved"))
+	} else {
+		fmt.Printf("  Creds:   %s\n", red("Not saved"))
+		if as.credsErr != nil {
+			fmt.Printf("  Error:   %s\n", as.credsErr)
+		}
+	}
+	if as.accessValid {
+		fmt.Printf("  Access:  %s (expires in %s)\n", green("Valid"), as.accessRemain.Truncate(time.Minute))
+	} else {
+		fmt.Printf("  Access:  %s\n", yellow("Expired or missing"))
+	}
+	if as.oidcValid {
+		fmt.Printf("  OIDC:    %s (expires in %s)\n", green("Valid"), as.oidcRemain.Truncate(time.Minute))
+	} else {
+		fmt.Printf("  OIDC:    %s\n", yellow("Expired or missing"))
+	}
+	fmt.Println()
 
 	// Game
 	fmt.Println(bold("Game:"))
@@ -252,11 +330,11 @@ func printVerboseStatus(ps *protonStatusResult, cs *compatdataStatusResult, gs g
 	fmt.Println()
 
 	// Actionable hints
-	printHints(ps, cs, gs, gws)
+	printHints(ps, cs, as, gs, gws)
 }
 
 // printHints shows actionable fix suggestions for detected problems.
-func printHints(ps *protonStatusResult, cs *compatdataStatusResult, gs gameStatusResult, gws gatewayStatusResult) {
+func printHints(ps *protonStatusResult, cs *compatdataStatusResult, as authStatusResult, gs gameStatusResult, gws gatewayStatusResult) {
 	dim := color.New(color.Faint).SprintFunc()
 	hasHints := false
 
@@ -274,6 +352,14 @@ func printHints(ps *protonStatusResult, cs *compatdataStatusResult, gs gameStatu
 			hasHints = true
 		}
 		fmt.Println(dim("  - Run `cluckers launch` to auto-create Proton environment"))
+	}
+
+	if !as.credsSaved {
+		if !hasHints {
+			fmt.Println(dim("Hints:"))
+			hasHints = true
+		}
+		fmt.Println(dim("  - Run `cluckers login` to save your credentials"))
 	}
 
 	if gs.localVersion == "not installed" || gs.needsUpdate {

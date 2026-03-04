@@ -12,6 +12,17 @@ import (
 	"github.com/0xc0re/cluckers/internal/ui"
 )
 
+// extractionMarker is the filename written to the game directory during extraction.
+// Its presence indicates extraction was interrupted and the game is in an inconsistent state.
+const extractionMarker = ".cluckers-extracting"
+
+// IsExtractionIncomplete checks whether a previous extraction was interrupted,
+// leaving the game directory in an inconsistent state.
+func IsExtractionIncomplete(gameDir string) bool {
+	_, err := os.Stat(filepath.Join(gameDir, extractionMarker))
+	return err == nil
+}
+
 // ExtractProgressFunc is called during extraction with the number of files
 // extracted so far and the total number of files in the archive.
 type ExtractProgressFunc func(extracted, total int)
@@ -36,6 +47,12 @@ func ExtractZipWithProgress(zipPath string, destDir string, onProgress ExtractPr
 			Suggestion: "The download may be corrupted. Run `cluckers update` to re-download.",
 			Err:        err,
 		}
+	}
+
+	// Write extraction marker — removed on successful completion.
+	markerPath := filepath.Join(destDir, extractionMarker)
+	if err := os.WriteFile(markerPath, []byte("extracting"), 0644); err != nil {
+		return fmt.Errorf("writing extraction marker: %w", err)
 	}
 
 	totalFiles := len(reader.File)
@@ -93,6 +110,9 @@ func ExtractZipWithProgress(zipPath string, destDir string, onProgress ExtractPr
 		// Non-fatal: warn but don't fail extraction.
 		ui.Warn(fmt.Sprintf("Could not remove archive after extraction: %s", err))
 	}
+
+	// Remove extraction marker — extraction completed successfully.
+	os.Remove(markerPath)
 
 	return nil
 }

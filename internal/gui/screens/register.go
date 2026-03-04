@@ -5,6 +5,7 @@ package screens
 import (
 	"context"
 	"image/color"
+	"log"
 	"time"
 
 	"fyne.io/fyne/v2"
@@ -93,15 +94,19 @@ func MakeRegisterScreen(w fyne.Window, cfg *config.Config, onSuccess func(userna
 				return
 			}
 
-			// Save credentials for future launches.
-			_ = auth.SaveCredentials(username, password)
+			// Save credentials for future launches (non-fatal on failure).
+			if err := auth.SaveCredentials(username, password); err != nil {
+				log.Printf("WARNING: could not save credentials: %s", err)
+			}
 
 			// Cache the access token from registration (acts as auto-login).
-			_ = auth.SaveTokenCache(&auth.TokenCache{
+			if err := auth.SaveTokenCache(&auth.TokenCache{
 				Username:       result.Username,
 				AccessToken:    result.AccessToken,
 				AccessCachedAt: time.Now(),
-			})
+			}); err != nil {
+				log.Printf("WARNING: could not save token cache: %s", err)
+			}
 
 			// Request Discord link code.
 			code, err := auth.RequestLinkCode(context.Background(), client, result.Username, result.AccessToken)
