@@ -10,10 +10,13 @@ import (
 )
 
 // PromptUsername prints "Username: " and reads a line from stdin.
-// Returns an error if stdin is not a terminal.
+// Returns a *UserError if stdin is not a terminal.
 func PromptUsername() (string, error) {
 	if !term.IsTerminal(int(os.Stdin.Fd())) {
-		return "", fmt.Errorf("cannot prompt for username: stdin is not a terminal")
+		return "", &UserError{
+			Message:    "Cannot prompt for username: no terminal available",
+			Suggestion: "Run 'cluckers login' from a terminal first to save credentials.",
+		}
 	}
 
 	fmt.Print("Username: ")
@@ -30,10 +33,13 @@ func PromptUsername() (string, error) {
 }
 
 // PromptPassword prints "Password: " and reads hidden input from stdin.
-// Returns an error if stdin is not a terminal.
+// Returns a *UserError if stdin is not a terminal.
 func PromptPassword() (string, error) {
 	if !term.IsTerminal(int(os.Stdin.Fd())) {
-		return "", fmt.Errorf("cannot prompt for password: stdin is not a terminal")
+		return "", &UserError{
+			Message:    "Cannot prompt for password: no terminal available",
+			Suggestion: "Run 'cluckers login' from a terminal first to save credentials.",
+		}
 	}
 
 	fmt.Print("Password: ")
@@ -50,10 +56,13 @@ func PromptPassword() (string, error) {
 }
 
 // PromptEmail prints "Email: " and reads a line from stdin.
-// Returns an error if stdin is not a terminal.
+// Returns a *UserError if stdin is not a terminal.
 func PromptEmail() (string, error) {
 	if !term.IsTerminal(int(os.Stdin.Fd())) {
-		return "", fmt.Errorf("cannot prompt for email: stdin is not a terminal")
+		return "", &UserError{
+			Message:    "Cannot prompt for email: no terminal available",
+			Suggestion: "Run 'cluckers register' from a terminal first to create an account.",
+		}
 	}
 
 	fmt.Print("Email: ")

@@ -79,17 +79,20 @@ func buildProtonEnvFrom(baseEnv []string, compatDataPath, steamInstallPath, stea
 	return env
 }
 
-// buildProtonCommand constructs the python3 proton run command with correct
+// buildProtonCommand constructs the proton run command with correct
 // argument ordering for both SHM (bootstrap present) and non-SHM modes.
 //
-// With SHM: python3 <protonScript> run <shmPath> <Z:\bootstrapPath> <shmName> <Z:\gameExe> <gameArgs...>
-// Without SHM: python3 <protonScript> run <gameExe> <gameArgs...>
+// With SHM: <protonScript> run <shmPath> <Z:\bootstrapPath> <shmName> <Z:\gameExe> <gameArgs...>
+// Without SHM: <protonScript> run <gameExe> <gameArgs...>
+//
+// The proton script is executed directly (it has a #!/usr/bin/env python3 shebang)
+// rather than via "python3" to avoid PATH issues on immutable distros like Bazzite.
 //
 // shmPath is a Linux path (proton converts it internally). bootstrapPath and
 // gameExe (in SHM mode) are Wine Z: drive paths because they are consumed by
 // Windows processes running under Wine.
 func buildProtonCommand(protonScript, shmPath, bootstrapPath, shmName, gameExe string, gameArgs []string) (string, []string) {
-	args := []string{protonScript, "run"}
+	args := []string{"run"}
 
 	if shmPath != "" {
 		// SHM mode: launch shm_launcher.exe which creates shared memory
@@ -107,7 +110,7 @@ func buildProtonCommand(protonScript, shmPath, bootstrapPath, shmName, gameExe s
 	}
 
 	args = append(args, gameArgs...)
-	return "python3", args
+	return protonScript, args
 }
 
 // protonErrorSuggestion returns actionable error suggestion text for Proton

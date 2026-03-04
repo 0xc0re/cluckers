@@ -51,13 +51,15 @@ type LoginResponse struct {
 
 // OIDCTokenResponse is the response from LAUNCHER_EAC_OIDC_TOKEN.
 type OIDCTokenResponse struct {
-	PortalInfo1 string `json:"PORTAL_INFO_1"`
-	StringValue string `json:"STRING_VALUE"`
-	TextValue   string `json:"TEXT_VALUE"`
+	Success     FlexBool `json:"SUCCESS"`
+	PortalInfo1 string   `json:"PORTAL_INFO_1"`
+	StringValue string   `json:"STRING_VALUE"`
+	TextValue   string   `json:"TEXT_VALUE"`
 }
 
 // BootstrapResponse is the response from LAUNCHER_CONTENT_BOOTSTRAP.
 type BootstrapResponse struct {
+	Success     FlexBool    `json:"SUCCESS"`
 	PortalInfo1 string      `json:"PORTAL_INFO_1"`
 	StringValue string      `json:"STRING_VALUE"`
 	SessionID   json.Number `json:"SESSION_ID"`

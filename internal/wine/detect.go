@@ -4,6 +4,7 @@ package wine
 
 import (
 	"bufio"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -182,34 +183,85 @@ func LinuxToWinePath(path string) string {
 	return path
 }
 
-// DetectDistro reads /etc/os-release and returns the ID field value.
-// Returns "unknown" if the file cannot be read or the ID field is missing.
-func DetectDistro() string {
-	f, err := os.Open("/etc/os-release")
-	if err != nil {
-		return "unknown"
-	}
-	defer f.Close()
+// distroInfo holds parsed os-release fields.
+type distroInfo struct {
+	ID     string // e.g. "bazzite", "steamos", "fedora"
+	IDLike string // e.g. "fedora", "arch", "ubuntu debian"
+}
 
-	scanner := bufio.NewScanner(f)
+// parseOSRelease parses ID and ID_LIKE from an os-release format reader.
+func parseOSRelease(r io.Reader) distroInfo {
+	var info distroInfo
+	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
 		line := scanner.Text()
 		if strings.HasPrefix(line, "ID=") {
-			return strings.Trim(strings.TrimPrefix(line, "ID="), "\"")
+			info.ID = strings.Trim(strings.TrimPrefix(line, "ID="), "\"")
+		} else if strings.HasPrefix(line, "ID_LIKE=") {
+			info.IDLike = strings.Trim(strings.TrimPrefix(line, "ID_LIKE="), "\"")
 		}
 	}
-	return "unknown"
+	return info
+}
+
+// DetectDistro reads /etc/os-release and returns the ID field value.
+// Returns "unknown" if the file cannot be read or the ID field is missing.
+func DetectDistro() string {
+	info := readOSRelease()
+	if info.ID == "" {
+		return "unknown"
+	}
+	return info.ID
+}
+
+// DetectDistroLike reads /etc/os-release and returns the ID_LIKE field value.
+// Returns "" if the file cannot be read or ID_LIKE is missing.
+func DetectDistroLike() string {
+	return readOSRelease().IDLike
+}
+
+// readOSRelease reads and parses /etc/os-release.
+func readOSRelease() distroInfo {
+	f, err := os.Open("/etc/os-release")
+	if err != nil {
+		return distroInfo{}
+	}
+	defer f.Close()
+	return parseOSRelease(f)
 }
 
 // IsSteamDeck returns true if running on a Steam Deck.
+// Detection priority: DMI board_vendor "Valve" → SteamOS distro ID → /home/deck fallback.
 func IsSteamDeck() bool {
-	if DetectDistro() == "steamos" {
+	boardVendor := readDMIBoardVendor()
+	distroID := DetectDistro()
+	_, deckHomeErr := os.Stat("/home/deck")
+	return isSteamDeckCheck(boardVendor, distroID, deckHomeErr == nil)
+}
+
+// isSteamDeckCheck is the testable core of IsSteamDeck.
+// Priority: DMI hardware check → SteamOS distro → /home/deck fallback.
+func isSteamDeckCheck(boardVendor, distroID string, deckHomeExists bool) bool {
+	if strings.TrimSpace(boardVendor) == "Valve" {
 		return true
 	}
-	if _, err := os.Stat("/home/deck"); err == nil {
+	if distroID == "steamos" {
+		return true
+	}
+	if deckHomeExists {
 		return true
 	}
 	return false
+}
+
+// readDMIBoardVendor reads the DMI board vendor from sysfs.
+// Returns empty string if unavailable (e.g., in containers or VMs).
+func readDMIBoardVendor() string {
+	data, err := os.ReadFile("/sys/devices/virtual/dmi/id/board_vendor")
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(data))
 }
 
 // userHome returns the user's home directory, falling back to /tmp if unavailable.

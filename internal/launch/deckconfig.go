@@ -382,13 +382,13 @@ func patchCountCommands(iniPath string) error {
 // to the user's Steam controller config directory. Only deploys if no config
 // exists yet (preserves user customizations). Best-effort — failures are silent.
 func deployDeckControllerLayout() {
-	home, err := os.UserHomeDir()
-	if err != nil {
+	steamDir := wine.FindSteamInstall()
+	if steamDir == "" {
 		return
 	}
 
 	// Find shortcuts.vdf files in Steam userdata directories.
-	pattern := filepath.Join(home, ".local", "share", "Steam", "userdata", "*", "config", "shortcuts.vdf")
+	pattern := filepath.Join(steamDir, "userdata", "*", "config", "shortcuts.vdf")
 	matches, err := filepath.Glob(pattern)
 	if err != nil || len(matches) == 0 {
 		return

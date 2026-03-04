@@ -149,12 +149,11 @@ func TestBuildProtonCommand_WithSHM(t *testing.T) {
 		[]string{"-user=foo", "-token=bar", "-hostx=1.2.3.4"},
 	)
 
-	if program != "python3" {
-		t.Errorf("program = %q, want %q", program, "python3")
+	if program != "/opt/GE-Proton10-1/proton" {
+		t.Errorf("program = %q, want %q", program, "/opt/GE-Proton10-1/proton")
 	}
 
 	wantArgs := []string{
-		"/opt/GE-Proton10-1/proton",
 		"run",
 		"/tmp/shm_launcher.exe",
 		`Z:\tmp\bootstrap.bin`,
@@ -184,12 +183,11 @@ func TestBuildProtonCommand_WithoutSHM(t *testing.T) {
 		[]string{"-user=foo", "-token=bar"},
 	)
 
-	if program != "python3" {
-		t.Errorf("program = %q, want %q", program, "python3")
+	if program != "/opt/GE-Proton10-1/proton" {
+		t.Errorf("program = %q, want %q", program, "/opt/GE-Proton10-1/proton")
 	}
 
 	wantArgs := []string{
-		"/opt/GE-Proton10-1/proton",
 		"run",
 		"/home/user/.cluckers/game/Realm-Royale/Binaries/Win64/ShippingPC-RealmGameNoEditor.exe",
 		"-user=foo",

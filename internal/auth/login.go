@@ -3,12 +3,18 @@ package auth
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/0xc0re/cluckers/internal/gateway"
 	"github.com/0xc0re/cluckers/internal/ui"
 )
+
+// ErrTokenRejected is returned when the server rejects a cached access token
+// (e.g. after a server restart or token revocation). Callers can check
+// errors.Is(err, ErrTokenRejected) to trigger re-authentication.
+var ErrTokenRejected = errors.New("access token rejected by server")
 
 // LoginResult holds the successful result of a gateway login.
 type LoginResult struct {
@@ -66,6 +72,18 @@ func GetOIDCToken(ctx context.Context, client *gateway.Client, username, accessT
 		return "", err
 	}
 
+	if !bool(resp.Success) {
+		detail := resp.StringValue
+		if detail == "" {
+			detail = resp.TextValue
+		}
+		return "", &ui.UserError{
+			Message:    "OIDC token request failed: " + detail,
+			Suggestion: "Your session may have expired. Try logging out and back in.",
+			Err:        ErrTokenRejected,
+		}
+	}
+
 	// Try fields in order, matching POC: PORTAL_INFO_1 -> STRING_VALUE -> TEXT_VALUE
 	token := resp.PortalInfo1
 	if token == "" {
@@ -99,6 +117,18 @@ func GetContentBootstrap(ctx context.Context, client *gateway.Client, username, 
 	var resp gateway.BootstrapResponse
 	if err := client.Post(ctx, "LAUNCHER_CONTENT_BOOTSTRAP", req, &resp); err != nil {
 		return nil, err
+	}
+
+	if !bool(resp.Success) {
+		detail := resp.StringValue
+		if detail == "" {
+			detail = resp.PortalInfo1
+		}
+		return nil, &ui.UserError{
+			Message:    "Content bootstrap request failed: " + detail,
+			Suggestion: "Your session may have expired. Try logging out and back in.",
+			Err:        ErrTokenRejected,
+		}
 	}
 
 	// Try fields in order, matching POC: PORTAL_INFO_1 -> STRING_VALUE

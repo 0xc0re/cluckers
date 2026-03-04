@@ -30,6 +30,7 @@ func newBootstrapServer(t *testing.T, encoded string) *httptest.Server {
 	t.Helper()
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		resp := map[string]interface{}{
+			"SUCCESS":    1,
 			"SESSION_ID": 1,
 			"VERSION":    1,
 		}
@@ -144,6 +145,99 @@ func TestGetContentBootstrap_Whitespace(t *testing.T) {
 	withWhitespace := " " + encoded[:20] + "\n" + encoded[20:40] + "\r\n" + encoded[40:] + " "
 
 	srv := newBootstrapServer(t, withWhitespace)
+	defer srv.Close()
+
+	client := gateway.NewClient(srv.URL, false)
+	data, err := GetContentBootstrap(context.Background(), client, "user", "token")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if string(data) != string(bootstrapPayload) {
+		t.Errorf("payload mismatch: got %d bytes, want %d bytes", len(data), len(bootstrapPayload))
+	}
+}
+
+func TestGetOIDCToken_Success(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"SUCCESS":       1,
+			"PORTAL_INFO_1": "eyJhbGciOiJSUzI1NiJ9.test.sig",
+		})
+	}))
+	defer srv.Close()
+
+	client := gateway.NewClient(srv.URL, false)
+	token, err := GetOIDCToken(context.Background(), client, "user", "valid-token")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if token != "eyJhbGciOiJSUzI1NiJ9.test.sig" {
+		t.Errorf("token = %q, want JWT", token)
+	}
+}
+
+func TestGetOIDCToken_TokenRejected(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"SUCCESS":      0,
+			"STRING_VALUE": "Invalid or expired access_token",
+		})
+	}))
+	defer srv.Close()
+
+	client := gateway.NewClient(srv.URL, false)
+	token, err := GetOIDCToken(context.Background(), client, "user", "stale-token")
+	if token != "" {
+		t.Errorf("expected empty token on rejection, got %q", token)
+	}
+	if err == nil {
+		t.Fatal("expected error for rejected token, got nil")
+	}
+	if !errors.Is(err, ErrTokenRejected) {
+		t.Errorf("expected ErrTokenRejected, got %v", err)
+	}
+	var ue *ui.UserError
+	if !errors.As(err, &ue) {
+		t.Fatalf("expected *ui.UserError, got %T", err)
+	}
+}
+
+func TestGetContentBootstrap_TokenRejected(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"SUCCESS":      0,
+			"STRING_VALUE": "Invalid or expired access_token",
+		})
+	}))
+	defer srv.Close()
+
+	client := gateway.NewClient(srv.URL, false)
+	data, err := GetContentBootstrap(context.Background(), client, "user", "stale-token")
+	if data != nil {
+		t.Errorf("expected nil data on rejection, got %d bytes", len(data))
+	}
+	if err == nil {
+		t.Fatal("expected error for rejected token, got nil")
+	}
+	if !errors.Is(err, ErrTokenRejected) {
+		t.Errorf("expected ErrTokenRejected, got %v", err)
+	}
+}
+
+func TestGetContentBootstrap_WithSuccessField(t *testing.T) {
+	encoded := base64.StdEncoding.EncodeToString(bootstrapPayload)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"SUCCESS":       1,
+			"PORTAL_INFO_1": encoded,
+			"SESSION_ID":    1,
+			"VERSION":       1,
+		})
+	}))
 	defer srv.Close()
 
 	client := gateway.NewClient(srv.URL, false)

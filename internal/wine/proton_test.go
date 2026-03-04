@@ -221,6 +221,16 @@ func TestProtonInstallInstructionsFedora(t *testing.T) {
 	}
 }
 
+func TestProtonInstallInstructionsBazzite(t *testing.T) {
+	instructions := ProtonInstallInstructions("bazzite")
+	if !strings.Contains(instructions, "dnf") {
+		t.Errorf("bazzite instructions should mention dnf, got: %s", instructions)
+	}
+	if !strings.Contains(instructions, "ProtonUp-Qt") {
+		t.Errorf("bazzite instructions should mention ProtonUp-Qt, got: %s", instructions)
+	}
+}
+
 func TestProtonInstallInstructionsDefault(t *testing.T) {
 	instructions := ProtonInstallInstructions("unknown")
 	if !strings.Contains(instructions, "github") || !strings.Contains(instructions, "GloriousEggroll") {

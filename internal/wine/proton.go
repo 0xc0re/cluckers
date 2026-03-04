@@ -51,10 +51,9 @@ func findProton(configOverride string, home string) (*ProtonGEInstall, error) {
 	}
 
 	// 4. Nothing found -- return helpful error.
-	distro := DetectDistro()
 	return nil, &ui.UserError{
 		Message:    "Proton-GE not found. Proton-GE is required to run Realm Royale.",
-		Suggestion: ProtonInstallInstructions(distro),
+		Suggestion: ProtonInstallInstructions(effectiveDistro()),
 	}
 }
 
@@ -101,6 +100,29 @@ func (p ProtonGEInstall) DisplayVersion() string {
 	return filepath.Base(p.ProtonDir)
 }
 
+// knownDistros lists distro IDs that have specific install instructions.
+var knownDistros = map[string]bool{
+	"arch": true, "steamos": true,
+	"ubuntu": true, "debian": true, "linuxmint": true, "pop": true,
+	"fedora": true, "bazzite": true,
+}
+
+// effectiveDistro returns the best distro ID for install instructions.
+// Checks ID first, then falls back to the first known base in ID_LIKE.
+func effectiveDistro() string {
+	id := DetectDistro()
+	if knownDistros[id] {
+		return id
+	}
+	idLike := DetectDistroLike()
+	for _, base := range strings.Fields(idLike) {
+		if knownDistros[base] {
+			return base
+		}
+	}
+	return id
+}
+
 // ProtonInstallInstructions returns per-distro Proton-GE install instructions.
 func ProtonInstallInstructions(distro string) string {
 	switch distro {
@@ -113,7 +135,7 @@ func ProtonInstallInstructions(distro string) string {
 		return "Install Proton-GE via ProtonUp-Qt:\n" +
 			"  Download from https://davidotek.github.io/protonup-qt/ or Flathub\n" +
 			"  flatpak install flathub net.davidotek.pupgui2"
-	case "fedora":
+	case "fedora", "bazzite":
 		return "Install Proton-GE via ProtonUp-Qt:\n" +
 			"  sudo dnf install protonup-qt\n" +
 			"  Or: flatpak install flathub net.davidotek.pupgui2"

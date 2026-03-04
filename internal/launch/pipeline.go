@@ -2,6 +2,7 @@ package launch
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/signal"
@@ -302,7 +303,37 @@ func stepOIDCToken(ctx context.Context, state *LaunchState) error {
 
 	token, err := auth.GetOIDCToken(ctx, state.Client, state.Username, state.AccessToken)
 	if err != nil {
-		return err
+		if !errors.Is(err, auth.ErrTokenRejected) {
+			return err
+		}
+
+		// Stale access token — re-authenticate and retry once.
+		ui.Verbose("Access token rejected, re-authenticating...", state.Config.Verbose)
+
+		if clearErr := auth.ClearTokenCache(); clearErr != nil {
+			ui.Verbose(fmt.Sprintf("Could not clear token cache: %s", clearErr), state.Config.Verbose)
+		}
+
+		result, loginErr := auth.Login(ctx, state.Client, state.Username, state.Password)
+		if loginErr != nil {
+			return loginErr
+		}
+		state.AccessToken = result.AccessToken
+
+		// Save fresh token cache.
+		state.TokenCache = &auth.TokenCache{
+			Username:       result.Username,
+			AccessToken:    result.AccessToken,
+			AccessCachedAt: time.Now(),
+		}
+		if saveErr := auth.SaveTokenCache(state.TokenCache); saveErr != nil {
+			ui.Verbose(fmt.Sprintf("Could not save token cache: %s", saveErr), state.Config.Verbose)
+		}
+
+		token, err = auth.GetOIDCToken(ctx, state.Client, state.Username, state.AccessToken)
+		if err != nil {
+			return err
+		}
 	}
 	state.OIDCToken = token
 
