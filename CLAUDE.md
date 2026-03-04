@@ -32,6 +32,7 @@
 - `cluckers self-update` -- Check GitHub releases for a newer launcher binary and download/replace if available
 - `cluckers steam add` -- Create .desktop file (Linux) or .bat launcher (Windows) for Steam integration
 - `cluckers prep` (Linux only) -- Run auth/tokens/bootstrap/update pipeline and write persistent files for Steam-managed Proton launch
+- `cluckers logs` -- Print log file path; `--tail` shows last 50 lines
 - `cluckers --version` -- Version info (set via ldflags at build time)
 
 ## 4. Code Map
@@ -54,6 +55,7 @@ Cobra command definitions. Platform-specific behavior uses `_linux.go` / `_windo
 - `steam_windows.go`: Windows `runSteamAdd()` -- creates `.bat` launcher, prints Steam add instructions.
 - `register.go`: `register` subcommand, creates account via `auth.Register()`, saves credentials, requests Discord link code, polls for Discord linking status.
 - `selfupdate.go`: `self-update` subcommand, checks GitHub releases via `selfupdate` package, downloads and replaces binary.
+- `logs.go`: `logs` subcommand, prints log file path or tails last 50 lines.
 - `prep_linux.go`: Linux-only `prep` subcommand, runs full pipeline then writes persistent config for Steam-managed launch.
 - `root_gui.go`: GUI build tag. Sets root command `RunE` to launch GUI if display available, with terminal detach support.
 - `root_nogui.go`: Non-GUI build tag. Root command shows CLI help (default cobra behavior).
@@ -63,7 +65,7 @@ Cobra command definitions. Platform-specific behavior uses `_linux.go` / `_windo
 ### `internal/config/`
 Configuration and paths. Platform-specific `DataDir()` uses `_linux.go` / `_windows.go` file naming.
 - `config.go`: `Config` struct (Gateway, WinePath, GameDir, HostX, Verbose). Loaded via viper from config file (optional). Precedence: CLI flag > config file > default.
-- `paths.go`: `ConfigDir()`, `CacheDir()`, `ConfigFile()`, `CredentialsFile()`, `EnsureDir()`.
+- `paths.go`: `ConfigDir()`, `CacheDir()`, `LogDir()`, `ConfigFile()`, `CredentialsFile()`, `EnsureDir()`.
 - `paths_linux.go`: `DataDir()` -- `CLUCKERS_HOME` env or `~/.cluckers`.
 - `paths_windows.go`: `DataDir()` -- `CLUCKERS_HOME` env or `%LOCALAPPDATA%\cluckers`.
 
@@ -113,7 +115,8 @@ Proton-GE detection, compatdata management, and Steam integration. **Linux-only*
 
 ### `internal/ui/`
 Terminal output helpers.
-- `output.go`: `Success()`, `Warn()`, `Error()`, `Info()`, `Verbose()` with color (fatih/color).
+- `logging.go`: `InitLogging()`, `CloseLogging()`, `LogWriter()`. File-based logging singleton with 5MB rotation. All `output.go` functions tee to log.
+- `output.go`: `Success()`, `Warn()`, `Error()`, `Info()`, `Verbose()` with color (fatih/color). Each function also writes to log file.
 - `errors.go`: `UserError` struct (Message, Detail, Suggestion, Err). `FormatError()` formats based on verbose mode. Implements `error` interface and `Unwrap()`.
 - `prompt.go`: `PromptUsername()` (reads line), `PromptPassword()` (hidden input via x/term). Both check `term.IsTerminal()`.
 - `spinner.go`: `StepSpinner` wraps briandowns/spinner. `StartStep()`, `Stop()`, `Success()`, `Fail()`. Non-TTY fallback prints plain text.
@@ -186,6 +189,8 @@ Build-time source files (not embedded directly).
     credentials.enc      # NaCl secretbox encrypted JSON {username, password}
   cache/
     tokens.json          # {access_token, oidc_token, username, cached_at}
+  logs/
+    cluckers.log         # Rolling log file (rotated at 5MB)
   game/                  # Game files (managed by update command)
     Realm-Royale/
       Binaries/
@@ -206,6 +211,8 @@ Build-time source files (not embedded directly).
     credentials.enc      # NaCl secretbox encrypted JSON {username, password}
   cache\
     tokens.json          # {access_token, oidc_token, username, cached_at}
+  logs\
+    cluckers.log         # Rolling log file (rotated at 5MB)
   game\                  # Game files (managed by update command)
     Realm-Royale\
       Binaries\

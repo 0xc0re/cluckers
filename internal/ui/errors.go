@@ -29,9 +29,24 @@ func (e *UserError) Unwrap() error {
 func FormatError(err error, verbose bool) string {
 	var ue *UserError
 	if !errors.As(err, &ue) {
+		logError(err.Error())
 		return err.Error()
 	}
 
+	// Always log the full error with Detail for diagnostics.
+	var logBuf strings.Builder
+	logBuf.WriteString(ue.Message)
+	if ue.Detail != "" {
+		logBuf.WriteString(" | Detail: ")
+		logBuf.WriteString(ue.Detail)
+	}
+	if ue.Suggestion != "" {
+		logBuf.WriteString(" | Suggestion: ")
+		logBuf.WriteString(ue.Suggestion)
+	}
+	logError(logBuf.String())
+
+	// Terminal output respects verbose flag.
 	var b strings.Builder
 	b.WriteString(ue.Message)
 

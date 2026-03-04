@@ -97,14 +97,15 @@ func LaunchGame(ctx context.Context, cfg *LaunchConfig) error {
 	cmd.Env = env
 	cmd.Dir = cfg.GameDir
 
-	// Capture stderr for error diagnostics.
+	// Capture stderr for error diagnostics and tee to log file.
 	var stderrBuf bytes.Buffer
+	logW := ui.LogWriter()
 	if cfg.Verbose {
 		cmd.Stdout = os.Stdout
-		cmd.Stderr = io.MultiWriter(os.Stderr, &stderrBuf)
+		cmd.Stderr = io.MultiWriter(os.Stderr, &stderrBuf, logW)
 	} else {
-		// Suppress Proton noise in non-verbose mode.
-		cmd.Stderr = &stderrBuf
+		// Suppress Proton noise in non-verbose mode but persist to log.
+		cmd.Stderr = io.MultiWriter(&stderrBuf, logW)
 	}
 
 	if err := cmd.Run(); err != nil {

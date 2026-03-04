@@ -21,6 +21,8 @@ var (
 func main() {
 	cli.SetVersion(fmt.Sprintf("%s (commit %s, built %s)", version, commit, date))
 	config.SetBuildDefaults(gatewayURL, hostxIP)
+	ui.InitLogging(config.LogDir())
+	defer ui.CloseLogging()
 	cli.InitFlags()
 
 	if err := cli.Execute(); err != nil {

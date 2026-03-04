@@ -8,9 +8,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"path/filepath"
 
-	"github.com/0xc0re/cluckers/internal/config"
 	"github.com/0xc0re/cluckers/internal/game"
 	"github.com/0xc0re/cluckers/internal/ui"
 )
@@ -98,17 +96,8 @@ func LaunchGame(ctx context.Context, cfg *LaunchConfig) error {
 	cmd.Dir = cfg.GameDir
 	cmd.Stdout = os.Stdout
 
-	// Tee stderr to a log file for diagnostics.
-	logDir := config.TmpDir()
-	_ = config.EnsureDir(logDir)
-	logPath := filepath.Join(logDir, "cluckers_game.log")
-	gameLog, logErr := os.Create(logPath)
-	if logErr == nil {
-		cmd.Stderr = io.MultiWriter(os.Stderr, gameLog)
-		cleanups = append(cleanups, func() { gameLog.Close() })
-	} else {
-		cmd.Stderr = os.Stderr
-	}
+	// Tee stderr to unified log file for diagnostics.
+	cmd.Stderr = io.MultiWriter(os.Stderr, ui.LogWriter())
 
 	if err := cmd.Run(); err != nil {
 		// If context was cancelled (Ctrl+C), don't treat as an error.
