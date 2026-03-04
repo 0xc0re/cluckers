@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 
+	"github.com/0xc0re/cluckers/internal/config"
 	"github.com/0xc0re/cluckers/internal/game"
 	"github.com/0xc0re/cluckers/internal/ui"
 )
@@ -98,7 +99,9 @@ func LaunchGame(ctx context.Context, cfg *LaunchConfig) error {
 	cmd.Stdout = os.Stdout
 
 	// Tee stderr to a log file for diagnostics.
-	logPath := filepath.Join(os.TempDir(), "cluckers_game.log")
+	logDir := config.TmpDir()
+	_ = config.EnsureDir(logDir)
+	logPath := filepath.Join(logDir, "cluckers_game.log")
 	gameLog, logErr := os.Create(logPath)
 	if logErr == nil {
 		cmd.Stderr = io.MultiWriter(os.Stderr, gameLog)

@@ -1,8 +1,12 @@
 package launch
 
 import (
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -129,5 +133,75 @@ func TestTmpDir_AutoCreated(t *testing.T) {
 	// Also verify file is inside the tmp dir.
 	if !strings.HasPrefix(path, tmpDir) {
 		t.Errorf("extracted file %q is not under tmp dir %q", path, tmpDir)
+	}
+}
+
+// TestNoDirectOsTempDir scans all production .go files in the repo for direct
+// calls to os.TempDir(). All temp file operations should use config.TmpDir()
+// for consistency across platforms and to prevent issues on restricted systems.
+func TestNoDirectOsTempDir(t *testing.T) {
+	// Find repo root by going up from internal/launch/ (this file's location).
+	_, thisFile, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("runtime.Caller failed")
+	}
+	repoRoot := filepath.Dir(filepath.Dir(filepath.Dir(thisFile)))
+
+	fset := token.NewFileSet()
+	var violations []string
+
+	err := filepath.WalkDir(repoRoot, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Skip vendor directory.
+		if d.IsDir() && d.Name() == "vendor" {
+			return filepath.SkipDir
+		}
+
+		// Skip non-Go files and test files.
+		if d.IsDir() || !strings.HasSuffix(d.Name(), ".go") || strings.HasSuffix(d.Name(), "_test.go") {
+			return nil
+		}
+
+		f, parseErr := parser.ParseFile(fset, path, nil, 0)
+		if parseErr != nil {
+			// Skip files that fail to parse (e.g., wrong GOOS).
+			return nil
+		}
+
+		ast.Inspect(f, func(n ast.Node) bool {
+			call, ok := n.(*ast.CallExpr)
+			if !ok {
+				return true
+			}
+
+			sel, ok := call.Fun.(*ast.SelectorExpr)
+			if !ok {
+				return true
+			}
+
+			ident, ok := sel.X.(*ast.Ident)
+			if !ok {
+				return true
+			}
+
+			if ident.Name == "os" && sel.Sel.Name == "TempDir" {
+				pos := fset.Position(call.Pos())
+				violations = append(violations, pos.String())
+			}
+			return true
+		})
+
+		return nil
+	})
+
+	if err != nil {
+		t.Fatalf("walking repo: %v", err)
+	}
+
+	for _, v := range violations {
+		t.Errorf("found os.TempDir() call at %s — use config.TmpDir() instead", v)
 	}
 }
