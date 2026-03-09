@@ -60,7 +60,7 @@ jobs:
           echo "/tmp/appimage-tools" >> $GITHUB_PATH
 
       - name: Cache Proton-GE
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: build/appimage/proton-cache
           key: proton-ge-GE-Proton10-32
