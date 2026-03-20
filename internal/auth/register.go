@@ -55,11 +55,12 @@ func Register(ctx context.Context, client *gateway.Client, username, password, e
 
 // RequestLinkCode requests a Discord verification code from the gateway via
 // LAUNCHER_REQUEST_LINK_CODE. The returned code must be DM'd to the Discord bot
-// to complete account linking. This endpoint uses password auth.
-func RequestLinkCode(ctx context.Context, client *gateway.Client, username, password string) (string, error) {
+// to complete account linking. This endpoint requires both password and access token.
+func RequestLinkCode(ctx context.Context, client *gateway.Client, username, password, accessToken string) (string, error) {
 	req := gateway.LinkCodeRequest{
-		UserName: username,
-		Password: password,
+		UserName:    username,
+		Password:    password,
+		AccessToken: accessToken,
 	}
 
 	var resp gateway.LinkCodeResponse

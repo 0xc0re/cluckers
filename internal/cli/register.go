@@ -54,8 +54,8 @@ var registerCmd = &cobra.Command{
 			ui.Warn(fmt.Sprintf("Could not save token cache: %s", err))
 		}
 
-		// Request Discord link code (uses password auth, not access token).
-		code, err := auth.RequestLinkCode(cmd.Context(), client, result.Username, password)
+		// Request Discord link code (requires both password and access token).
+		code, err := auth.RequestLinkCode(cmd.Context(), client, result.Username, password, result.AccessToken)
 		if err != nil {
 			ui.Warn(fmt.Sprintf("Could not get Discord link code: %s", err))
 			ui.Info("You can request a link code later by logging in.")

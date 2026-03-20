@@ -29,7 +29,7 @@ func TestRequestLinkCode_Success(t *testing.T) {
 	defer srv.Close()
 
 	client := gateway.NewClient(srv.URL, false)
-	code, err := RequestLinkCode(context.Background(), client, "user", "token")
+	code, err := RequestLinkCode(context.Background(), client, "user", "pass", "token")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -46,7 +46,7 @@ func TestRequestLinkCode_FailureWithTextValue(t *testing.T) {
 	defer srv.Close()
 
 	client := gateway.NewClient(srv.URL, false)
-	_, err := RequestLinkCode(context.Background(), client, "user", "token")
+	_, err := RequestLinkCode(context.Background(), client, "user", "pass", "token")
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -68,7 +68,7 @@ func TestRequestLinkCode_FailureWithStringValue(t *testing.T) {
 	defer srv.Close()
 
 	client := gateway.NewClient(srv.URL, false)
-	_, err := RequestLinkCode(context.Background(), client, "user", "token")
+	_, err := RequestLinkCode(context.Background(), client, "user", "pass", "token")
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -89,7 +89,7 @@ func TestRequestLinkCode_FailureNoMessage(t *testing.T) {
 	defer srv.Close()
 
 	client := gateway.NewClient(srv.URL, false)
-	_, err := RequestLinkCode(context.Background(), client, "user", "token")
+	_, err := RequestLinkCode(context.Background(), client, "user", "pass", "token")
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -111,7 +111,7 @@ func TestRequestLinkCode_EmptyCode(t *testing.T) {
 	defer srv.Close()
 
 	client := gateway.NewClient(srv.URL, false)
-	_, err := RequestLinkCode(context.Background(), client, "user", "token")
+	_, err := RequestLinkCode(context.Background(), client, "user", "pass", "token")
 	if err == nil {
 		t.Fatal("expected error for empty code, got nil")
 	}
