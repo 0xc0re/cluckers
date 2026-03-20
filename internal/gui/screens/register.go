@@ -110,8 +110,8 @@ func MakeRegisterScreen(w fyne.Window, cfg *config.Config, onSuccess func(userna
 				ui.Warn(fmt.Sprintf("could not save token cache: %s", err))
 			}
 
-			// Request Discord link code (requires both password and access token).
-			code, err := auth.RequestLinkCode(context.Background(), client, username, password, result.AccessToken)
+			// Request Discord link code (uses password auth).
+			code, err := auth.RequestLinkCode(context.Background(), client, username, password)
 			if err != nil {
 				// Registration succeeded but link code failed -- warn and continue to main view.
 				ui.Warn(fmt.Sprintf("could not get Discord link code: %s", err))
