@@ -3,6 +3,8 @@
 package gui
 
 import (
+	"fmt"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/dialog"
@@ -86,8 +88,19 @@ func showLoginScreen(w fyne.Window, cfg *config.Config) {
 		showMainView(w, cfg, username, password)
 	}, func() {
 		showRegisterScreen(w, cfg)
+	}, func() {
+		showForgotPasswordScreen(w, cfg)
 	})
 	w.SetContent(loginContent)
+}
+
+// showForgotPasswordScreen sets the window content to the password reset screen.
+// The "Back to Login" button returns to the login screen.
+func showForgotPasswordScreen(w fyne.Window, cfg *config.Config) {
+	content := screens.MakeForgotPasswordScreen(w, cfg, func() {
+		showLoginScreen(w, cfg)
+	})
+	w.SetContent(content)
 }
 
 // showRegisterScreen sets the window content to the registration screen. On
@@ -112,8 +125,12 @@ func showMainView(w fyne.Window, cfg *config.Config, username, password string) 
 		},
 		func() {
 			// onLogout: clear credentials and return to login screen.
-			_ = auth.DeleteCredentials()
-			_ = auth.ClearTokenCache()
+			if err := auth.DeleteCredentials(); err != nil {
+				ui.Warn(fmt.Sprintf("could not delete credentials: %s", err))
+			}
+			if err := auth.ClearTokenCache(); err != nil {
+				ui.Warn(fmt.Sprintf("could not clear token cache: %s", err))
+			}
 			showLoginScreen(w, cfg)
 		},
 		func() {

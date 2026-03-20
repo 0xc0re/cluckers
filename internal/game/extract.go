@@ -48,6 +48,7 @@ func ExtractZipWithProgress(zipPath string, destDir string, onProgress ExtractPr
 			Err:        err,
 		}
 	}
+	defer reader.Close()
 
 	// Write extraction marker — removed on successful completion.
 	markerPath := filepath.Join(destDir, extractionMarker)
@@ -99,13 +100,11 @@ func ExtractZipWithProgress(zipPath string, destDir string, onProgress ExtractPr
 		fmt.Println()
 	}
 
-	// Close the zip reader before removing the file. On Windows, os.Remove fails
-	// if the file handle is still open ("The process cannot access the file").
-	if err := reader.Close(); err != nil {
-		ui.Warn(fmt.Sprintf("Could not close archive handle: %s", err))
-	}
-
 	// Remove the zip file to reclaim disk space (~5.3 GB).
+	// The deferred reader.Close() runs after this function returns, but on
+	// Windows os.Remove fails if the file handle is still open. Close
+	// explicitly here so the Remove succeeds on both platforms.
+	reader.Close()
 	if err := os.Remove(zipPath); err != nil {
 		// Non-fatal: warn but don't fail extraction.
 		ui.Warn(fmt.Sprintf("Could not remove archive after extraction: %s", err))

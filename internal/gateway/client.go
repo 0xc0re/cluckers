@@ -14,6 +14,34 @@ import (
 	"github.com/hashicorp/go-retryablehttp"
 )
 
+// sensitiveKeys are JSON field names whose values are redacted in verbose logs.
+var sensitiveKeys = map[string]bool{
+	"password":      true,
+	"access_token":  true,
+	"ACCESS_TOKEN":  true,
+	"PORTAL_INFO_1": true,
+	"STRING_VALUE":  true,
+}
+
+// sanitizeJSON redacts sensitive field values in a JSON payload for safe logging.
+// Returns the original string if the payload is not valid JSON.
+func sanitizeJSON(data []byte) string {
+	var obj map[string]interface{}
+	if err := json.Unmarshal(data, &obj); err != nil {
+		return string(data)
+	}
+	for key := range obj {
+		if sensitiveKeys[key] {
+			obj[key] = "[REDACTED]"
+		}
+	}
+	out, err := json.Marshal(obj)
+	if err != nil {
+		return string(data)
+	}
+	return string(out)
+}
+
 // Client is an HTTP client for the Project Crown gateway API.
 type Client struct {
 	httpClient *retryablehttp.Client
@@ -91,8 +119,8 @@ func (c *Client) Post(ctx context.Context, command string, body interface{}, res
 	}
 
 	if c.verbose {
-		ui.Verbose(fmt.Sprintf("Gateway %s request: %s", command, string(payload)), true)
-		ui.Verbose(fmt.Sprintf("Gateway %s response: %s", command, string(respBody)), true)
+		ui.Verbose(fmt.Sprintf("Gateway %s request: %s", command, sanitizeJSON(payload)), true)
+		ui.Verbose(fmt.Sprintf("Gateway %s response: %s", command, sanitizeJSON(respBody)), true)
 	}
 
 	if err := json.Unmarshal(respBody, result); err != nil {

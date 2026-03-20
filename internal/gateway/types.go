@@ -2,7 +2,10 @@ package gateway
 
 import (
 	"encoding/json"
+	"fmt"
 	"strconv"
+
+	"github.com/0xc0re/cluckers/internal/ui"
 )
 
 // FlexBool handles JSON booleans that may arrive as bool, number, or string.
@@ -20,7 +23,10 @@ func (b *FlexBool) UnmarshalJSON(data []byte) error {
 	case float64:
 		*b = FlexBool(v != 0)
 	case string:
-		parsed, _ := strconv.ParseBool(v)
+		parsed, parseErr := strconv.ParseBool(v)
+		if parseErr != nil {
+			ui.Warn(fmt.Sprintf("FlexBool: unexpected string %q, defaulting to false", v))
+		}
 		*b = FlexBool(parsed)
 	default:
 		*b = false
@@ -121,6 +127,7 @@ type LinkCodeResponse struct {
 	Success     FlexBool `json:"SUCCESS"`
 	LinkedFlag  FlexBool `json:"LINKED_FLAG"`
 	StringValue string   `json:"STRING_VALUE"`
+	TextValue   string   `json:"TEXT_VALUE"`
 	AccessToken string   `json:"ACCESS_TOKEN"`
 }
 
@@ -128,4 +135,17 @@ type LinkCodeResponse struct {
 type DiscordStatusResponse struct {
 	Success    FlexBool `json:"SUCCESS"`
 	LinkedFlag FlexBool `json:"LINKED_FLAG"`
+}
+
+// PasswordResetRequest is the request body for LAUNCHER_REQUEST_PASSWORD_RESET.
+// Only user_name is required — the server looks up the email from registration.
+type PasswordResetRequest struct {
+	UserName string `json:"user_name"`
+}
+
+// PasswordResetResponse is the response from LAUNCHER_REQUEST_PASSWORD_RESET.
+type PasswordResetResponse struct {
+	Success     FlexBool `json:"SUCCESS"`
+	StringValue string   `json:"STRING_VALUE"`
+	TextValue   string   `json:"TEXT_VALUE"`
 }

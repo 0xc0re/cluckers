@@ -4,8 +4,8 @@ package screens
 
 import (
 	"context"
+	"fmt"
 	"image/color"
-	"log"
 	"time"
 
 	"fyne.io/fyne/v2"
@@ -18,13 +18,14 @@ import (
 	"github.com/0xc0re/cluckers/internal/config"
 	"github.com/0xc0re/cluckers/internal/gateway"
 	guiassets "github.com/0xc0re/cluckers/internal/gui/assets"
+	"github.com/0xc0re/cluckers/internal/ui"
 )
 
 // MakeLoginScreen builds the login screen with logo, username/password fields,
 // login button, create account button, and inline error display. On successful
 // login, credentials are saved and onSuccess is called with the username and
 // password. The onRegister callback navigates to the registration screen.
-func MakeLoginScreen(w fyne.Window, cfg *config.Config, onSuccess func(username, password string), onRegister func()) fyne.CanvasObject {
+func MakeLoginScreen(w fyne.Window, cfg *config.Config, onSuccess func(username, password string), onRegister func(), onForgotPassword func()) fyne.CanvasObject {
 	// Logo.
 	logo := canvas.NewImageFromResource(guiassets.LogoResource())
 	logo.FillMode = canvas.ImageFillContain
@@ -79,8 +80,7 @@ func MakeLoginScreen(w fyne.Window, cfg *config.Config, onSuccess func(username,
 			result, err := auth.Login(context.Background(), client, username, password)
 			if err != nil {
 				fyne.Do(func() {
-					// Extract user-friendly message.
-					errorLabel.Text = err.Error()
+					errorLabel.Text = formatGUIError(err)
 					errorLabel.Refresh()
 					loginBtn.Enable()
 				})
@@ -89,7 +89,7 @@ func MakeLoginScreen(w fyne.Window, cfg *config.Config, onSuccess func(username,
 
 			// Save credentials for future launches (non-fatal on failure).
 			if err := auth.SaveCredentials(username, password); err != nil {
-				log.Printf("WARNING: could not save credentials: %s", err)
+				ui.Warn(fmt.Sprintf("could not save credentials: %s", err))
 			}
 
 			// Cache the access token so downstream features (bot names) work without re-auth.
@@ -98,7 +98,7 @@ func MakeLoginScreen(w fyne.Window, cfg *config.Config, onSuccess func(username,
 				AccessToken:    result.AccessToken,
 				AccessCachedAt: time.Now(),
 			}); err != nil {
-				log.Printf("WARNING: could not save token cache: %s", err)
+				ui.Warn(fmt.Sprintf("could not save token cache: %s", err))
 			}
 
 			fyne.Do(func() {
@@ -118,12 +118,17 @@ func MakeLoginScreen(w fyne.Window, cfg *config.Config, onSuccess func(username,
 	formWidth := float32(300)
 	formHeight := float32(40)
 
+	// Forgot Password button (low importance, text link style).
+	forgotBtn := widget.NewButton("Forgot Password?", onForgotPassword)
+	forgotBtn.Importance = widget.LowImportance
+
 	// Create Account button.
 	registerBtn := widget.NewButton("Create Account", onRegister)
 
 	usernameRow := container.NewGridWrap(fyne.NewSize(formWidth, formHeight), usernameEntry)
 	passwordRow := container.NewGridWrap(fyne.NewSize(formWidth, formHeight), passwordEntry)
 	buttonRow := container.NewGridWrap(fyne.NewSize(formWidth, formHeight), loginBtn)
+	forgotRow := container.NewGridWrap(fyne.NewSize(formWidth, formHeight), forgotBtn)
 	registerRow := container.NewGridWrap(fyne.NewSize(formWidth, formHeight), registerBtn)
 
 	// Vertical form stack.
@@ -136,6 +141,7 @@ func MakeLoginScreen(w fyne.Window, cfg *config.Config, onSuccess func(username,
 		container.NewCenter(passwordRow),
 		container.NewCenter(errorLabel),
 		container.NewCenter(buttonRow),
+		container.NewCenter(forgotRow),
 		container.NewCenter(registerRow),
 	)
 

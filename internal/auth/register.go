@@ -68,8 +68,15 @@ func RequestLinkCode(ctx context.Context, client *gateway.Client, username, acce
 	}
 
 	if !bool(resp.Success) {
+		msg := resp.TextValue
+		if msg == "" {
+			msg = resp.StringValue
+		}
+		if msg == "" {
+			msg = "Unknown error"
+		}
 		return "", &ui.UserError{
-			Message:    "Failed to get Discord link code",
+			Message:    "Failed to get Discord link code: " + msg,
 			Suggestion: "Try running 'cluckers login' first, then request a link code.",
 		}
 	}
@@ -77,7 +84,8 @@ func RequestLinkCode(ctx context.Context, client *gateway.Client, username, acce
 	code := resp.StringValue
 	if code == "" {
 		return "", &ui.UserError{
-			Message: "Link code response was empty",
+			Message:    "Link code response was empty",
+			Suggestion: "This may be a temporary server issue. Try again later.",
 		}
 	}
 

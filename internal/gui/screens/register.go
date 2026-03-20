@@ -4,13 +4,14 @@ package screens
 
 import (
 	"context"
+	"fmt"
 	"image/color"
-	"log"
 	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 
@@ -18,6 +19,7 @@ import (
 	"github.com/0xc0re/cluckers/internal/config"
 	"github.com/0xc0re/cluckers/internal/gateway"
 	guiassets "github.com/0xc0re/cluckers/internal/gui/assets"
+	"github.com/0xc0re/cluckers/internal/ui"
 )
 
 // MakeRegisterScreen builds the registration screen with logo, username/password/email
@@ -87,7 +89,7 @@ func MakeRegisterScreen(w fyne.Window, cfg *config.Config, onSuccess func(userna
 			result, err := auth.Register(context.Background(), client, username, password, email)
 			if err != nil {
 				fyne.Do(func() {
-					errorLabel.Text = err.Error()
+					errorLabel.Text = formatGUIError(err)
 					errorLabel.Refresh()
 					registerBtn.Enable()
 				})
@@ -96,7 +98,7 @@ func MakeRegisterScreen(w fyne.Window, cfg *config.Config, onSuccess func(userna
 
 			// Save credentials for future launches (non-fatal on failure).
 			if err := auth.SaveCredentials(username, password); err != nil {
-				log.Printf("WARNING: could not save credentials: %s", err)
+				ui.Warn(fmt.Sprintf("could not save credentials: %s", err))
 			}
 
 			// Cache the access token from registration (acts as auto-login).
@@ -105,15 +107,20 @@ func MakeRegisterScreen(w fyne.Window, cfg *config.Config, onSuccess func(userna
 				AccessToken:    result.AccessToken,
 				AccessCachedAt: time.Now(),
 			}); err != nil {
-				log.Printf("WARNING: could not save token cache: %s", err)
+				ui.Warn(fmt.Sprintf("could not save token cache: %s", err))
 			}
 
 			// Request Discord link code.
 			code, err := auth.RequestLinkCode(context.Background(), client, result.Username, result.AccessToken)
 			if err != nil {
-				// Registration succeeded but link code failed -- continue to main view.
+				// Registration succeeded but link code failed -- warn and continue to main view.
+				ui.Warn(fmt.Sprintf("could not get Discord link code: %s", err))
 				fyne.Do(func() {
-					onSuccess(username, password)
+					d := dialog.NewInformation("Discord Linking",
+						fmt.Sprintf("Could not get Discord link code: %s\nYou can request a link code later by logging in.", err),
+						w)
+					d.SetOnClosed(func() { onSuccess(username, password) })
+					d.Show()
 				})
 				return
 			}
@@ -252,7 +259,7 @@ func showDiscordLinking(w fyne.Window, cfg *config.Config, code, regUsername, ac
 			case <-ticker.C:
 				linked, err := auth.CheckDiscordStatus(ctx, client, regUsername, accessToken)
 				if err != nil {
-					// Ignore poll errors (continue loop, same as CLI behavior).
+					ui.Warn(fmt.Sprintf("Discord status poll error: %s", err))
 					continue
 				}
 				if linked {

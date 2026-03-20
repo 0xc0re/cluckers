@@ -19,26 +19,26 @@ import (
 
 // LaunchState holds accumulated state across pipeline steps.
 type LaunchState struct {
-	Config              *config.Config
-	Client              *gateway.Client
-	Username            string
-	Password            string
-	AccessToken         string
-	OIDCToken           string
-	Bootstrap           []byte
-	ProtonScript        string // Path to the proton Python script (Linux only).
-	ProtonDir           string // Root of the Proton-GE installation (Linux only).
+	Config               *config.Config
+	Client               *gateway.Client
+	Username             string
+	Password             string
+	AccessToken          string
+	OIDCToken            string
+	Bootstrap            []byte
+	ProtonScript         string // Path to the proton Python script (Linux only).
+	ProtonDir            string // Root of the Proton-GE installation (Linux only).
 	ProtonDisplayVersion string // Human-readable version like "GE-Proton10-1" (Linux only).
-	CompatDataPath      string // Path to Proton compatdata directory (Linux only).
-	SteamInstallPath    string // Detected Steam root directory (Linux only). Empty if not found.
-	SteamGameId         string // Non-Steam shortcut app ID for Gamescope tracking (Linux only). "0" if not found.
-	SteamShortcutAppID  uint32 // Non-Steam shortcut appid (parsed from shortcuts.vdf). 0 if not found.
-	GameDir             string
-	VersionInfo         *game.VersionInfo // Used by prep pipeline only.
-	NeedsDownload       bool              // Used by prep pipeline only.
-	TokenCache          *auth.TokenCache
-	Reporter            ProgressReporter
-	OIDCTempFile        string // Path to OIDC JWT temp file for cleanup on interrupt.
+	CompatDataPath       string // Path to Proton compatdata directory (Linux only).
+	SteamInstallPath     string // Detected Steam root directory (Linux only). Empty if not found.
+	SteamGameId          string // Non-Steam shortcut app ID for Gamescope tracking (Linux only). "0" if not found.
+	SteamShortcutAppID   uint32 // Non-Steam shortcut appid (parsed from shortcuts.vdf). 0 if not found.
+	GameDir              string
+	VersionInfo          *game.VersionInfo // Used by prep pipeline only.
+	NeedsDownload        bool              // Used by prep pipeline only.
+	TokenCache           *auth.TokenCache
+	Reporter             ProgressReporter
+	OIDCTempFile         string // Path to OIDC JWT temp file for cleanup on interrupt.
 }
 
 // Step represents a single step in the launch pipeline.
@@ -522,18 +522,18 @@ func stepLaunchGame(ctx context.Context, state *LaunchState) error {
 	state.OIDCTempFile = oidcPath
 
 	return LaunchGame(ctx, &LaunchConfig{
-		ProtonScript:       state.ProtonScript,
-		ProtonDir:          state.ProtonDir,
-		CompatDataPath:     state.CompatDataPath,
-		SteamInstallPath:   state.SteamInstallPath,
-		SteamGameId:        state.SteamGameId,
-		GameDir:            state.GameDir,
-		Username:           state.Username,
-		AccessToken:        state.AccessToken,
-		OIDCTokenPath:      oidcPath,
-		ContentBootstrap:   state.Bootstrap,
-		HostX:              state.Config.HostX,
-		Verbose:            state.Config.Verbose,
+		ProtonScript:     state.ProtonScript,
+		ProtonDir:        state.ProtonDir,
+		CompatDataPath:   state.CompatDataPath,
+		SteamInstallPath: state.SteamInstallPath,
+		SteamGameId:      state.SteamGameId,
+		GameDir:          state.GameDir,
+		Username:         state.Username,
+		AccessToken:      state.AccessToken,
+		OIDCTokenPath:    oidcPath,
+		ContentBootstrap: state.Bootstrap,
+		HostX:            state.Config.HostX,
+		Verbose:          state.Config.Verbose,
 	})
 }
 
@@ -558,6 +558,11 @@ func writeOIDCTokenFile(token string) (path string, cleanup func(), err error) {
 	if err := f.Close(); err != nil {
 		os.Remove(f.Name())
 		return "", nil, fmt.Errorf("close OIDC token temp file: %w", err)
+	}
+
+	if err := os.Chmod(f.Name(), 0600); err != nil {
+		os.Remove(f.Name())
+		return "", nil, fmt.Errorf("chmod OIDC token temp file: %w", err)
 	}
 
 	cleanup = func() {
