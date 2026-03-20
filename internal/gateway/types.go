@@ -117,9 +117,10 @@ type RegisterResponse struct {
 }
 
 // LinkCodeRequest is the request body for LAUNCHER_REQUEST_LINK_CODE.
+// This endpoint requires password auth, not access_token auth.
 type LinkCodeRequest struct {
-	UserName    string `json:"user_name"`
-	AccessToken string `json:"access_token"`
+	UserName string `json:"user_name"`
+	Password string `json:"password"`
 }
 
 // LinkCodeResponse is the response from LAUNCHER_REQUEST_LINK_CODE.
