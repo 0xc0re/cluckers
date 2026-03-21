@@ -188,11 +188,14 @@ func showDiscordLinking(w fyne.Window, cfg *config.Config, code, regUsername, ac
 	instruction.Alignment = fyne.TextAlignCenter
 	instruction.Wrapping = fyne.TextWrapWord
 
-	// Code display — Entry so the user can select and copy.
-	codeEntry := widget.NewEntry()
-	codeEntry.SetText(code)
-	codeEntry.Disable()
-	codeEntry.TextStyle = fyne.TextStyle{Bold: true, Monospace: true}
+	// Code display — bold label, readable against dark theme.
+	codeLabel := widget.NewLabelWithStyle(code, fyne.TextAlignCenter, fyne.TextStyle{Bold: true, Monospace: true})
+
+	// Copy button.
+	copyBtn := widget.NewButton("Copy Code", func() {
+		w.Clipboard().SetContent(code)
+	})
+	copyBtn.Importance = widget.MediumImportance
 
 	// Status label.
 	statusLabel := widget.NewLabel("Waiting for Discord linking...")
@@ -212,7 +215,8 @@ func showDiscordLinking(w fyne.Window, cfg *config.Config, code, regUsername, ac
 	formHeight := float32(40)
 
 	instructionRow := container.NewGridWrap(fyne.NewSize(formWidth, formHeight*2), instruction)
-	codeRow := container.NewGridWrap(fyne.NewSize(formWidth, formHeight), codeEntry)
+	codeRow := container.NewGridWrap(fyne.NewSize(formWidth, formHeight), codeLabel)
+	copyRow := container.NewGridWrap(fyne.NewSize(formWidth, formHeight), copyBtn)
 	statusRow := container.NewGridWrap(fyne.NewSize(formWidth, formHeight), statusLabel)
 	buttonRow := container.NewGridWrap(fyne.NewSize(formWidth, formHeight), continueBtn)
 
@@ -222,6 +226,7 @@ func showDiscordLinking(w fyne.Window, cfg *config.Config, code, regUsername, ac
 		widget.NewSeparator(),
 		container.NewCenter(instructionRow),
 		container.NewCenter(codeRow),
+		container.NewCenter(copyRow),
 		container.NewCenter(statusRow),
 		widget.NewSeparator(),
 		container.NewCenter(buttonRow),
