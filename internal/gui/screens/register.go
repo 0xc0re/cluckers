@@ -188,15 +188,14 @@ func showDiscordLinking(w fyne.Window, cfg *config.Config, code, regUsername, ac
 	instruction.Alignment = fyne.TextAlignCenter
 	instruction.Wrapping = fyne.TextWrapWord
 
-	// Code display.
-	codeText := canvas.NewText(code, color.NRGBA{R: 255, G: 255, B: 255, A: 255})
-	codeText.TextSize = 20
-	codeText.TextStyle = fyne.TextStyle{Bold: true}
-	codeText.Alignment = fyne.TextAlignCenter
+	// Code display — Entry so the user can select and copy.
+	codeEntry := widget.NewEntry()
+	codeEntry.SetText(code)
+	codeEntry.Disable()
+	codeEntry.TextStyle = fyne.TextStyle{Bold: true, Monospace: true}
 
 	// Status label.
-	statusLabel := canvas.NewText("Waiting for Discord linking...", color.NRGBA{R: 180, G: 180, B: 180, A: 255})
-	statusLabel.TextSize = 13
+	statusLabel := widget.NewLabel("Waiting for Discord linking...")
 	statusLabel.Alignment = fyne.TextAlignCenter
 
 	// Cancellable context for the polling goroutine.
@@ -208,20 +207,22 @@ func showDiscordLinking(w fyne.Window, cfg *config.Config, code, regUsername, ac
 		onSuccess(username, password)
 	})
 
-	// Form layout.
+	// Form layout: fixed-width rows so text doesn't collapse.
 	formWidth := float32(300)
 	formHeight := float32(40)
 
-	codeRow := container.NewGridWrap(fyne.NewSize(formWidth, formHeight), codeText)
+	instructionRow := container.NewGridWrap(fyne.NewSize(formWidth, formHeight*2), instruction)
+	codeRow := container.NewGridWrap(fyne.NewSize(formWidth, formHeight), codeEntry)
+	statusRow := container.NewGridWrap(fyne.NewSize(formWidth, formHeight), statusLabel)
 	buttonRow := container.NewGridWrap(fyne.NewSize(formWidth, formHeight), continueBtn)
 
 	form := container.NewVBox(
 		container.NewCenter(logo),
 		container.NewCenter(title),
 		widget.NewSeparator(),
-		container.NewCenter(instruction),
+		container.NewCenter(instructionRow),
 		container.NewCenter(codeRow),
-		container.NewCenter(statusLabel),
+		container.NewCenter(statusRow),
 		widget.NewSeparator(),
 		container.NewCenter(buttonRow),
 	)
@@ -247,9 +248,8 @@ func showDiscordLinking(w fyne.Window, cfg *config.Config, code, regUsername, ac
 				return
 			case <-timeout:
 				fyne.Do(func() {
-					statusLabel.Text = "Linking timed out - you can link later"
-					statusLabel.Color = color.NRGBA{R: 255, G: 200, B: 80, A: 255}
-					statusLabel.Refresh()
+					statusLabel.Importance = widget.WarningImportance
+					statusLabel.SetText("Linking timed out - you can link later")
 				})
 				time.Sleep(2 * time.Second)
 				fyne.Do(func() {
@@ -264,9 +264,8 @@ func showDiscordLinking(w fyne.Window, cfg *config.Config, code, regUsername, ac
 				}
 				if linked {
 					fyne.Do(func() {
-						statusLabel.Text = "Discord linked!"
-						statusLabel.Color = color.NRGBA{R: 80, G: 255, B: 80, A: 255}
-						statusLabel.Refresh()
+						statusLabel.Importance = widget.SuccessImportance
+						statusLabel.SetText("Discord linked!")
 					})
 					time.Sleep(1500 * time.Millisecond)
 					fyne.Do(func() {
