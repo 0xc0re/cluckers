@@ -231,6 +231,19 @@ func TestProtonInstallInstructionsBazzite(t *testing.T) {
 	}
 }
 
+func TestProtonInstallInstructionsNixOS(t *testing.T) {
+	instructions := ProtonInstallInstructions("nixos")
+	if !strings.Contains(instructions, "proton-ge-bin") {
+		t.Errorf("nixos instructions should mention proton-ge-bin, got: %s", instructions)
+	}
+	if !strings.Contains(instructions, "programs.steam") {
+		t.Errorf("nixos instructions should mention programs.steam, got: %s", instructions)
+	}
+	if !strings.Contains(instructions, "steam-run") {
+		t.Errorf("nixos instructions should mention steam-run, got: %s", instructions)
+	}
+}
+
 func TestProtonInstallInstructionsDefault(t *testing.T) {
 	instructions := ProtonInstallInstructions("unknown")
 	if !strings.Contains(instructions, "github") || !strings.Contains(instructions, "GloriousEggroll") {

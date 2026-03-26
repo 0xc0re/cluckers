@@ -105,6 +105,7 @@ var knownDistros = map[string]bool{
 	"arch": true, "steamos": true,
 	"ubuntu": true, "debian": true, "linuxmint": true, "pop": true,
 	"fedora": true, "bazzite": true,
+	"nixos": true,
 }
 
 // effectiveDistro returns the best distro ID for install instructions.
@@ -139,6 +140,12 @@ func ProtonInstallInstructions(distro string) string {
 		return "Install Proton-GE via ProtonUp-Qt:\n" +
 			"  sudo dnf install protonup-qt\n" +
 			"  Or: flatpak install flathub net.davidotek.pupgui2"
+	case "nixos":
+		return "Install Proton-GE declaratively in your NixOS configuration:\n" +
+			"  programs.steam.extraCompatPackages = with pkgs; [ proton-ge-bin ];\n" +
+			"  Or install via ProtonUp-Qt into ~/.steam/root/compatibilitytools.d/\n\n" +
+			"Note: Cluckers requires steam-run to launch Proton on NixOS.\n" +
+			"  Ensure programs.steam.enable = true; is set (provides steam-run)."
 	default:
 		return "Install Proton-GE from https://github.com/GloriousEggroll/proton-ge-custom\n" +
 			"  Or use ProtonUp-Qt: https://davidotek.github.io/protonup-qt/"

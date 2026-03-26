@@ -140,6 +140,11 @@ func TestBuildProtonEnv_SetsSTEAM_COMPAT_CLIENT_INSTALL_PATH_FromParam(t *testin
 // --- buildProtonCommand tests ---
 
 func TestBuildProtonCommand_WithSHM(t *testing.T) {
+	// Ensure no steam-run wrapping for this test.
+	orig := needsSteamRun
+	defer func() { needsSteamRun = orig }()
+	needsSteamRun = func() string { return "" }
+
 	program, args := buildProtonCommand(
 		"/opt/GE-Proton10-1/proton",
 		"/tmp/shm_launcher.exe",
@@ -176,6 +181,11 @@ func TestBuildProtonCommand_WithSHM(t *testing.T) {
 }
 
 func TestBuildProtonCommand_WithoutSHM(t *testing.T) {
+	// Ensure no steam-run wrapping for this test.
+	orig := needsSteamRun
+	defer func() { needsSteamRun = orig }()
+	needsSteamRun = func() string { return "" }
+
 	program, args := buildProtonCommand(
 		"/opt/GE-Proton10-1/proton",
 		"", "", "",
@@ -202,6 +212,87 @@ func TestBuildProtonCommand_WithoutSHM(t *testing.T) {
 		if got != wantArgs[i] {
 			t.Errorf("args[%d] = %q, want %q", i, got, wantArgs[i])
 		}
+	}
+}
+
+// --- buildProtonCommand NixOS steam-run wrapping tests ---
+
+func TestBuildProtonCommand_NixOSSteamRunWrapping(t *testing.T) {
+	// Save and restore the original needsSteamRun function.
+	orig := needsSteamRun
+	defer func() { needsSteamRun = orig }()
+
+	// Simulate NixOS with steam-run available.
+	needsSteamRun = func() string { return "/nix/store/abc-steam-run/bin/steam-run" }
+
+	program, args := buildProtonCommand(
+		"/nix/store/xyz-proton-ge/proton",
+		"", "", "",
+		"/home/user/game/game.exe",
+		[]string{"-user=foo"},
+	)
+
+	if program != "/nix/store/abc-steam-run/bin/steam-run" {
+		t.Errorf("program = %q, want steam-run path", program)
+	}
+	// First arg should be the proton script.
+	if len(args) < 1 || args[0] != "/nix/store/xyz-proton-ge/proton" {
+		t.Errorf("args[0] = %q, want proton script path", args[0])
+	}
+	// Second arg should be "run".
+	if len(args) < 2 || args[1] != "run" {
+		t.Errorf("args[1] = %q, want 'run'", args[1])
+	}
+}
+
+func TestBuildProtonCommand_NixOSSteamRunWithSHM(t *testing.T) {
+	orig := needsSteamRun
+	defer func() { needsSteamRun = orig }()
+
+	needsSteamRun = func() string { return "/usr/bin/steam-run" }
+
+	program, args := buildProtonCommand(
+		"/opt/GE-Proton10-1/proton",
+		"/tmp/shm_launcher.exe",
+		"/tmp/bootstrap.bin",
+		`Local\realm_content_bootstrap_1234`,
+		"/home/user/game/game.exe",
+		[]string{"-user=foo"},
+	)
+
+	if program != "/usr/bin/steam-run" {
+		t.Errorf("program = %q, want /usr/bin/steam-run", program)
+	}
+	// First arg: proton script
+	if args[0] != "/opt/GE-Proton10-1/proton" {
+		t.Errorf("args[0] = %q, want proton script", args[0])
+	}
+	// Second arg: "run"
+	if args[1] != "run" {
+		t.Errorf("args[1] = %q, want 'run'", args[1])
+	}
+	// Third arg: shm_launcher path
+	if args[2] != "/tmp/shm_launcher.exe" {
+		t.Errorf("args[2] = %q, want shm_launcher path", args[2])
+	}
+}
+
+func TestBuildProtonCommand_NoSteamRunOnNonNixOS(t *testing.T) {
+	orig := needsSteamRun
+	defer func() { needsSteamRun = orig }()
+
+	// Simulate non-NixOS (steam-run not needed).
+	needsSteamRun = func() string { return "" }
+
+	program, _ := buildProtonCommand(
+		"/opt/GE-Proton10-1/proton",
+		"", "", "",
+		"/home/user/game/game.exe",
+		[]string{"-user=foo"},
+	)
+
+	if program != "/opt/GE-Proton10-1/proton" {
+		t.Errorf("program = %q, want proton script (no wrapping)", program)
 	}
 }
 

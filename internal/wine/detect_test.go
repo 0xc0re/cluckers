@@ -3,6 +3,8 @@
 package wine
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -111,6 +113,12 @@ func TestParseOSRelease(t *testing.T) {
 			wantID:   "arch",
 			wantLike: "",
 		},
+		{
+			name:     "NixOS",
+			input:    "NAME=NixOS\nID=nixos\nVERSION_ID=\"24.11pre\"\n",
+			wantID:   "nixos",
+			wantLike: "",
+		},
 	}
 
 	for _, tt := range tests {
@@ -123,5 +131,62 @@ func TestParseOSRelease(t *testing.T) {
 				t.Errorf("parseOSRelease IDLike = %q, want %q", info.IDLike, tt.wantLike)
 			}
 		})
+	}
+}
+
+func TestExtraCompatToolsDirsEmpty(t *testing.T) {
+	t.Setenv("STEAM_EXTRA_COMPAT_TOOLS_PATHS", "")
+	dirs := extraCompatToolsDirs()
+	if len(dirs) != 0 {
+		t.Errorf("extraCompatToolsDirs() returned %d dirs, want 0", len(dirs))
+	}
+}
+
+func TestExtraCompatToolsDirsSingle(t *testing.T) {
+	t.Setenv("STEAM_EXTRA_COMPAT_TOOLS_PATHS", "/nix/store/abc-proton-ge-bin")
+	dirs := extraCompatToolsDirs()
+	if len(dirs) != 1 || dirs[0] != "/nix/store/abc-proton-ge-bin" {
+		t.Errorf("extraCompatToolsDirs() = %v, want [/nix/store/abc-proton-ge-bin]", dirs)
+	}
+}
+
+func TestExtraCompatToolsDirsMultiple(t *testing.T) {
+	t.Setenv("STEAM_EXTRA_COMPAT_TOOLS_PATHS", "/nix/store/abc-proton-ge-bin:/nix/store/def-proton-ge-bin")
+	dirs := extraCompatToolsDirs()
+	if len(dirs) != 2 {
+		t.Errorf("extraCompatToolsDirs() returned %d dirs, want 2", len(dirs))
+	}
+}
+
+func TestExtraCompatToolsDirsTrailingColon(t *testing.T) {
+	t.Setenv("STEAM_EXTRA_COMPAT_TOOLS_PATHS", "/nix/store/abc-proton-ge-bin:")
+	dirs := extraCompatToolsDirs()
+	if len(dirs) != 1 {
+		t.Errorf("extraCompatToolsDirs() returned %d dirs, want 1 (trailing colon ignored)", len(dirs))
+	}
+}
+
+// TestFindProtonGEExtraCompatPaths verifies that STEAM_EXTRA_COMPAT_TOOLS_PATHS
+// is scanned for Proton-GE installations (NixOS declarative installs).
+func TestFindProtonGEExtraCompatPaths(t *testing.T) {
+	tmp := t.TempDir()
+	emptyHome := filepath.Join(tmp, "empty")
+	os.MkdirAll(emptyHome, 0755)
+
+	// Create a Proton-GE install at a Nix-store-like path.
+	nixStoreDir := filepath.Join(tmp, "nix", "store", "abc-proton-ge-bin")
+	protonDir := filepath.Join(nixStoreDir, "GE-Proton10-33")
+	os.MkdirAll(filepath.Join(protonDir, "files", "bin"), 0755)
+	os.WriteFile(filepath.Join(protonDir, "proton"), []byte("#!/usr/bin/env python3\n"), 0755)
+	os.WriteFile(filepath.Join(protonDir, "files", "bin", "wine64"), []byte("fake"), 0755)
+
+	t.Setenv("STEAM_EXTRA_COMPAT_TOOLS_PATHS", nixStoreDir)
+
+	installs := FindProtonGE(emptyHome)
+	if len(installs) == 0 {
+		t.Fatal("FindProtonGE should find Proton-GE via STEAM_EXTRA_COMPAT_TOOLS_PATHS")
+	}
+	if installs[0].ProtonDir != protonDir {
+		t.Errorf("ProtonDir = %q, want %q", installs[0].ProtonDir, protonDir)
 	}
 }

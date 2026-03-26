@@ -56,6 +56,21 @@ func stepDetectProton(_ context.Context, state *LaunchState) error {
 		}
 	}
 
+	// On NixOS, check that steam-run is available (required for FHS sandbox).
+	if wine.IsNixOS() {
+		if steamRunPath := needsSteamRun(); steamRunPath != "" {
+			ui.Verbose(fmt.Sprintf("NixOS detected, using steam-run: %s", steamRunPath), state.Config.Verbose)
+		} else {
+			return &ui.UserError{
+				Message: "NixOS detected but steam-run is not available.",
+				Detail:  "NixOS does not provide /lib64/ld-linux-x86-64.so.2, so Proton binaries cannot run without an FHS sandbox.",
+				Suggestion: "Enable Steam in your NixOS configuration:\n" +
+					"  programs.steam.enable = true;\n" +
+					"This provides the steam-run command needed to launch Proton.",
+			}
+		}
+	}
+
 	return nil
 }
 

@@ -104,15 +104,47 @@ func symlinkResolvedDirs(home string) []string {
 	return dirs
 }
 
+// extraCompatToolsDirs returns additional search directories from the
+// STEAM_EXTRA_COMPAT_TOOLS_PATHS environment variable. This env var is set by
+// NixOS's programs.steam.extraCompatPackages to point to /nix/store/... paths,
+// and can also be set manually by users on any distro.
+// Each entry is a colon-separated path that itself contains Proton directories
+// (e.g., GE-Proton10-33/files/bin/wine64).
+func extraCompatToolsDirs() []string {
+	val := os.Getenv("STEAM_EXTRA_COMPAT_TOOLS_PATHS")
+	if val == "" {
+		return nil
+	}
+	var dirs []string
+	for _, p := range strings.Split(val, ":") {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			dirs = append(dirs, p)
+		}
+	}
+	return dirs
+}
+
+// IsNixOS returns true if the current system is NixOS.
+// Detection: checks for /etc/NIXOS marker file (present on all NixOS systems)
+// and confirms via os-release ID.
+func IsNixOS() bool {
+	if _, err := os.Stat("/etc/NIXOS"); err != nil {
+		return false
+	}
+	return DetectDistro() == "nixos"
+}
+
 // FindProtonGE scans standard directories for Proton-GE installations and returns
 // them sorted by version descending (newest first).
 func FindProtonGE(home string) []ProtonGEInstall {
 	var installs []ProtonGEInstall
 	seen := make(map[string]bool) // Deduplicate by WinePath (symlinked dirs may overlap).
 
-	// Combine static search dirs with symlink-resolved dirs.
+	// Combine static search dirs with symlink-resolved dirs and extra compat tool paths.
 	searchDirs := protonSearchDirs(home)
 	searchDirs = append(searchDirs, symlinkResolvedDirs(home)...)
+	searchDirs = append(searchDirs, extraCompatToolsDirs()...)
 
 	for _, dir := range searchDirs {
 		// Check system package: proton-ge-custom/files/bin/wine64

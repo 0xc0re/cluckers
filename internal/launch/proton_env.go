@@ -5,6 +5,7 @@ package launch
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"strings"
 
 	"github.com/0xc0re/cluckers/internal/ui"
@@ -88,6 +89,10 @@ func buildProtonEnvFrom(baseEnv []string, compatDataPath, steamInstallPath, stea
 // The proton script is executed directly (it has a #!/usr/bin/env python3 shebang)
 // rather than via "python3" to avoid PATH issues on immutable distros like Bazzite.
 //
+// On NixOS, the command is wrapped with steam-run to provide an FHS-compatible
+// environment (NixOS lacks /lib64/ld-linux-x86-64.so.2, so Proton's ELF binaries
+// fail without the FHS sandbox that Steam normally provides).
+//
 // shmPath is a Linux path (proton converts it internally). bootstrapPath and
 // gameExe (in SHM mode) are Wine Z: drive paths because they are consumed by
 // Windows processes running under Wine.
@@ -110,7 +115,31 @@ func buildProtonCommand(protonScript, shmPath, bootstrapPath, shmName, gameExe s
 	}
 
 	args = append(args, gameArgs...)
+
+	// On NixOS, wrap with steam-run to provide FHS environment.
+	if steamRunPath := needsSteamRun(); steamRunPath != "" {
+		// Prepend: steam-run <protonScript> <args...>
+		wrappedArgs := append([]string{protonScript}, args...)
+		return steamRunPath, wrappedArgs
+	}
+
 	return protonScript, args
+}
+
+// needsSteamRun checks if the current system is NixOS and steam-run is available.
+// Returns the full path to steam-run if wrapping is needed, or "" otherwise.
+// This is a variable so tests can override it.
+var needsSteamRun = defaultNeedsSteamRun
+
+func defaultNeedsSteamRun() string {
+	if !wine.IsNixOS() {
+		return ""
+	}
+	path, err := exec.LookPath("steam-run")
+	if err != nil {
+		return ""
+	}
+	return path
 }
 
 // protonErrorSuggestion returns actionable error suggestion text for Proton
