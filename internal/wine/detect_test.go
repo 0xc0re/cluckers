@@ -119,6 +119,30 @@ func TestParseOSRelease(t *testing.T) {
 			wantID:   "nixos",
 			wantLike: "",
 		},
+		{
+			name:     "openSUSE Tumbleweed",
+			input:    "NAME=\"openSUSE Tumbleweed\"\nID=opensuse-tumbleweed\nID_LIKE=\"opensuse suse\"\n",
+			wantID:   "opensuse-tumbleweed",
+			wantLike: "opensuse suse",
+		},
+		{
+			name:     "openSUSE Leap",
+			input:    "NAME=\"openSUSE Leap\"\nID=opensuse-leap\nID_LIKE=\"suse opensuse\"\n",
+			wantID:   "opensuse-leap",
+			wantLike: "suse opensuse",
+		},
+		{
+			name:     "Gentoo",
+			input:    "NAME=Gentoo\nID=gentoo\n",
+			wantID:   "gentoo",
+			wantLike: "",
+		},
+		{
+			name:     "Void Linux",
+			input:    "NAME=\"Void Linux\"\nID=void\n",
+			wantID:   "void",
+			wantLike: "",
+		},
 	}
 
 	for _, tt := range tests {

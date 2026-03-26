@@ -27,7 +27,7 @@ func DeriveKey() ([32]byte, error) {
 
 	machineID, err := machineid.ID()
 	if err != nil {
-		return key, fmt.Errorf("read machine ID: %w", err)
+		return key, fmt.Errorf("read machine ID (checked /var/lib/dbus/machine-id and /etc/machine-id): %w", err)
 	}
 
 	derived, err := scrypt.Key([]byte(machineID), []byte(appSalt), 32768, 8, 1, 32)

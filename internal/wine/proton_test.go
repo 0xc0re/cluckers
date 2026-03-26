@@ -244,6 +244,43 @@ func TestProtonInstallInstructionsNixOS(t *testing.T) {
 	}
 }
 
+func TestProtonInstallInstructionsOpenSUSE(t *testing.T) {
+	instructions := ProtonInstallInstructions("opensuse")
+	if !strings.Contains(instructions, "zypper") {
+		t.Errorf("opensuse instructions should mention zypper, got: %s", instructions)
+	}
+	if !strings.Contains(instructions, "ProtonUp-Qt") {
+		t.Errorf("opensuse instructions should mention ProtonUp-Qt, got: %s", instructions)
+	}
+}
+
+func TestProtonInstallInstructionsSUSE(t *testing.T) {
+	instructions := ProtonInstallInstructions("suse")
+	if !strings.Contains(instructions, "zypper") {
+		t.Errorf("suse instructions should mention zypper, got: %s", instructions)
+	}
+}
+
+func TestProtonInstallInstructionsGentoo(t *testing.T) {
+	instructions := ProtonInstallInstructions("gentoo")
+	if !strings.Contains(instructions, "emerge") {
+		t.Errorf("gentoo instructions should mention emerge, got: %s", instructions)
+	}
+	if !strings.Contains(instructions, "proton-ge-custom-bin") {
+		t.Errorf("gentoo instructions should mention proton-ge-custom-bin, got: %s", instructions)
+	}
+}
+
+func TestProtonInstallInstructionsVoid(t *testing.T) {
+	instructions := ProtonInstallInstructions("void")
+	if !strings.Contains(instructions, "xbps-install") {
+		t.Errorf("void instructions should mention xbps-install, got: %s", instructions)
+	}
+	if !strings.Contains(instructions, "ProtonUp-Qt") {
+		t.Errorf("void instructions should mention ProtonUp-Qt, got: %s", instructions)
+	}
+}
+
 func TestProtonInstallInstructionsDefault(t *testing.T) {
 	instructions := ProtonInstallInstructions("unknown")
 	if !strings.Contains(instructions, "github") || !strings.Contains(instructions, "GloriousEggroll") {
