@@ -139,6 +139,16 @@ them for future use.
 Authenticate with the Project Crown gateway and save credentials without
 launching the game.
 
+### `cluckers register`
+
+Create a new Project Crown account, save credentials, and get a Discord
+verification code to complete account linking.
+
+### `cluckers reset-password`
+
+Request a password reset for your account. Reset instructions are sent to your
+registered email or Discord.
+
 ### `cluckers update`
 
 Check for game updates and download if available.
@@ -176,6 +186,15 @@ executable, then right-click the entry in your library, open Properties, and set
 **Launch Options** to: `launch`. Without this launch option, opening the entry
 in Steam will show the GUI instead of launching the game directly. Optionally
 rename the entry to "Realm Royale" in Properties.
+
+### `cluckers prep` (Linux only)
+
+Run the full pipeline (auth, tokens, bootstrap, update check) and write
+persistent launch files for a Steam-managed Proton launch.
+
+### `cluckers logs`
+
+Print the log file path. Add `--tail` to show the last 50 lines.
 
 ### `cluckers --version`
 

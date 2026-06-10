@@ -25,6 +25,7 @@
 
 - `cluckers login` -- Authenticate with gateway, save credentials and cache tokens
 - `cluckers register` -- Create a new account, save credentials, request Discord link code with optional poll for linking
+- `cluckers reset-password` -- Request a password reset; instructions sent to registered email or Discord
 - `cluckers launch` -- Full pipeline: auth, tokens, bootstrap, platform setup, game launch
 - `cluckers update` -- Check for game updates and download if needed, verify BLAKE3, extract
 - `cluckers status` -- Show game, server, gateway status (+ Proton/compatdata on Linux). Compact + verbose modes.
@@ -54,6 +55,7 @@ Cobra command definitions. Platform-specific behavior uses `_linux.go` / `_windo
 - `steam_linux.go`: Linux `runSteamAdd()` -- creates `.desktop` file, detects Steam Deck.
 - `steam_windows.go`: Windows `runSteamAdd()` -- creates `.bat` launcher, prints Steam add instructions.
 - `register.go`: `register` subcommand, creates account via `auth.Register()`, saves credentials, requests Discord link code, polls for Discord linking status.
+- `resetpassword.go`: `reset-password` subcommand, sends a password reset request to the gateway.
 - `selfupdate.go`: `self-update` subcommand, checks GitHub releases via `selfupdate` package, downloads and replaces binary.
 - `logs.go`: `logs` subcommand, prints log file path or tails last 50 lines.
 - `prep_linux.go`: Linux-only `prep` subcommand, runs full pipeline then writes persistent config for Steam-managed launch.
