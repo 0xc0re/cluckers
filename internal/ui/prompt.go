@@ -75,5 +75,8 @@ func PromptEmail() (string, error) {
 	if email == "" {
 		return "", fmt.Errorf("email cannot be empty")
 	}
+	if !strings.Contains(email, "@") {
+		return "", fmt.Errorf("email must contain '@'")
+	}
 	return email, nil
 }
