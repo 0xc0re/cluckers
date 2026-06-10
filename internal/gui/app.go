@@ -3,6 +3,8 @@
 package gui
 
 import (
+	"context"
+	"errors"
 	"fmt"
 
 	"fyne.io/fyne/v2"
@@ -169,7 +171,12 @@ func showLaunchProgress(w fyne.Window, cfg *config.Config, username, password st
 			}
 		},
 		func(err error) {
-			// onError: show error dialog, then return to main view.
+			// onError: a canceled launch is deliberate — return to main view silently.
+			if errors.Is(err, context.Canceled) {
+				showMainView(w, cfg, username, password)
+				return
+			}
+			// Show error dialog, then return to main view.
 			dialog.ShowError(err, w)
 			showMainView(w, cfg, username, password)
 		},

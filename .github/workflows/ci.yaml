@@ -50,6 +50,11 @@ jobs:
           CGO_ENABLED: '0'
         run: go test ./...
 
+      - name: Test (race)
+        env:
+          CGO_ENABLED: '1'
+        run: go test -race ./...
+
       - name: Vet (Linux)
         env:
           CGO_ENABLED: '1'

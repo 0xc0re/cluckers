@@ -53,6 +53,7 @@ func MakeLaunchProgressView(w fyne.Window, cfg *config.Config, username, passwor
 	// Cancel button.
 	cancelBtn := widget.NewButton("Cancel", nil)
 	cancelBtn.OnTapped = func() {
+		cancelBtn.Disable()
 		cancel()
 	}
 

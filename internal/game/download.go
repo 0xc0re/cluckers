@@ -176,8 +176,11 @@ func DownloadGameZipWithProgress(ctx context.Context, info *VersionInfo, destDir
 		fmt.Println()
 	}
 
-	// Close file before rename so the handle is released.
-	file.Close()
+	// Close file before rename so the handle is released. A failed flush here
+	// means the file may be short — surface it instead of renaming into place.
+	if err := file.Close(); err != nil {
+		return fmt.Errorf("finalizing download file: %w", err)
+	}
 
 	// Move partial to final path.
 	if err := os.Rename(partialPath, finalPath); err != nil {

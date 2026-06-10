@@ -483,7 +483,10 @@ func MakeMainView(w fyne.Window, cfg *config.Config, username, password string, 
 			Success     gateway.FlexBool `json:"SUCCESS"`
 			PortalInfo1 string           `json:"PORTAL_INFO_1"`
 		}
-		if err := client.Post(context.Background(), "LAUNCHER_SUPPORTER_BOT_NAMES_LIST", req, &listResp); err != nil {
+		// Bound the request so a flaky network can't hold this goroutine through retries.
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
+		if err := client.Post(ctx, "LAUNCHER_SUPPORTER_BOT_NAMES_LIST", req, &listResp); err != nil {
 			return
 		}
 		if !bool(listResp.Success) {

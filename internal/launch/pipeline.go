@@ -72,9 +72,13 @@ func RunWithReporter(ctx context.Context, cfg *config.Config, reporter ProgressR
 	}
 
 	// Force exit on Ctrl+C — stdin reads block and don't check context.
-	// Clean up sensitive OIDC temp files before exiting.
+	// Clean up sensitive OIDC temp files before exiting. Listens on a dedicated
+	// signal channel (not ctx.Done()) so it never fires on normal return, where
+	// defer cancel() closes the context.
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
 	go func() {
-		<-ctx.Done()
+		<-sigCh
 		if state.OIDCTempFile != "" {
 			os.Remove(state.OIDCTempFile)
 		}

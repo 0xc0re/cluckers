@@ -110,8 +110,11 @@ func ExtractZipWithProgress(zipPath string, destDir string, onProgress ExtractPr
 		ui.Warn(fmt.Sprintf("Could not remove archive after extraction: %s", err))
 	}
 
-	// Remove extraction marker — extraction completed successfully.
-	os.Remove(markerPath)
+	// Remove extraction marker — extraction completed successfully. A stale
+	// marker forces a re-update on next check, so a failed removal is worth a warning.
+	if err := os.Remove(markerPath); err != nil {
+		ui.Warn(fmt.Sprintf("Could not remove extraction marker: %s", err))
+	}
 
 	return nil
 }
