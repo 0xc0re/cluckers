@@ -14,11 +14,12 @@
 
 ## 2. Architecture
 
-- **Gateway API**: `https://gateway-dev.project-crown.com` (behind Cloudflare). All API calls are `POST /json/<COMMAND>` with JSON body/response. Commands: `LAUNCHER_HEALTH`, `LAUNCHER_LOGIN_OR_LINK`, `LAUNCHER_REGISTER`, `LAUNCHER_REQUEST_LINK_CODE`, `LAUNCHER_DISCORD_STATUS`, `LAUNCHER_EAC_OIDC_TOKEN`, `LAUNCHER_CONTENT_BOOTSTRAP`, `LAUNCHER_SUPPORTER_BOT_NAME_UPSERT`, `LAUNCHER_SUPPORTER_BOT_NAMES_LIST`, `LAUNCHER_SUPPORTER_BOT_NAME_DELETE`.
-- **Game Server (MCTS)**: `157.90.131.105` (direct TCP, separate from gateway)
+- **Gateway API** (v1.2+): `https://api.project-crown.com` (behind Cloudflare). RESTful JSON API under `/launcher/v1/*`. Success is signalled by HTTP 2xx (there is no `SUCCESS` field); errors are RFC 7807 problem+json (`detail`, `title`, `status`). Authenticated calls send the access token as `Authorization: Bearer <token>`. Endpoints: `GET /healthz` (health, returns `{status:"ok",...}`), `POST /launcher/v1/session-or-link` (login + Discord link, body `{user_name,password}`), `POST /launcher/v1/session` (login by password, same shape), `GET /launcher/v1/content-bootstrap` (bearer), `POST /launcher/v1/account` (register), `POST /launcher/v1/discord/link/code`, `GET /launcher/v1/discord/link` (bearer), `POST /launcher/v1/password-reset`, `GET|PUT|DELETE /launcher/v1/supporter/bot-names[/{slot}]` (bearer). The old `POST /json/<COMMAND>` scheme and the separate `LAUNCHER_EAC_OIDC_TOKEN` call are gone. User-Agent: `CluckersCentral/1.2.54` (see `gateway.UserAgent`). Session response fields: `account_id`, `user_name`, `session_id`, `access_token` (`lpt_v1_...`), `expiration_datetime`, `linked_flag`, `custom_message`, `custom_value_1..4`, `text_value`, `portal_info_1`.
+- **Game Server (MCTS)**: `157.90.131.105` (the game now resolves the server itself; `-hostx` is no longer passed)
 - **Updater API**: `https://updater.realmhub.io/builds/version.json` (GET, no auth, returns version info with zip URL and BLAKE3 hash)
 - **Game**: UE3-based Win64 binary (`ShippingPC-RealmGameNoEditor.exe`), runs under Wine/Proton-GE on Linux, directly on Windows
-- **Launch pipeline**: Sequential steps with spinner UI. Shared steps: health check -> auth -> OIDC token -> content bootstrap -> verify game installed -> launch game. Linux adds: detect Proton -> ensure compatdata -> resolve Steam integration (before verify) and deck config (after verify). Windows skips Proton/compatdata/deck steps entirely. The launch pipeline does NOT download or update game files -- users must run `cluckers update` separately.
+- **Launch pipeline**: Sequential steps with spinner UI. Shared steps: health check -> auth -> content bootstrap (bearer GET) -> verify game installed -> launch game. Linux adds: detect Proton -> ensure compatdata -> resolve Steam integration (before verify) and deck config (after verify). Windows skips Proton/compatdata/deck steps entirely. The launch pipeline does NOT download or update game files -- users must run `cluckers update` separately.
+- **Game launch args** (v1.2): `-user=<name> -token_file=<path> -content_bootstrap_shm=<name> -content_bootstrap_size=136 -Language=INT -dx11 -seekfreeloading -pcconsole -nohomedir`. The access token is written to a temp file passed via `-token_file`. There is no `-eac_oidc_token` or `-hostx` anymore.
 - **Shared memory**: Game reads content bootstrap via Win32 named shared memory (`OpenFileMapping`). `shm_launcher.exe` (embedded, compiled from C) creates the mapping and launches game as child process. On Linux it runs under Wine; on Windows it runs natively.
 
 ## 3. CLI Commands
@@ -74,14 +75,16 @@ Configuration and paths. Platform-specific `DataDir()` uses `_linux.go` / `_wind
 ### `internal/gateway/`
 HTTP client for Project Crown gateway.
 - `client.go`: `Client` struct with retryablehttp (3 retries, 500ms-5s backoff, 15s timeout). `Post()` method for JSON POST to `/json/<command>`. `HealthCheck()`. User-Agent: `CluckersCentral/1.1.68`. Returns `*ui.UserError` on failures.
-- `types.go`: Request/response types (`LoginRequest`, `LoginResponse`, `OIDCTokenResponse`, `BootstrapResponse`, `GenericRequest`, `RegisterRequest`, `RegisterResponse`, `LinkCodeRequest`, `LinkCodeResponse`, `DiscordStatusResponse`, `BotNameUpsertRequest`, `BotNameDeleteRequest`, `BotNameResponse`). `FlexBool` custom type handles bool/number/string JSON variants.
+- `client.go`: REST client. `Do(ctx, method, path, bearer, body, result)` is the core request method (success=2xx, RFC 7807 errors -> `*ui.UserError`, optional `Authorization: Bearer`). `HealthCheck()` hits `GET /healthz`. `UserAgent` constant.
+- `types.go`: Request/response types (`LoginRequest`, `SessionResponse`, `BootstrapResponse`, `RegisterRequest`, `LinkCodeRequest`, `LinkCodeResponse`, `DiscordStatusResponse`, `PasswordResetRequest`, `PasswordResetResponse`, `BotNameUpsertRequest`, `HealthResponse`). `FlexBool` custom type handles bool/number/string JSON variants (e.g. `linked_flag`).
 
 ### `internal/auth/`
 Authentication and credential management.
-- `login.go`: `Login()` (LAUNCHER_LOGIN_OR_LINK), `GetOIDCToken()` (LAUNCHER_EAC_OIDC_TOKEN, tries PORTAL_INFO_1 -> STRING_VALUE -> TEXT_VALUE), `GetContentBootstrap()` (LAUNCHER_CONTENT_BOOTSTRAP, base64-decodes PORTAL_INFO_1, fixes padding, returns raw bytes with BPS1 magic header).
+- `login.go`: REST path constants, `Login()` (`POST /launcher/v1/session-or-link`), `GetContentBootstrap()` (`GET /launcher/v1/content-bootstrap` with bearer; base64-decodes `portal_info_1`, fixes padding, returns raw BPS1 bytes). `classifyTokenError()` maps HTTP 401/403 to `ErrTokenRejected`. No EAC/OIDC call exists in v1.2.
 - `credentials.go`: `SaveCredentials()` / `LoadCredentials()` / `DeleteCredentials()`. JSON marshal -> NaCl secretbox encrypt -> write to `credentials.enc` (0600 perms). Machine-bound (key from machine ID).
 - `register.go`: `Register()` (LAUNCHER_REGISTER), `RequestLinkCode()` (LAUNCHER_REQUEST_LINK_CODE), `CheckDiscordStatus()` (LAUNCHER_DISCORD_STATUS).
-- `cache.go`: `TokenCache` struct with `AccessToken`, `OIDCToken`, `Username`, `CachedAt`. TTLs: access=24h, OIDC=55min. Stored as JSON in cache dir `tokens.json` (0600 perms).
+- `cache.go`: `TokenCache` struct with `AccessToken`, `Username`, `AccessCachedAt`. Access TTL=45min (the v1 `lpt_v1_` token is short-lived). Stored as JSON in cache dir `tokens.json` (0600 perms). No OIDC token is cached in v1.2.
+- `supporter.go`: `ListBotNames()`/`UpsertBotName()`/`DeleteBotName()` for the `/launcher/v1/supporter/bot-names[/{slot}]` endpoints (bearer auth).
 
 ### `internal/crypto/`
 NaCl secretbox encryption.
@@ -89,10 +92,10 @@ NaCl secretbox encryption.
 
 ### `internal/launch/`
 Game launch orchestration. Platform-specific behavior uses `_linux.go` / `_windows.go` file naming.
-- `pipeline.go`: Shared pipeline infrastructure -- `LaunchState` struct, `Step` struct, `Run()` loop, signal handling, shared steps (health, auth, OIDC, bootstrap, verify game installed, launch). Version check and download steps are defined here but only used by the prep pipeline. Calls `platformSteps()` and `platformPostSteps()` for platform-specific steps.
+- `pipeline.go`: Shared pipeline infrastructure -- `LaunchState` struct, `Step` struct, `Run()` loop, signal handling, shared steps (health, auth, bootstrap, verify game installed, launch). `stepLaunchGame` writes the access token to a temp file (`writeTokenFile`) passed via `-token_file`. Version check and download steps are defined here but only used by the prep pipeline. Calls `platformSteps()` and `platformPostSteps()` for platform-specific steps.
 - `pipeline_linux.go`: `platformSteps()` returns Proton detect/ensure/resolve steps. `platformPostSteps()` returns deck config step. Contains stepDetectProton, stepEnsureCompatdata, stepResolveSteamIntegration, stepDeckConfig.
 - `pipeline_windows.go`: `platformSteps()` and `platformPostSteps()` return empty slices (no Proton/compatdata/deck).
-- `process.go`: `LaunchConfig` struct definition (shared). Fields: ProtonScript, ProtonDir, CompatDataPath, SteamInstallPath, SteamGameId, GameDir, Username, AccessToken, OIDCTokenPath, ContentBootstrap, HostX, Verbose.
+- `process.go`: `LaunchConfig` struct definition (shared). Fields: ProtonScript, ProtonDir, CompatDataPath, SteamInstallPath, SteamGameId, GameDir, Username, AccessToken, TokenPath (file passed via `-token_file`), ContentBootstrap, Verbose.
 - `process_linux.go`: `LaunchGame()` -- Proton-based launch with shm_launcher via `proton run`, LinuxToWinePath conversions, STEAM_COMPAT_DATA_PATH/STEAM_COMPAT_CLIENT_INSTALL_PATH env vars.
 - `process_windows.go`: `LaunchGame()` -- Direct native launch, shm_launcher.exe runs natively, no path conversions or Wine env vars.
 - `shm.go`: `ExtractSHMLauncher()` (writes embedded exe to temp), `WriteBootstrapFile()` (writes bootstrap bytes to temp). Cross-platform.
@@ -246,16 +249,16 @@ GOOS=windows go vet ./...
 
 ## 9. Critical Domain Knowledge
 
-- **Content bootstrap**: Comes from `LAUNCHER_CONTENT_BOOTSTRAP` endpoint (NOT from login response PORTAL_INFO_1 which is a cosmetics list). 136 bytes with BPS1 magic header, base64-encoded.
+- **Content bootstrap**: Comes from `GET /launcher/v1/content-bootstrap` (Bearer auth), base64-encoded in `portal_info_1`. 136 bytes with BPS1 magic header. (NOT the login response `portal_info_1`, which is a cosmetics list.)
 - **Shared memory requirement**: Game uses `OpenFileMapping()`. Passing a file path does NOT work. Must use `CreateFileMappingW(INVALID_HANDLE_VALUE, ...)` via shm_launcher.exe.
 - **Proton-GE compatdata**: Proton-GE auto-manages its prefix via `proton run` in the compatdata directory. No manual prefix creation, winetricks, or DLL verification needed.
 - **Steam Deck controller**: Controller fix deferred to v1.2+. INI patching (removing Count bXAxis/bYAxis) and Steam Input controller layout VDF are deployed but do not fully resolve controller drop on ServerTravel. Input proxy approach (evdev, XInput DLL) was abandoned -- see Phase 7.1 summary.
-- **`-hostx` flag**: Required game arg pointing to MCTS game server IP (157.90.131.105), NOT the gateway.
+- **`-hostx` flag**: REMOVED in v1.2 — the game now resolves the MCTS server itself. Historically it was a required game arg pointing to the MCTS game server IP (157.90.131.105), NOT the gateway. The `HostX` config field/flag remains for backward compatibility but is no longer passed to the game.
 
 ## 10. Security Notes
 
 - Credentials encrypted with NaCl secretbox (XSalsa20-Poly1305)
 - Key derived from machine ID via scrypt (machine-bound, non-portable)
-- Access and OIDC tokens cached in plaintext JSON (~/.cluckers/cache/tokens.json, 0600 permissions) for session reuse (access TTL: 24h, OIDC TTL: 55min)
+- Access token cached in plaintext JSON (~/.cluckers/cache/tokens.json, 0600 permissions) for session reuse (access TTL: 45min; the v1 `lpt_v1_` token is short-lived). HTTP 401 triggers transparent re-authentication.
 - No system keyring dependency (works in Steam Deck Gaming Mode)
 - See SECURITY.md for full threat model

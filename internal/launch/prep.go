@@ -59,7 +59,6 @@ func buildPrepSteps(state *LaunchState) []Step {
 	steps := []Step{
 		{Name: "Checking gateway", Fn: stepHealthCheck},
 		{Name: "Authenticating", Fn: stepAuthenticate},
-		{Name: "Requesting OIDC token", Fn: stepOIDCToken},
 		{Name: "Requesting content bootstrap", Fn: stepBootstrap},
 	}
 	steps = append(steps, platformSteps(state)...)
@@ -74,7 +73,7 @@ func buildPrepSteps(state *LaunchState) []Step {
 
 // stepWriteLaunchConfig writes persistent files for Steam-managed launch:
 //   - ~/.cluckers/cache/bootstrap.bin   — content bootstrap bytes
-//   - ~/.cluckers/cache/oidc-token.txt  — OIDC token string
+//   - ~/.cluckers/cache/token.txt       — launcher access token string
 //   - ~/.cluckers/bin/shm_launcher.exe  — extracted from embedded asset
 //   - ~/.cluckers/bin/launch-config.txt — Wine-path args for shm_launcher
 func stepWriteLaunchConfig(_ context.Context, state *LaunchState) error {
@@ -101,10 +100,10 @@ func stepWriteLaunchConfig(_ context.Context, state *LaunchState) error {
 		return fmt.Errorf("writing bootstrap.bin: %w", err)
 	}
 
-	// 2. Write oidc-token.txt
-	oidcPath := filepath.Join(cacheDir, "oidc-token.txt")
-	if err := os.WriteFile(oidcPath, []byte(state.OIDCToken), 0600); err != nil {
-		return fmt.Errorf("writing oidc-token.txt: %w", err)
+	// 2. Write token.txt (the launcher access token, read by the game via -token_file)
+	tokenPath := filepath.Join(cacheDir, "token.txt")
+	if err := os.WriteFile(tokenPath, []byte(state.AccessToken), 0600); err != nil {
+		return fmt.Errorf("writing token.txt: %w", err)
 	}
 
 	// 3. Extract shm_launcher.exe to bin dir (idempotent).
@@ -121,13 +120,12 @@ func stepWriteLaunchConfig(_ context.Context, state *LaunchState) error {
 		prepSHMName,
 		wine.LinuxToWinePath(gameExe),
 		fmt.Sprintf("-user=%s", state.Username),
-		fmt.Sprintf("-token=%s", state.AccessToken),
-		fmt.Sprintf("-eac_oidc_token_file=%s", wine.LinuxToWinePath(oidcPath)),
-		fmt.Sprintf("-hostx=%s", state.Config.HostX),
+		fmt.Sprintf("-token_file=%s", wine.LinuxToWinePath(tokenPath)),
 		"-Language=INT",
 		"-dx11",
 		fmt.Sprintf("-content_bootstrap_size=%d", len(state.Bootstrap)),
-		"-seekfreeloadingpcconsole",
+		"-seekfreeloading",
+		"-pcconsole",
 		"-nohomedir",
 		fmt.Sprintf("-content_bootstrap_shm=%s", prepSHMName),
 	}

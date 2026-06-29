@@ -64,14 +64,12 @@ type gameStatusResult struct {
 }
 
 type authStatusResult struct {
-	credsSaved     bool
-	username       string
-	accessValid    bool
-	accessRemain   time.Duration
-	oidcValid      bool
-	oidcRemain     time.Duration
-	cacheErr       error
-	credsErr       error
+	credsSaved   bool
+	username     string
+	accessValid  bool
+	accessRemain time.Duration
+	cacheErr     error
+	credsErr     error
 }
 
 type gatewayStatusResult struct {
@@ -102,10 +100,6 @@ func checkAuthStatus() authStatusResult {
 		if cache.AccessTokenValid() {
 			result.accessValid = true
 			result.accessRemain = auth.AccessTokenTTL - time.Since(cache.AccessCachedAt)
-		}
-		if cache.OIDCTokenValid() {
-			result.oidcValid = true
-			result.oidcRemain = auth.OIDCTokenTTL - time.Since(cache.OIDCCachedAt)
 		}
 		if result.username == "" {
 			result.username = cache.Username
@@ -281,11 +275,6 @@ func printVerboseStatus(ps *protonStatusResult, cs *compatdataStatusResult, as a
 		fmt.Printf("  Access:  %s (expires in %s)\n", green("Valid"), as.accessRemain.Truncate(time.Minute))
 	} else {
 		fmt.Printf("  Access:  %s\n", yellow("Expired or missing"))
-	}
-	if as.oidcValid {
-		fmt.Printf("  OIDC:    %s (expires in %s)\n", green("Valid"), as.oidcRemain.Truncate(time.Minute))
-	} else {
-		fmt.Printf("  OIDC:    %s\n", yellow("Expired or missing"))
 	}
 	fmt.Println()
 

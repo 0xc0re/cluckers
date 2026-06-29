@@ -10,7 +10,7 @@ import (
 // Build-time defaults set via SetBuildDefaults(). Initialized to hardcoded
 // fallback values so that `go build` without ldflags still works.
 var (
-	defaultGateway = "https://gateway-dev.project-crown.com"
+	defaultGateway = "https://api.project-crown.com"
 	defaultHostX   = "157.90.131.105"
 )
 

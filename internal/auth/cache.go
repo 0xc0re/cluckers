@@ -12,21 +12,19 @@ import (
 // TTL constants for cached tokens.
 const (
 	// AccessTokenTTL is how long a cached access token is considered valid.
-	AccessTokenTTL = 24 * time.Hour
-	// OIDCTokenTTL is how long a cached OIDC token is considered valid.
-	// Slightly under 1 hour to avoid edge-case expiry mid-launch.
-	OIDCTokenTTL = 55 * time.Minute
+	// The v1 launcher access token (lpt_v1_...) is short-lived (~1 hour), so
+	// this is kept conservatively under that window. Token rejection (HTTP 401)
+	// also triggers transparent re-authentication.
+	AccessTokenTTL = 45 * time.Minute
 )
 
-// TokenCache holds cached tokens with independent per-token timestamps.
-// Each token type has its own TTL timestamp so that refreshing one token
-// does not reset the other's TTL.
+// TokenCache holds the cached launcher access token and its timestamp.
+// The v1 API no longer issues a separate EAC/OIDC token, so only the access
+// token is cached.
 type TokenCache struct {
 	AccessToken    string    `json:"access_token"`
-	OIDCToken      string    `json:"oidc_token"`
 	Username       string    `json:"username"`
 	AccessCachedAt time.Time `json:"access_cached_at"`
-	OIDCCachedAt   time.Time `json:"oidc_cached_at"`
 }
 
 // tokenCachePath returns the path to the token cache file.
@@ -40,14 +38,6 @@ func (c *TokenCache) AccessTokenValid() bool {
 		return false
 	}
 	return time.Since(c.AccessCachedAt) < AccessTokenTTL
-}
-
-// OIDCTokenValid returns true if the cached OIDC token is still within its TTL.
-func (c *TokenCache) OIDCTokenValid() bool {
-	if c.OIDCToken == "" {
-		return false
-	}
-	return time.Since(c.OIDCCachedAt) < OIDCTokenTTL
 }
 
 // LoadTokenCache reads the token cache from disk. Returns nil, nil if the file
@@ -71,10 +61,8 @@ func LoadTokenCache() (*TokenCache, error) {
 }
 
 // SaveTokenCache writes the token cache to disk with 0600 permissions.
-// Creates the cache directory if needed.
-// Callers are responsible for setting AccessCachedAt and/or OIDCCachedAt
-// before calling this function. This ensures that refreshing one token
-// does not reset the other's TTL.
+// Creates the cache directory if needed. Callers are responsible for setting
+// AccessCachedAt before calling this function.
 func SaveTokenCache(cache *TokenCache) error {
 	if err := config.EnsureDir(config.CacheDir()); err != nil {
 		return err

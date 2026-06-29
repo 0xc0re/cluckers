@@ -151,7 +151,7 @@ func TestBuildProtonCommand_WithSHM(t *testing.T) {
 		"/tmp/bootstrap.bin",
 		`Local\realm_content_bootstrap_1234`,
 		"/home/user/.cluckers/game/Realm-Royale/Binaries/Win64/ShippingPC-RealmGameNoEditor.exe",
-		[]string{"-user=foo", "-token=bar", "-hostx=1.2.3.4"},
+		[]string{"-user=foo", `-token_file=Z:\tmp\realm_token.txt`},
 	)
 
 	if program != "/opt/GE-Proton10-1/proton" {
@@ -165,8 +165,7 @@ func TestBuildProtonCommand_WithSHM(t *testing.T) {
 		`Local\realm_content_bootstrap_1234`,
 		`Z:\home\user\.cluckers\game\Realm-Royale\Binaries\Win64\ShippingPC-RealmGameNoEditor.exe`,
 		"-user=foo",
-		"-token=bar",
-		"-hostx=1.2.3.4",
+		`-token_file=Z:\tmp\realm_token.txt`,
 	}
 
 	if len(args) != len(wantArgs) {
@@ -190,7 +189,7 @@ func TestBuildProtonCommand_WithoutSHM(t *testing.T) {
 		"/opt/GE-Proton10-1/proton",
 		"", "", "",
 		"/home/user/.cluckers/game/Realm-Royale/Binaries/Win64/ShippingPC-RealmGameNoEditor.exe",
-		[]string{"-user=foo", "-token=bar"},
+		[]string{"-user=foo", `-token_file=Z:\tmp\realm_token.txt`},
 	)
 
 	if program != "/opt/GE-Proton10-1/proton" {
@@ -201,7 +200,7 @@ func TestBuildProtonCommand_WithoutSHM(t *testing.T) {
 		"run",
 		"/home/user/.cluckers/game/Realm-Royale/Binaries/Win64/ShippingPC-RealmGameNoEditor.exe",
 		"-user=foo",
-		"-token=bar",
+		`-token_file=Z:\tmp\realm_token.txt`,
 	}
 
 	if len(args) != len(wantArgs) {

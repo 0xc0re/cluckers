@@ -9,7 +9,7 @@ import (
 )
 
 // FlexBool handles JSON booleans that may arrive as bool, number, or string.
-// Some APIs return SUCCESS as 1/0 instead of true/false.
+// The v1 REST API returns linked_flag as 1/0 instead of true/false.
 type FlexBool bool
 
 func (b *FlexBool) UnmarshalJSON(data []byte) error {
@@ -34,119 +34,88 @@ func (b *FlexBool) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// HealthResponse is the response from LAUNCHER_HEALTH.
+// HealthResponse is the response from GET /healthz.
 type HealthResponse struct {
-	Success FlexBool `json:"SUCCESS"`
+	Service string `json:"service"`
+	Status  string `json:"status"`
 }
 
-// LoginRequest is the request body for LAUNCHER_LOGIN_OR_LINK.
+// LoginRequest is the request body for the session endpoints
+// (/launcher/v1/session-or-link and /launcher/v1/session).
 type LoginRequest struct {
 	UserName string `json:"user_name"`
 	Password string `json:"password"`
 }
 
-// LoginResponse is the response from LAUNCHER_LOGIN_OR_LINK.
-// PORTAL_INFO_1 is omitted — it contains a cosmetics list (JSON array), not
-// the content bootstrap. Bootstrap comes from LAUNCHER_CONTENT_BOOTSTRAP.
-type LoginResponse struct {
-	Success     FlexBool `json:"SUCCESS"`
-	AccessToken string   `json:"ACCESS_TOKEN"`
-	TextValue   string   `json:"TEXT_VALUE"`
-	LinkedFlag  FlexBool `json:"LINKED_FLAG"`
+// SessionResponse is the 200 response from the session endpoints
+// (/launcher/v1/session-or-link, /launcher/v1/session) and account creation.
+// Success is signalled by HTTP 2xx; there is no SUCCESS field. Errors arrive as
+// RFC 7807 problem+json and are surfaced as *ui.UserError before unmarshalling.
+type SessionResponse struct {
+	AccountID          json.Number `json:"account_id"`
+	UserName           string      `json:"user_name"`
+	SessionID          string      `json:"session_id"`
+	AccessToken        string      `json:"access_token"`
+	ExpirationDatetime string      `json:"expiration_datetime"`
+	LinkedFlag         FlexBool    `json:"linked_flag"`
+	CustomMessage      string      `json:"custom_message"`
+	CustomValue1       json.Number `json:"custom_value_1"`
+	TextValue          string      `json:"text_value"`
+	PortalInfo1        string      `json:"portal_info_1"`
 }
 
-// OIDCTokenResponse is the response from LAUNCHER_EAC_OIDC_TOKEN.
-type OIDCTokenResponse struct {
-	Success     FlexBool `json:"SUCCESS"`
-	PortalInfo1 string   `json:"PORTAL_INFO_1"`
-	StringValue string   `json:"STRING_VALUE"`
-	TextValue   string   `json:"TEXT_VALUE"`
-}
-
-// BootstrapResponse is the response from LAUNCHER_CONTENT_BOOTSTRAP.
+// BootstrapResponse is the response from GET /launcher/v1/content-bootstrap.
+// portal_info_1 holds the base64-encoded BPS1 content bootstrap blob.
 type BootstrapResponse struct {
-	Success     FlexBool    `json:"SUCCESS"`
-	PortalInfo1 string      `json:"PORTAL_INFO_1"`
-	StringValue string      `json:"STRING_VALUE"`
-	SessionID   json.Number `json:"SESSION_ID"`
-	Version     json.Number `json:"VERSION"`
+	AccountID          json.Number `json:"account_id"`
+	SessionID          string      `json:"session_id"`
+	Version            json.Number `json:"version"`
+	CustomValue1       json.Number `json:"custom_value_1"`
+	CustomValue2       json.Number `json:"custom_value_2"`
+	ExpirationDatetime string      `json:"expiration_datetime"`
+	PortalInfo1        string      `json:"portal_info_1"`
 }
 
-// GenericRequest is a common request body for authenticated API calls.
-type GenericRequest struct {
-	UserName    string `json:"user_name"`
-	AccessToken string `json:"access_token"`
-}
-
-// BotNameUpsertRequest is the request body for LAUNCHER_SUPPORTER_BOT_NAME_UPSERT.
-// Each call sets one bot name at a specific slot index (1-indexed).
-type BotNameUpsertRequest struct {
-	UserName     string `json:"user_name"`
-	AccessToken  string `json:"access_token"`
-	TextValue    string `json:"text_value"`
-	CustomValue1 int    `json:"custom_value_1"`
-}
-
-// BotNameDeleteRequest is the request body for LAUNCHER_SUPPORTER_BOT_NAME_DELETE.
-type BotNameDeleteRequest struct {
-	UserName     string `json:"user_name"`
-	AccessToken  string `json:"access_token"`
-	CustomValue1 int    `json:"custom_value_1"`
-}
-
-// BotNameResponse is the response from bot name upsert/delete/list commands.
-type BotNameResponse struct {
-	Success     FlexBool `json:"SUCCESS"`
-	TextValue   string   `json:"TEXT_VALUE"`
-	StringValue string   `json:"STRING_VALUE"`
-}
-
-// RegisterRequest is the request body for LAUNCHER_REGISTER.
+// RegisterRequest is the request body for POST /launcher/v1/account.
 type RegisterRequest struct {
 	UserName string `json:"user_name"`
 	Password string `json:"password"`
 	Email    string `json:"email"`
 }
 
-// RegisterResponse is the response from LAUNCHER_REGISTER.
-type RegisterResponse struct {
-	Success     FlexBool `json:"SUCCESS"`
-	AccessToken string   `json:"ACCESS_TOKEN"`
-	StringValue string   `json:"STRING_VALUE"`
-	TextValue   string   `json:"TEXT_VALUE"`
-}
-
-// LinkCodeRequest is the request body for LAUNCHER_REQUEST_LINK_CODE.
-// This endpoint uses password auth (not access_token).
+// LinkCodeRequest is the request body for POST /launcher/v1/discord/link/code.
 type LinkCodeRequest struct {
 	UserName string `json:"user_name"`
 	Password string `json:"password"`
 }
 
-// LinkCodeResponse is the response from LAUNCHER_REQUEST_LINK_CODE.
+// LinkCodeResponse is the response from POST /launcher/v1/discord/link/code.
 type LinkCodeResponse struct {
-	Success     FlexBool `json:"SUCCESS"`
-	LinkedFlag  FlexBool `json:"LINKED_FLAG"`
-	StringValue string   `json:"STRING_VALUE"`
-	TextValue   string   `json:"TEXT_VALUE"`
-	AccessToken string   `json:"ACCESS_TOKEN"`
+	Code        string   `json:"code"`
+	AccessToken string   `json:"access_token"`
+	LinkedFlag  FlexBool `json:"linked_flag"`
 }
 
-// DiscordStatusResponse is the response from LAUNCHER_DISCORD_STATUS.
+// DiscordStatusResponse is the response from GET /launcher/v1/discord/link.
 type DiscordStatusResponse struct {
-	Success    FlexBool `json:"SUCCESS"`
-	LinkedFlag FlexBool `json:"LINKED_FLAG"`
+	LinkedFlag     FlexBool `json:"linked_flag"`
+	PortalUserID   string   `json:"portal_userid"`
+	PortalUsername string   `json:"portal_username"`
 }
 
-// PasswordResetRequest is the request body for LAUNCHER_REQUEST_PASSWORD_RESET.
-// Only user_name is required — the server looks up the email from registration.
+// PasswordResetRequest is the request body for POST /launcher/v1/password-reset.
 type PasswordResetRequest struct {
 	UserName string `json:"user_name"`
 }
 
-// PasswordResetResponse is the response from LAUNCHER_REQUEST_PASSWORD_RESET.
+// PasswordResetResponse is the response from POST /launcher/v1/password-reset.
 type PasswordResetResponse struct {
-	Success     FlexBool `json:"SUCCESS"`
-	StringValue string   `json:"STRING_VALUE"`
-	TextValue   string   `json:"TEXT_VALUE"`
+	RequestID string `json:"request_id"`
+	TextValue string `json:"text_value"`
+}
+
+// BotNameUpsertRequest is the request body for
+// PUT /launcher/v1/supporter/bot-names/{slot}. The slot index is in the path.
+type BotNameUpsertRequest struct {
+	BotName string `json:"bot_name"`
 }

@@ -4,7 +4,6 @@ package screens
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/url"
 	"os"
@@ -378,22 +377,18 @@ func MakeMainView(w fyne.Window, cfg *config.Config, username, password string, 
 				}
 				accessToken = result.AccessToken
 
-				now := time.Now()
 				newCache := &auth.TokenCache{
 					AccessToken:    accessToken,
 					Username:       username,
-					AccessCachedAt: now,
-				}
-				if cache != nil {
-					newCache.OIDCToken = cache.OIDCToken
-					newCache.OIDCCachedAt = cache.OIDCCachedAt
+					AccessCachedAt: time.Now(),
 				}
 				_ = auth.SaveTokenCache(newCache)
 			}
 
 			client := gateway.NewClient(cfg.Gateway, cfg.Verbose)
 
-			// Upsert each non-empty bot name (one API call per slot, 1-indexed).
+			// Set or clear each bot name (one API call per slot, 1-indexed).
+			// An empty entry clears that slot.
 			slots := []struct {
 				index int
 				name  string
@@ -406,32 +401,10 @@ func MakeMainView(w fyne.Window, cfg *config.Config, username, password string, 
 				if slot.name == "" {
 					continue
 				}
-				req := gateway.BotNameUpsertRequest{
-					UserName:     username,
-					AccessToken:  accessToken,
-					TextValue:    slot.name,
-					CustomValue1: slot.index,
-				}
-
-				var resp gateway.BotNameResponse
-				if err := client.Post(context.Background(), "LAUNCHER_SUPPORTER_BOT_NAME_UPSERT", req, &resp); err != nil {
+				if err := auth.UpsertBotName(context.Background(), client, accessToken, slot.index, slot.name); err != nil {
+					slot := slot
 					fyne.Do(func() {
 						dialog.ShowError(fmt.Errorf("failed to set bot name %d: %s", slot.index, err), w)
-						botSetBtn.Enable()
-					})
-					return
-				}
-
-				if !bool(resp.Success) {
-					msg := resp.StringValue
-					if msg == "" {
-						msg = resp.TextValue
-					}
-					if msg == "" {
-						msg = "unknown error"
-					}
-					fyne.Do(func() {
-						dialog.ShowError(fmt.Errorf("failed to set bot name %d: %s", slot.index, msg), w)
 						botSetBtn.Enable()
 					})
 					return
@@ -475,27 +448,13 @@ func MakeMainView(w fyne.Window, cfg *config.Config, username, password string, 
 		}
 
 		client := gateway.NewClient(cfg.Gateway, cfg.Verbose)
-		req := gateway.GenericRequest{
-			UserName:    username,
-			AccessToken: accessToken,
-		}
-		var listResp struct {
-			Success     gateway.FlexBool `json:"SUCCESS"`
-			PortalInfo1 string           `json:"PORTAL_INFO_1"`
-		}
 		// Bound the request so a flaky network can't hold this goroutine through retries.
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
-		if err := client.Post(ctx, "LAUNCHER_SUPPORTER_BOT_NAMES_LIST", req, &listResp); err != nil {
+		names, err := auth.ListBotNames(ctx, client, accessToken)
+		if err != nil {
+			// Non-supporters and errors simply leave the section hidden.
 			return
-		}
-		if !bool(listResp.Success) {
-			return
-		}
-
-		var names []string
-		if listResp.PortalInfo1 != "" {
-			_ = json.Unmarshal([]byte(listResp.PortalInfo1), &names)
 		}
 
 		fyne.Do(func() {

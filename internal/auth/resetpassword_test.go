@@ -13,32 +13,32 @@ import (
 	"github.com/0xc0re/cluckers/internal/ui"
 )
 
-func newPasswordResetServer(t *testing.T, resp map[string]interface{}) *httptest.Server {
-	t.Helper()
-	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
-	}))
-}
-
 func TestRequestPasswordReset_Success(t *testing.T) {
-	srv := newPasswordResetServer(t, map[string]interface{}{
-		"SUCCESS": 1,
-	})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/launcher/v1/password-reset" {
+			t.Errorf("path = %q, want /launcher/v1/password-reset", r.URL.Path)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{"request_id": "r1"})
+	}))
 	defer srv.Close()
 
 	client := gateway.NewClient(srv.URL, false)
-	err := RequestPasswordReset(context.Background(), client, "testuser")
-	if err != nil {
+	if err := RequestPasswordReset(context.Background(), client, "testuser"); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
 
-func TestRequestPasswordReset_FailureWithTextValue(t *testing.T) {
-	srv := newPasswordResetServer(t, map[string]interface{}{
-		"SUCCESS":    0,
-		"TEXT_VALUE": "User not found",
-	})
+func TestRequestPasswordReset_Failure(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"detail": "User not found",
+			"title":  "not_found",
+			"status": 404,
+		})
+	}))
 	defer srv.Close()
 
 	client := gateway.NewClient(srv.URL, false)
@@ -53,48 +53,5 @@ func TestRequestPasswordReset_FailureWithTextValue(t *testing.T) {
 	}
 	if !strings.Contains(ue.Message, "User not found") {
 		t.Errorf("message = %q, want it to contain %q", ue.Message, "User not found")
-	}
-}
-
-func TestRequestPasswordReset_FailureWithStringValue(t *testing.T) {
-	srv := newPasswordResetServer(t, map[string]interface{}{
-		"SUCCESS":      0,
-		"STRING_VALUE": "Rate limited",
-	})
-	defer srv.Close()
-
-	client := gateway.NewClient(srv.URL, false)
-	err := RequestPasswordReset(context.Background(), client, "testuser")
-	if err == nil {
-		t.Fatal("expected error, got nil")
-	}
-
-	var ue *ui.UserError
-	if !errors.As(err, &ue) {
-		t.Fatalf("expected *ui.UserError, got %T: %v", err, err)
-	}
-	if !strings.Contains(ue.Message, "Rate limited") {
-		t.Errorf("message = %q, want it to contain %q", ue.Message, "Rate limited")
-	}
-}
-
-func TestRequestPasswordReset_FailureNoMessage(t *testing.T) {
-	srv := newPasswordResetServer(t, map[string]interface{}{
-		"SUCCESS": 0,
-	})
-	defer srv.Close()
-
-	client := gateway.NewClient(srv.URL, false)
-	err := RequestPasswordReset(context.Background(), client, "testuser")
-	if err == nil {
-		t.Fatal("expected error, got nil")
-	}
-
-	var ue *ui.UserError
-	if !errors.As(err, &ue) {
-		t.Fatalf("expected *ui.UserError, got %T: %v", err, err)
-	}
-	if !strings.Contains(ue.Message, "Unknown error") {
-		t.Errorf("message = %q, want it to contain %q", ue.Message, "Unknown error")
 	}
 }

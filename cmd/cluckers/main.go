@@ -14,7 +14,7 @@ var (
 	version    = "dev"
 	commit     = "none"
 	date       = "unknown"
-	gatewayURL = "https://gateway-dev.project-crown.com"
+	gatewayURL = "https://api.project-crown.com"
 	hostxIP    = "157.90.131.105"
 )
 

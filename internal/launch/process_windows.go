@@ -35,15 +35,16 @@ func LaunchGame(ctx context.Context, cfg *LaunchConfig) error {
 		}
 	}()
 
-	// Build game args (same as Linux, but paths are native Windows paths).
+	// Build game args matching the official v1.2 launcher (native Windows paths).
+	// The token is passed via a file path (-token_file); the v1 game obtains its
+	// EAC/OIDC credentials itself, so -eac_oidc_token and -hostx are not passed.
 	gameArgs := []string{
 		fmt.Sprintf("-user=%s", cfg.Username),
-		fmt.Sprintf("-token=%s", cfg.AccessToken),
-		fmt.Sprintf("-eac_oidc_token_file=%s", cfg.OIDCTokenPath),
-		fmt.Sprintf("-hostx=%s", cfg.HostX),
+		fmt.Sprintf("-token_file=%s", cfg.TokenPath),
 		"-Language=INT",
 		"-dx11",
-		"-seekfreeloadingpcconsole",
+		"-seekfreeloading",
+		"-pcconsole",
 		"-nohomedir",
 	}
 
