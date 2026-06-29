@@ -39,16 +39,17 @@ func LaunchGame(ctx context.Context, cfg *LaunchConfig) error {
 		}
 	}()
 
-	// Build game args matching POC exactly. These are consumed by the Windows
-	// game process running under Proton.
+	// Build game args matching the official v1.2 launcher. These are consumed by
+	// the Windows game process running under Proton. The token is passed via a
+	// file path (-token_file); the v1 game obtains its EAC/OIDC credentials
+	// itself, so -eac_oidc_token and -hostx are no longer passed.
 	gameArgs := []string{
 		fmt.Sprintf("-user=%s", cfg.Username),
-		fmt.Sprintf("-token=%s", cfg.AccessToken),
-		fmt.Sprintf("-eac_oidc_token_file=%s", wine.LinuxToWinePath(cfg.OIDCTokenPath)),
-		fmt.Sprintf("-hostx=%s", cfg.HostX),
+		fmt.Sprintf("-token_file=%s", wine.LinuxToWinePath(cfg.TokenPath)),
 		"-Language=INT",
 		"-dx11",
-		"-seekfreeloadingpcconsole",
+		"-seekfreeloading",
+		"-pcconsole",
 		"-nohomedir",
 	}
 

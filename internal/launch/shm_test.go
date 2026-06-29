@@ -74,27 +74,27 @@ func TestWriteBootstrapFile_UsesCluckersTmpDir(t *testing.T) {
 	}
 }
 
-func TestWriteOIDCTokenFile_UsesCluckersTmpDir(t *testing.T) {
+func TestWriteTokenFile_UsesCluckersTmpDir(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("CLUCKERS_HOME", tmp)
 
-	path, cleanup, err := writeOIDCTokenFile("test-oidc-token-value")
+	path, cleanup, err := writeTokenFile("lpt_v1_test-token-value")
 	if err != nil {
-		t.Fatalf("writeOIDCTokenFile() error: %v", err)
+		t.Fatalf("writeTokenFile() error: %v", err)
 	}
 	defer cleanup()
 
 	expectedPrefix := filepath.Join(tmp, "tmp")
 	if !strings.HasPrefix(path, expectedPrefix) {
-		t.Errorf("writeOIDCTokenFile() path = %q, want prefix %q", path, expectedPrefix)
+		t.Errorf("writeTokenFile() path = %q, want prefix %q", path, expectedPrefix)
 	}
 
 	data, err := os.ReadFile(path)
 	if err != nil {
-		t.Fatalf("reading OIDC token file: %v", err)
+		t.Fatalf("reading token file: %v", err)
 	}
-	if string(data) != "test-oidc-token-value" {
-		t.Errorf("OIDC token file content = %q, want %q", string(data), "test-oidc-token-value")
+	if string(data) != "lpt_v1_test-token-value" {
+		t.Errorf("token file content = %q, want %q", string(data), "lpt_v1_test-token-value")
 	}
 
 	// Cleanup should remove the file.

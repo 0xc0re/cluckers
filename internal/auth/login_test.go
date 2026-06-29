@@ -24,18 +24,21 @@ var bootstrapPayload = append(
 ) // 136 bytes total
 
 // newBootstrapServer returns an httptest.Server that responds to
-// LAUNCHER_CONTENT_BOOTSTRAP with the given base64-encoded value in
-// PORTAL_INFO_1. If encoded is empty, PORTAL_INFO_1 is omitted.
+// GET /launcher/v1/content-bootstrap with the given base64-encoded value in
+// portal_info_1. If encoded is empty, portal_info_1 is omitted. It also
+// verifies the request carries the Bearer token.
 func newBootstrapServer(t *testing.T, encoded string) *httptest.Server {
 	t.Helper()
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.Header.Get("Authorization"); got != "Bearer token" {
+			t.Errorf("Authorization header = %q, want %q", got, "Bearer token")
+		}
 		resp := map[string]interface{}{
-			"SUCCESS":    1,
-			"SESSION_ID": 1,
-			"VERSION":    1,
+			"session_id": "abc",
+			"version":    1,
 		}
 		if encoded != "" {
-			resp["PORTAL_INFO_1"] = encoded
+			resp["portal_info_1"] = encoded
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(resp)
@@ -48,7 +51,7 @@ func TestGetContentBootstrap_StandardBase64(t *testing.T) {
 	defer srv.Close()
 
 	client := gateway.NewClient(srv.URL, false)
-	data, err := GetContentBootstrap(context.Background(), client, "user", "token")
+	data, err := GetContentBootstrap(context.Background(), client, "token")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -63,7 +66,7 @@ func TestGetContentBootstrap_URLSafeBase64(t *testing.T) {
 	defer srv.Close()
 
 	client := gateway.NewClient(srv.URL, false)
-	data, err := GetContentBootstrap(context.Background(), client, "user", "token")
+	data, err := GetContentBootstrap(context.Background(), client, "token")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -78,7 +81,7 @@ func TestGetContentBootstrap_RawUnpadded(t *testing.T) {
 	defer srv.Close()
 
 	client := gateway.NewClient(srv.URL, false)
-	data, err := GetContentBootstrap(context.Background(), client, "user", "token")
+	data, err := GetContentBootstrap(context.Background(), client, "token")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -93,7 +96,7 @@ func TestGetContentBootstrap_RawURLSafe(t *testing.T) {
 	defer srv.Close()
 
 	client := gateway.NewClient(srv.URL, false)
-	data, err := GetContentBootstrap(context.Background(), client, "user", "token")
+	data, err := GetContentBootstrap(context.Background(), client, "token")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -107,7 +110,7 @@ func TestGetContentBootstrap_EmptyResponse(t *testing.T) {
 	defer srv.Close()
 
 	client := gateway.NewClient(srv.URL, false)
-	data, err := GetContentBootstrap(context.Background(), client, "user", "token")
+	data, err := GetContentBootstrap(context.Background(), client, "token")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -121,7 +124,7 @@ func TestGetContentBootstrap_InvalidBase64(t *testing.T) {
 	defer srv.Close()
 
 	client := gateway.NewClient(srv.URL, false)
-	_, err := GetContentBootstrap(context.Background(), client, "user", "token")
+	_, err := GetContentBootstrap(context.Background(), client, "token")
 	if err == nil {
 		t.Fatal("expected error for invalid base64, got nil")
 	}
@@ -148,7 +151,7 @@ func TestGetContentBootstrap_Whitespace(t *testing.T) {
 	defer srv.Close()
 
 	client := gateway.NewClient(srv.URL, false)
-	data, err := GetContentBootstrap(context.Background(), client, "user", "token")
+	data, err := GetContentBootstrap(context.Background(), client, "token")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -157,65 +160,22 @@ func TestGetContentBootstrap_Whitespace(t *testing.T) {
 	}
 }
 
-func TestGetOIDCToken_Success(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"SUCCESS":       1,
-			"PORTAL_INFO_1": "eyJhbGciOiJSUzI1NiJ9.test.sig",
-		})
-	}))
-	defer srv.Close()
-
-	client := gateway.NewClient(srv.URL, false)
-	token, err := GetOIDCToken(context.Background(), client, "user", "valid-token")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if token != "eyJhbGciOiJSUzI1NiJ9.test.sig" {
-		t.Errorf("token = %q, want JWT", token)
-	}
-}
-
-func TestGetOIDCToken_TokenRejected(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"SUCCESS":      0,
-			"STRING_VALUE": "Invalid or expired access_token",
-		})
-	}))
-	defer srv.Close()
-
-	client := gateway.NewClient(srv.URL, false)
-	token, err := GetOIDCToken(context.Background(), client, "user", "stale-token")
-	if token != "" {
-		t.Errorf("expected empty token on rejection, got %q", token)
-	}
-	if err == nil {
-		t.Fatal("expected error for rejected token, got nil")
-	}
-	if !errors.Is(err, ErrTokenRejected) {
-		t.Errorf("expected ErrTokenRejected, got %v", err)
-	}
-	var ue *ui.UserError
-	if !errors.As(err, &ue) {
-		t.Fatalf("expected *ui.UserError, got %T", err)
-	}
-}
-
+// TestGetContentBootstrap_TokenRejected verifies that an HTTP 401 from the
+// gateway is surfaced as ErrTokenRejected so the pipeline can re-authenticate.
 func TestGetContentBootstrap_TokenRejected(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"SUCCESS":      0,
-			"STRING_VALUE": "Invalid or expired access_token",
+			"detail": "Invalid or expired access token",
+			"title":  "invalid_token",
+			"status": 401,
 		})
 	}))
 	defer srv.Close()
 
 	client := gateway.NewClient(srv.URL, false)
-	data, err := GetContentBootstrap(context.Background(), client, "user", "stale-token")
+	data, err := GetContentBootstrap(context.Background(), client, "stale-token")
 	if data != nil {
 		t.Errorf("expected nil data on rejection, got %d bytes", len(data))
 	}
@@ -227,25 +187,57 @@ func TestGetContentBootstrap_TokenRejected(t *testing.T) {
 	}
 }
 
-func TestGetContentBootstrap_WithSuccessField(t *testing.T) {
-	encoded := base64.StdEncoding.EncodeToString(bootstrapPayload)
+// TestLogin_Success verifies a 200 session-or-link response yields the token.
+func TestLogin_Success(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/launcher/v1/session-or-link" {
+			t.Errorf("path = %q, want /launcher/v1/session-or-link", r.URL.Path)
+		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"SUCCESS":       1,
-			"PORTAL_INFO_1": encoded,
-			"SESSION_ID":    1,
-			"VERSION":       1,
+			"user_name":    "user",
+			"access_token": "lpt_v1_abc",
+			"linked_flag":  1,
 		})
 	}))
 	defer srv.Close()
 
 	client := gateway.NewClient(srv.URL, false)
-	data, err := GetContentBootstrap(context.Background(), client, "user", "token")
+	res, err := Login(context.Background(), client, "user", "pass")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if string(data) != string(bootstrapPayload) {
-		t.Errorf("payload mismatch: got %d bytes, want %d bytes", len(data), len(bootstrapPayload))
+	if res.AccessToken != "lpt_v1_abc" {
+		t.Errorf("access token = %q, want lpt_v1_abc", res.AccessToken)
+	}
+	if !res.Linked {
+		t.Error("expected Linked = true")
+	}
+}
+
+// TestLogin_BadCredentials verifies a 401 problem+json is surfaced to the user.
+func TestLogin_BadCredentials(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"detail": "The supplied credentials did not match",
+			"title":  "invalid_credentials",
+			"status": 401,
+		})
+	}))
+	defer srv.Close()
+
+	client := gateway.NewClient(srv.URL, false)
+	_, err := Login(context.Background(), client, "user", "wrong")
+	if err == nil {
+		t.Fatal("expected error for bad credentials, got nil")
+	}
+	var ue *ui.UserError
+	if !errors.As(err, &ue) {
+		t.Fatalf("expected *ui.UserError, got %T", err)
+	}
+	if ue.Message != "The supplied credentials did not match" {
+		t.Errorf("message = %q, want the problem detail", ue.Message)
 	}
 }

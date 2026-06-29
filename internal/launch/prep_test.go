@@ -33,7 +33,6 @@ func newTestPrepState(t *testing.T) *LaunchState {
 		},
 		Username:    "testuser",
 		AccessToken: "test-access-token",
-		OIDCToken:   "test-oidc-token",
 		Bootstrap:   []byte("BPS1" + strings.Repeat("\x00", 132)), // 136 bytes with magic header
 		GameDir:     gameDir,
 		Reporter:    &noopReporter{},
@@ -43,11 +42,11 @@ func newTestPrepState(t *testing.T) *LaunchState {
 // noopReporter is a ProgressReporter that does nothing (for tests).
 type noopReporter struct{}
 
-func (n *noopReporter) StepStarted(name string)          {}
-func (n *noopReporter) StepCompleted(name string)        {}
+func (n *noopReporter) StepStarted(name string)           {}
+func (n *noopReporter) StepCompleted(name string)         {}
 func (n *noopReporter) StepFailed(name string, err error) {}
-func (n *noopReporter) StepSkipped(name string)          {}
-func (n *noopReporter) StepPaused(name string)           {}
+func (n *noopReporter) StepSkipped(name string)           {}
+func (n *noopReporter) StepPaused(name string)            {}
 
 func TestStepWriteLaunchConfig_WritesAllFiles(t *testing.T) {
 	state := newTestPrepState(t)
@@ -61,9 +60,9 @@ func TestStepWriteLaunchConfig_WritesAllFiles(t *testing.T) {
 	binDir := config.BinDir()
 
 	files := map[string]string{
-		"bootstrap.bin":    filepath.Join(cacheDir, "bootstrap.bin"),
-		"oidc-token.txt":   filepath.Join(cacheDir, "oidc-token.txt"),
-		"shm_launcher.exe": filepath.Join(binDir, "shm_launcher.exe"),
+		"bootstrap.bin":     filepath.Join(cacheDir, "bootstrap.bin"),
+		"token.txt":         filepath.Join(cacheDir, "token.txt"),
+		"shm_launcher.exe":  filepath.Join(binDir, "shm_launcher.exe"),
 		"launch-config.txt": filepath.Join(binDir, "launch-config.txt"),
 	}
 
@@ -87,13 +86,13 @@ func TestStepWriteLaunchConfig_WritesAllFiles(t *testing.T) {
 		t.Errorf("bootstrap.bin size = %d, want %d", len(data), len(state.Bootstrap))
 	}
 
-	// Verify oidc-token.txt content.
-	oidc, err := os.ReadFile(files["oidc-token.txt"])
+	// Verify token.txt content.
+	tok, err := os.ReadFile(files["token.txt"])
 	if err != nil {
-		t.Fatalf("reading oidc-token.txt: %v", err)
+		t.Fatalf("reading token.txt: %v", err)
 	}
-	if string(oidc) != "test-oidc-token" {
-		t.Errorf("oidc-token.txt = %q, want %q", string(oidc), "test-oidc-token")
+	if string(tok) != "test-access-token" {
+		t.Errorf("token.txt = %q, want %q", string(tok), "test-access-token")
 	}
 }
 
@@ -143,19 +142,24 @@ func TestStepWriteLaunchConfig_LaunchConfigFormat(t *testing.T) {
 	fullContent := content
 	expectedArgs := []string{
 		"-user=testuser",
-		"-token=test-access-token",
-		"-eac_oidc_token_file=",
-		"-hostx=157.90.131.105",
+		"-token_file=",
 		"-Language=INT",
 		"-dx11",
 		fmt.Sprintf("-content_bootstrap_size=%d", len(state.Bootstrap)),
-		"-seekfreeloadingpcconsole",
+		"-seekfreeloading",
+		"-pcconsole",
 		"-nohomedir",
 		"-content_bootstrap_shm=" + prepSHMName,
 	}
 	for _, arg := range expectedArgs {
 		if !strings.Contains(fullContent, arg) {
 			t.Errorf("launch-config.txt missing %q", arg)
+		}
+	}
+	// The old -hostx and -eac_oidc_token args must no longer be present.
+	for _, gone := range []string{"-hostx=", "-eac_oidc_token", "-token=test-access-token"} {
+		if strings.Contains(fullContent, gone) {
+			t.Errorf("launch-config.txt should not contain %q", gone)
 		}
 	}
 }

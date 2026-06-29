@@ -24,7 +24,6 @@ type LaunchState struct {
 	Username             string
 	Password             string
 	AccessToken          string
-	OIDCToken            string
 	Bootstrap            []byte
 	ProtonScript         string // Path to the proton Python script (Linux only).
 	ProtonDir            string // Root of the Proton-GE installation (Linux only).
@@ -38,7 +37,7 @@ type LaunchState struct {
 	NeedsDownload        bool              // Used by prep pipeline only.
 	TokenCache           *auth.TokenCache
 	Reporter             ProgressReporter
-	OIDCTempFile         string // Path to OIDC JWT temp file for cleanup on interrupt.
+	TokenTempFile        string // Path to the access-token temp file for cleanup on interrupt.
 }
 
 // Step represents a single step in the launch pipeline.
@@ -79,8 +78,8 @@ func RunWithReporter(ctx context.Context, cfg *config.Config, reporter ProgressR
 	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
 	go func() {
 		<-sigCh
-		if state.OIDCTempFile != "" {
-			os.Remove(state.OIDCTempFile)
+		if state.TokenTempFile != "" {
+			os.Remove(state.TokenTempFile)
 		}
 		fmt.Println("\nInterrupted.")
 		os.Exit(130)
@@ -157,7 +156,6 @@ func buildSteps(state *LaunchState) []Step {
 	steps := []Step{
 		{Name: "Checking gateway", Fn: stepHealthCheck},
 		{Name: "Authenticating", Fn: stepAuthenticate},
-		{Name: "Requesting OIDC token", Fn: stepOIDCToken},
 		{Name: "Requesting content bootstrap", Fn: stepBootstrap},
 	}
 	steps = append(steps, platformSteps(state)...)
@@ -300,75 +298,12 @@ func stepAuthenticate(ctx context.Context, state *LaunchState) error {
 	return nil
 }
 
-// stepOIDCToken retrieves an EAC OIDC JWT token from the gateway.
-// Checks the token cache first to skip the API call when a valid cached OIDC token exists.
-func stepOIDCToken(ctx context.Context, state *LaunchState) error {
-	// Check cache for a valid OIDC token.
-	if state.TokenCache != nil && state.TokenCache.OIDCTokenValid() {
-		state.OIDCToken = state.TokenCache.OIDCToken
-		ui.Verbose("Using cached OIDC token (still valid)", state.Config.Verbose)
-		return nil
-	}
-
-	token, err := auth.GetOIDCToken(ctx, state.Client, state.Username, state.AccessToken)
-	if err != nil {
-		if !errors.Is(err, auth.ErrTokenRejected) {
-			return err
-		}
-
-		// Stale access token — re-authenticate and retry once.
-		ui.Verbose("Access token rejected, re-authenticating...", state.Config.Verbose)
-
-		if clearErr := auth.ClearTokenCache(); clearErr != nil {
-			ui.Verbose(fmt.Sprintf("Could not clear token cache: %s", clearErr), state.Config.Verbose)
-		}
-
-		result, loginErr := auth.Login(ctx, state.Client, state.Username, state.Password)
-		if loginErr != nil {
-			return loginErr
-		}
-		state.AccessToken = result.AccessToken
-
-		// Save fresh token cache.
-		state.TokenCache = &auth.TokenCache{
-			Username:       result.Username,
-			AccessToken:    result.AccessToken,
-			AccessCachedAt: time.Now(),
-		}
-		if saveErr := auth.SaveTokenCache(state.TokenCache); saveErr != nil {
-			ui.Verbose(fmt.Sprintf("Could not save token cache: %s", saveErr), state.Config.Verbose)
-		}
-
-		token, err = auth.GetOIDCToken(ctx, state.Client, state.Username, state.AccessToken)
-		if err != nil {
-			return err
-		}
-	}
-	state.OIDCToken = token
-
-	// Update the token cache with the fresh OIDC token.
-	if state.TokenCache == nil {
-		state.TokenCache = &auth.TokenCache{
-			Username:       state.Username,
-			AccessToken:    state.AccessToken,
-			AccessCachedAt: time.Now(),
-		}
-	}
-	state.TokenCache.OIDCToken = token
-	state.TokenCache.OIDCCachedAt = time.Now()
-	if saveErr := auth.SaveTokenCache(state.TokenCache); saveErr != nil {
-		ui.Verbose(fmt.Sprintf("Could not save token cache: %s", saveErr), state.Config.Verbose)
-	}
-
-	return nil
-}
-
-// stepBootstrap retrieves the content bootstrap from the gateway.
-// Nil bootstrap is OK -- the game can launch without it.
-// If the server rejects the token, re-authenticates once and retries
-// (same pattern as stepOIDCToken stale-token handling).
+// stepBootstrap retrieves the content bootstrap from the gateway using the
+// access token as a Bearer credential. Nil bootstrap is OK -- the game can
+// launch without it. If the server rejects the token (HTTP 401),
+// re-authenticates once and retries.
 func stepBootstrap(ctx context.Context, state *LaunchState) error {
-	data, err := auth.GetContentBootstrap(ctx, state.Client, state.Username, state.AccessToken)
+	data, err := auth.GetContentBootstrap(ctx, state.Client, state.AccessToken)
 	if err != nil {
 		if !errors.Is(err, auth.ErrTokenRejected) {
 			return err
@@ -397,7 +332,7 @@ func stepBootstrap(ctx context.Context, state *LaunchState) error {
 			ui.Verbose(fmt.Sprintf("Could not save token cache: %s", saveErr), state.Config.Verbose)
 		}
 
-		data, err = auth.GetContentBootstrap(ctx, state.Client, state.Username, state.AccessToken)
+		data, err = auth.GetContentBootstrap(ctx, state.Client, state.AccessToken)
 		if err != nil {
 			return err
 		}
@@ -515,15 +450,15 @@ func stepVerifyGameInstalled(_ context.Context, state *LaunchState) error {
 
 // stepLaunchGame writes temp files and launches the game.
 func stepLaunchGame(ctx context.Context, state *LaunchState) error {
-	// Write OIDC token to temp file.
-	oidcPath, oidcCleanup, err := writeOIDCTokenFile(state.OIDCToken)
+	// Write the access token to a temp file passed to the game via -token_file.
+	tokenPath, tokenCleanup, err := writeTokenFile(state.AccessToken)
 	if err != nil {
 		return err
 	}
-	defer oidcCleanup()
+	defer tokenCleanup()
 
 	// Store path for signal handler cleanup (os.Exit bypasses defers).
-	state.OIDCTempFile = oidcPath
+	state.TokenTempFile = tokenPath
 
 	return LaunchGame(ctx, &LaunchConfig{
 		ProtonScript:     state.ProtonScript,
@@ -534,39 +469,39 @@ func stepLaunchGame(ctx context.Context, state *LaunchState) error {
 		GameDir:          state.GameDir,
 		Username:         state.Username,
 		AccessToken:      state.AccessToken,
-		OIDCTokenPath:    oidcPath,
+		TokenPath:        tokenPath,
 		ContentBootstrap: state.Bootstrap,
-		HostX:            state.Config.HostX,
 		Verbose:          state.Config.Verbose,
 	})
 }
 
-// writeOIDCTokenFile writes the OIDC token string to a temp file.
-func writeOIDCTokenFile(token string) (path string, cleanup func(), err error) {
+// writeTokenFile writes the launcher access token to a temp file. The path is
+// passed to the game via -token_file (the v1 game reads the token from disk).
+func writeTokenFile(token string) (path string, cleanup func(), err error) {
 	tmpDir := config.TmpDir()
 	if err := config.EnsureDir(tmpDir); err != nil {
-		return "", nil, fmt.Errorf("create temp dir for OIDC token: %w", err)
+		return "", nil, fmt.Errorf("create temp dir for token: %w", err)
 	}
 
-	f, err := os.CreateTemp(tmpDir, "realm_eac_oidc_*.txt")
+	f, err := os.CreateTemp(tmpDir, "realm_token_*.txt")
 	if err != nil {
-		return "", nil, fmt.Errorf("create temp file for OIDC token: %w", err)
+		return "", nil, fmt.Errorf("create temp file for token: %w", err)
 	}
 
 	if _, err := f.WriteString(token); err != nil {
 		f.Close()
 		os.Remove(f.Name())
-		return "", nil, fmt.Errorf("write OIDC token: %w", err)
+		return "", nil, fmt.Errorf("write token: %w", err)
 	}
 
 	if err := f.Close(); err != nil {
 		os.Remove(f.Name())
-		return "", nil, fmt.Errorf("close OIDC token temp file: %w", err)
+		return "", nil, fmt.Errorf("close token temp file: %w", err)
 	}
 
 	if err := os.Chmod(f.Name(), 0600); err != nil {
 		os.Remove(f.Name())
-		return "", nil, fmt.Errorf("chmod OIDC token temp file: %w", err)
+		return "", nil, fmt.Errorf("chmod token temp file: %w", err)
 	}
 
 	cleanup = func() {

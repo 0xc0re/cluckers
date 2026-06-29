@@ -13,18 +13,22 @@ import (
 	"github.com/0xc0re/cluckers/internal/ui"
 )
 
-func newLinkCodeServer(t *testing.T, resp map[string]interface{}) *httptest.Server {
+// newJSONServer returns a server that replies with the given status and body.
+func newJSONServer(t *testing.T, status int, resp map[string]interface{}) *httptest.Server {
 	t.Helper()
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
+		if status != 0 {
+			w.WriteHeader(status)
+		}
 		json.NewEncoder(w).Encode(resp)
 	}))
 }
 
 func TestRequestLinkCode_Success(t *testing.T) {
-	srv := newLinkCodeServer(t, map[string]interface{}{
-		"SUCCESS":      1,
-		"ACCESS_TOKEN": "ABC123",
+	srv := newJSONServer(t, http.StatusOK, map[string]interface{}{
+		"code":         "ABC123",
+		"access_token": "lpt_v1_x",
 	})
 	defer srv.Close()
 
@@ -38,10 +42,11 @@ func TestRequestLinkCode_Success(t *testing.T) {
 	}
 }
 
-func TestRequestLinkCode_FailureWithTextValue(t *testing.T) {
-	srv := newLinkCodeServer(t, map[string]interface{}{
-		"SUCCESS":    0,
-		"TEXT_VALUE": "Account not verified",
+func TestRequestLinkCode_Failure(t *testing.T) {
+	srv := newJSONServer(t, http.StatusUnauthorized, map[string]interface{}{
+		"detail": "Account not verified",
+		"title":  "not_verified",
+		"status": 401,
 	})
 	defer srv.Close()
 
@@ -60,53 +65,9 @@ func TestRequestLinkCode_FailureWithTextValue(t *testing.T) {
 	}
 }
 
-func TestRequestLinkCode_FailureWithStringValue(t *testing.T) {
-	srv := newLinkCodeServer(t, map[string]interface{}{
-		"SUCCESS":      0,
-		"STRING_VALUE": "Token expired",
-	})
-	defer srv.Close()
-
-	client := gateway.NewClient(srv.URL, false)
-	_, err := RequestLinkCode(context.Background(), client, "user", "pass")
-	if err == nil {
-		t.Fatal("expected error, got nil")
-	}
-
-	var ue *ui.UserError
-	if !errors.As(err, &ue) {
-		t.Fatalf("expected *ui.UserError, got %T: %v", err, err)
-	}
-	if !strings.Contains(ue.Message, "Token expired") {
-		t.Errorf("message = %q, want it to contain %q", ue.Message, "Token expired")
-	}
-}
-
-func TestRequestLinkCode_FailureNoMessage(t *testing.T) {
-	srv := newLinkCodeServer(t, map[string]interface{}{
-		"SUCCESS": 0,
-	})
-	defer srv.Close()
-
-	client := gateway.NewClient(srv.URL, false)
-	_, err := RequestLinkCode(context.Background(), client, "user", "pass")
-	if err == nil {
-		t.Fatal("expected error, got nil")
-	}
-
-	var ue *ui.UserError
-	if !errors.As(err, &ue) {
-		t.Fatalf("expected *ui.UserError, got %T: %v", err, err)
-	}
-	if !strings.Contains(ue.Message, "Unknown error") {
-		t.Errorf("message = %q, want it to contain %q", ue.Message, "Unknown error")
-	}
-}
-
 func TestRequestLinkCode_EmptyCode(t *testing.T) {
-	srv := newLinkCodeServer(t, map[string]interface{}{
-		"SUCCESS":      1,
-		"ACCESS_TOKEN": "",
+	srv := newJSONServer(t, http.StatusOK, map[string]interface{}{
+		"code": "",
 	})
 	defer srv.Close()
 
@@ -122,5 +83,48 @@ func TestRequestLinkCode_EmptyCode(t *testing.T) {
 	}
 	if !strings.Contains(ue.Message, "Link code response was empty") {
 		t.Errorf("message = %q, want it to contain %q", ue.Message, "Link code response was empty")
+	}
+}
+
+func TestRegister_Success(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/launcher/v1/account" {
+			t.Errorf("path = %q, want /launcher/v1/account", r.URL.Path)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"user_name":    "newuser",
+			"access_token": "lpt_v1_new",
+		})
+	}))
+	defer srv.Close()
+
+	client := gateway.NewClient(srv.URL, false)
+	res, err := Register(context.Background(), client, "newuser", "pass", "e@example.com")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if res.AccessToken != "lpt_v1_new" {
+		t.Errorf("access token = %q, want lpt_v1_new", res.AccessToken)
+	}
+}
+
+func TestCheckDiscordStatus_Linked(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.Header.Get("Authorization"); got != "Bearer tok" {
+			t.Errorf("Authorization = %q, want Bearer tok", got)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{"linked_flag": 1})
+	}))
+	defer srv.Close()
+
+	client := gateway.NewClient(srv.URL, false)
+	linked, err := CheckDiscordStatus(context.Background(), client, "user", "tok")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !linked {
+		t.Error("expected linked = true")
 	}
 }

@@ -5,10 +5,23 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 
 	"github.com/0xc0re/cluckers/internal/gateway"
 	"github.com/0xc0re/cluckers/internal/ui"
+)
+
+// REST API paths for the v1 launcher gateway.
+const (
+	pathSessionOrLink    = "/launcher/v1/session-or-link"
+	pathSession          = "/launcher/v1/session"
+	pathContentBootstrap = "/launcher/v1/content-bootstrap"
+	pathAccount          = "/launcher/v1/account"
+	pathDiscordLink      = "/launcher/v1/discord/link"
+	pathDiscordLinkCode  = "/launcher/v1/discord/link/code"
+	pathPasswordReset    = "/launcher/v1/password-reset"
+	pathBotNames         = "/launcher/v1/supporter/bot-names"
 )
 
 // ErrTokenRejected is returned when the server rejects a cached access token
@@ -20,30 +33,19 @@ var ErrTokenRejected = errors.New("access token rejected by server")
 type LoginResult struct {
 	AccessToken string
 	Username    string
+	Linked      bool
 }
 
-// Login authenticates with the Project Crown gateway via LAUNCHER_LOGIN_OR_LINK.
-// Returns a LoginResult with the access token on success, or a UserError with
-// a clear message on failure.
+// Login authenticates with the Project Crown gateway via the session-or-link
+// endpoint (POST /launcher/v1/session-or-link). This also links the account to
+// Discord on first login. Returns a LoginResult with the access token on success,
+// or a *ui.UserError with a clear message on failure.
 func Login(ctx context.Context, client *gateway.Client, username, password string) (*LoginResult, error) {
-	req := gateway.LoginRequest{
-		UserName: username,
-		Password: password,
-	}
+	req := gateway.LoginRequest{UserName: username, Password: password}
 
-	var resp gateway.LoginResponse
-	if err := client.Post(ctx, "LAUNCHER_LOGIN_OR_LINK", req, &resp); err != nil {
+	var resp gateway.SessionResponse
+	if err := client.Do(ctx, http.MethodPost, pathSessionOrLink, "", req, &resp); err != nil {
 		return nil, err
-	}
-
-	if !bool(resp.Success) {
-		msg := resp.TextValue
-		if msg == "" {
-			msg = "Unknown error"
-		}
-		return nil, &ui.UserError{
-			Message: "Login failed: " + msg,
-		}
 	}
 
 	if resp.AccessToken == "" {
@@ -52,96 +54,37 @@ func Login(ctx context.Context, client *gateway.Client, username, password strin
 		}
 	}
 
+	uname := resp.UserName
+	if uname == "" {
+		uname = username
+	}
+
 	return &LoginResult{
 		AccessToken: resp.AccessToken,
-		Username:    username,
+		Username:    uname,
+		Linked:      bool(resp.LinkedFlag),
 	}, nil
 }
 
-// GetOIDCToken retrieves an EAC OIDC JWT token from the gateway via
-// LAUNCHER_EAC_OIDC_TOKEN. Tries response fields in order: PortalInfo1,
-// StringValue, TextValue (matching the POC's fallback pattern).
-func GetOIDCToken(ctx context.Context, client *gateway.Client, username, accessToken string) (string, error) {
-	req := gateway.GenericRequest{
-		UserName:    username,
-		AccessToken: accessToken,
-	}
-
-	var resp gateway.OIDCTokenResponse
-	if err := client.Post(ctx, "LAUNCHER_EAC_OIDC_TOKEN", req, &resp); err != nil {
-		return "", err
-	}
-
-	if !bool(resp.Success) {
-		detail := resp.StringValue
-		if detail == "" {
-			detail = resp.TextValue
-		}
-		return "", &ui.UserError{
-			Message:    "OIDC token request failed: " + detail,
-			Suggestion: "Your session may have expired. Try logging out and back in.",
-			Err:        ErrTokenRejected,
-		}
-	}
-
-	// Try fields in order, matching POC: PORTAL_INFO_1 -> STRING_VALUE -> TEXT_VALUE
-	token := resp.PortalInfo1
-	if token == "" {
-		token = resp.StringValue
-	}
-	if token == "" {
-		token = resp.TextValue
-	}
-
-	if token == "" {
-		return "", &ui.UserError{
-			Message: "Failed to get OIDC token",
-		}
-	}
-
-	return token, nil
-}
-
 // GetContentBootstrap retrieves the content bootstrap from the gateway via
-// LAUNCHER_CONTENT_BOOTSTRAP. The bootstrap is base64-encoded in the response
-// and is typically 136 bytes with a BPS1 magic header.
+// GET /launcher/v1/content-bootstrap using the access token as a Bearer
+// credential. The bootstrap is base64-encoded in portal_info_1 and is a BPS1
+// blob consumed by the game via shared memory.
 //
 // Returns nil, nil if no bootstrap data is present (not an error -- the game
-// can launch without it).
-func GetContentBootstrap(ctx context.Context, client *gateway.Client, username, accessToken string) ([]byte, error) {
-	req := gateway.GenericRequest{
-		UserName:    username,
-		AccessToken: accessToken,
-	}
-
+// can launch without it). Returns an error wrapping ErrTokenRejected when the
+// server rejects the token (HTTP 401), so callers can re-authenticate.
+func GetContentBootstrap(ctx context.Context, client *gateway.Client, accessToken string) ([]byte, error) {
 	var resp gateway.BootstrapResponse
-	if err := client.Post(ctx, "LAUNCHER_CONTENT_BOOTSTRAP", req, &resp); err != nil {
-		return nil, err
+	if err := client.Do(ctx, http.MethodGet, pathContentBootstrap, accessToken, nil, &resp); err != nil {
+		return nil, classifyTokenError(err, "Content bootstrap request failed")
 	}
 
-	if !bool(resp.Success) {
-		detail := resp.StringValue
-		if detail == "" {
-			detail = resp.PortalInfo1
-		}
-		return nil, &ui.UserError{
-			Message:    "Content bootstrap request failed: " + detail,
-			Suggestion: "Your session may have expired. Try logging out and back in.",
-			Err:        ErrTokenRejected,
-		}
-	}
-
-	// Try fields in order, matching POC: PORTAL_INFO_1 -> STRING_VALUE
-	encoded := resp.PortalInfo1
-	if encoded == "" {
-		encoded = resp.StringValue
-	}
-
-	if encoded == "" {
+	if resp.PortalInfo1 == "" {
 		return nil, nil // No bootstrap data — not an error.
 	}
 
-	data, err := decodeBase64Resilient(encoded)
+	data, err := decodeBase64Resilient(resp.PortalInfo1)
 	if err != nil {
 		return nil, &ui.UserError{
 			Message:    "Failed to decode content bootstrap",
@@ -151,6 +94,22 @@ func GetContentBootstrap(ctx context.Context, client *gateway.Client, username, 
 	}
 
 	return data, nil
+}
+
+// classifyTokenError marks 401/403 gateway errors as ErrTokenRejected so that
+// callers can transparently re-authenticate. Other errors pass through.
+func classifyTokenError(err error, message string) error {
+	var ue *ui.UserError
+	if errors.As(err, &ue) {
+		if strings.Contains(ue.Detail, "HTTP 401") || strings.Contains(ue.Detail, "HTTP 403") {
+			return &ui.UserError{
+				Message:    message + ": " + ue.Message,
+				Suggestion: "Your session may have expired. Try logging out and back in.",
+				Err:        ErrTokenRejected,
+			}
+		}
+	}
+	return err
 }
 
 // decodeBase64Resilient tries multiple base64 encoding strategies to handle
