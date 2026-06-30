@@ -16,7 +16,7 @@
 
 - **Gateway API** (v1.2+): `https://api.project-crown.com` (behind Cloudflare). RESTful JSON API under `/launcher/v1/*`. Success is signalled by HTTP 2xx (there is no `SUCCESS` field); errors are RFC 7807 problem+json (`detail`, `title`, `status`). Authenticated calls send the access token as `Authorization: Bearer <token>`. Endpoints: `GET /healthz` (health, returns `{status:"ok",...}`), `POST /launcher/v1/session-or-link` (login + Discord link, body `{user_name,password}`), `POST /launcher/v1/session` (login by password, same shape), `GET /launcher/v1/content-bootstrap` (bearer), `POST /launcher/v1/account` (register), `POST /launcher/v1/discord/link/code`, `GET /launcher/v1/discord/link` (bearer), `POST /launcher/v1/password-reset`, `GET|PUT|DELETE /launcher/v1/supporter/bot-names[/{slot}]` (bearer). The old `POST /json/<COMMAND>` scheme and the separate `LAUNCHER_EAC_OIDC_TOKEN` call are gone. User-Agent: `CluckersCentral/1.2.54` (see `gateway.UserAgent`). Session response fields: `account_id`, `user_name`, `session_id`, `access_token` (`lpt_v1_...`), `expiration_datetime`, `linked_flag`, `custom_message`, `custom_value_1..4`, `text_value`, `portal_info_1`.
 - **Game Server (MCTS)**: `157.90.131.105` (the game now resolves the server itself; `-hostx` is no longer passed)
-- **Updater API**: `https://updater.realmhub.io/builds/version.json` (GET, no auth, returns version info with zip URL and BLAKE3 hash)
+- **Updater API**: `https://updater.realmhub.io/builds/version.json` (GET, no auth). Returns `base_url`, `manifest_url`, and `gameversion_dat_*` fields. The per-version manifest (`manifest_url`) lists every game file with its relative path, BLAKE3 hash, and size; each file is fetched from `base_url/<path>`. (The old single-`game.zip` scheme with `zip_url`/`zip_blake3`/`zip_size` is gone.) Delta-patch, repair-index, and minisign fields are present in the API but not yet consumed by the client.
 - **Game**: UE3-based Win64 binary (`ShippingPC-RealmGameNoEditor.exe`), runs under Wine/Proton-GE on Linux, directly on Windows
 - **Launch pipeline**: Sequential steps with spinner UI. Shared steps: health check -> auth -> content bootstrap (bearer GET) -> verify game installed -> launch game. Linux adds: detect Proton -> ensure compatdata -> resolve Steam integration (before verify) and deck config (after verify). Windows skips Proton/compatdata/deck steps entirely. The launch pipeline does NOT download or update game files -- users must run `cluckers update` separately.
 - **Game launch args** (v1.2): `-user=<name> -token_file=<path> -content_bootstrap_shm=<name> -content_bootstrap_size=136 -Language=INT -dx11 -seekfreeloading -pcconsole -nohomedir`. The access token is written to a temp file passed via `-token_file`. There is no `-eac_oidc_token` or `-hostx` anymore.
@@ -103,13 +103,12 @@ Game launch orchestration. Platform-specific behavior uses `_linux.go` / `_windo
 
 ### `internal/game/`
 Game file management.
-- `version.go`: `FetchVersionInfo()` (GET updater API, 15s timeout), `NeedsUpdate()` (compares GameVersion.dat BLAKE3 hash), `LocalVersion()`, `GameDir()`, `GameExePath()`.
-- `download.go`: `DownloadGameZip()` (HTTP Range resume, progress bar, ~5.3GB), `VerifyBLAKE3()`, `DownloadAndVerify()` (download + verify, deletes corrupt).
+- `version.go`: `FetchVersionInfo()` (GET updater API, 15s timeout), `NeedsUpdate()` (compares GameVersion.dat BLAKE3 hash; also true if a sync was interrupted), `LocalVersion()`, `GameDir()`, `GameExePath()`.
+- `manifest.go`: `Manifest`/`ManifestFile` types, `FetchManifest()` (GET `manifest_url`, validates schema 1). The manifest lists every game file with its relative path, BLAKE3 hash, and size.
+- `sync.go`: `SyncManifest()` (manifest-based updater: per-file BLAKE3 diff, bounded parallel worker pool downloading `base_url/<path>` with verify + atomic rename, path-traversal guard, clean-sync deletion of files not in the manifest, aggregated progress). `IsSyncIncomplete()` checks the `.cluckers-syncing` marker. `ProgressFunc` type. Replaces the old zip download/extract path.
 - `diskspace_linux.go`: `checkDiskSpace()` using syscall.Statfs.
 - `diskspace_windows.go`: `checkDiskSpace()` using GetDiskFreeSpaceExW.
-- `extract.go`: `ExtractZip()` (zip-slip protection, progress counter, removes zip after extraction). Calls `prepareTarget()` before each file overwrite.
-- `extract_linux.go`: `prepareTarget()` no-op (Unix allows owner overwrite regardless).
-- `extract_windows.go`: `prepareTarget()` clears read-only attribute via `os.Chmod` before overwrite.
+- `extract_linux.go` / `extract_windows.go`: `prepareTarget()` clears the read-only bit (via `os.Chmod`) before a sync overwrites an existing file.
 
 ### `internal/wine/`
 Proton-GE detection, compatdata management, and Steam integration. **Linux-only** (all files have `//go:build linux`).

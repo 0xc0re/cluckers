@@ -1,8 +1,6 @@
 package cli
 
 import (
-	"path/filepath"
-
 	"github.com/0xc0re/cluckers/internal/config"
 	"github.com/0xc0re/cluckers/internal/game"
 	"github.com/0xc0re/cluckers/internal/ui"
@@ -45,27 +43,28 @@ var updateCmd = &cobra.Command{
 			return err
 		}
 
-		if err := game.DownloadAndVerify(cmd.Context(), info, gameDir); err != nil {
+		manifest, err := game.FetchManifest(cmd.Context(), info)
+		if err != nil {
 			return err
 		}
 
-		if err := game.ExtractZip(filepath.Join(gameDir, "game.zip"), gameDir); err != nil {
+		if err := game.SyncManifest(cmd.Context(), info, manifest, gameDir, nil); err != nil {
 			return err
 		}
 
-		// Verify the extraction actually produced matching game files.
+		// Verify the sync actually produced matching game files.
 		stillNeedsUpdate, verifyErr := game.NeedsUpdate(gameDir, info)
 		if verifyErr != nil {
 			return &ui.UserError{
-				Message:    "Could not verify game files after extraction.",
+				Message:    "Could not verify game files after sync.",
 				Detail:     verifyErr.Error(),
 				Suggestion: "Try running `cluckers update` again.",
 			}
 		}
 		if stillNeedsUpdate {
 			return &ui.UserError{
-				Message:    "Game files were extracted but verification failed.",
-				Detail:     "GameVersion.dat hash does not match expected value after extraction.",
+				Message:    "Game files were downloaded but verification failed.",
+				Detail:     "GameVersion.dat hash does not match expected value after sync.",
 				Suggestion: "The download may be corrupted. Delete the game directory and run `cluckers update` again.",
 			}
 		}

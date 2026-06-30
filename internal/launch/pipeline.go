@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"syscall"
 	"time"
 
@@ -381,7 +380,7 @@ func stepCheckVersion(ctx context.Context, state *LaunchState) error {
 	return nil
 }
 
-// stepDownloadGame downloads and extracts the game update if needed.
+// stepDownloadGame syncs the game files to the manifest if needed.
 // Used by the prep pipeline (prep.go) -- not used in the launch pipeline.
 func stepDownloadGame(ctx context.Context, state *LaunchState) error {
 	if !state.NeedsDownload {
@@ -396,20 +395,20 @@ func stepDownloadGame(ctx context.Context, state *LaunchState) error {
 		return fmt.Errorf("creating game directory: %w", err)
 	}
 
-	if err := game.DownloadAndVerify(ctx, state.VersionInfo, state.GameDir); err != nil {
+	manifest, err := game.FetchManifest(ctx, state.VersionInfo)
+	if err != nil {
 		return &ui.UserError{
-			Message:    "Failed to download game update.",
+			Message:    "Failed to fetch game manifest.",
 			Detail:     fmt.Sprintf("%s", err),
-			Suggestion: "Check your internet connection and try again. Partial downloads will be resumed.",
+			Suggestion: "Check your internet connection and try again.",
 		}
 	}
 
-	zipPath := filepath.Join(state.GameDir, "game.zip")
-	if err := game.ExtractZip(zipPath, state.GameDir); err != nil {
+	if err := game.SyncManifest(ctx, state.VersionInfo, manifest, state.GameDir, nil); err != nil {
 		return &ui.UserError{
-			Message:    "Failed to extract game files.",
+			Message:    "Failed to download game update.",
 			Detail:     fmt.Sprintf("%s", err),
-			Suggestion: "Run `cluckers update` to retry.",
+			Suggestion: "Check your internet connection and try again. Interrupted downloads resume on the next run.",
 		}
 	}
 
@@ -418,7 +417,7 @@ func stepDownloadGame(ctx context.Context, state *LaunchState) error {
 }
 
 // stepVerifyGameInstalled checks that the game executable exists on disk and
-// that no previous extraction was interrupted.
+// that no previous sync was interrupted.
 // The launch pipeline does not download or update game files -- users must
 // run `cluckers update` separately before launching.
 func stepVerifyGameInstalled(_ context.Context, state *LaunchState) error {
@@ -429,11 +428,11 @@ func stepVerifyGameInstalled(_ context.Context, state *LaunchState) error {
 	}
 	state.GameDir = gameDir
 
-	// Check for interrupted extraction before checking exe.
-	if game.IsExtractionIncomplete(gameDir) {
+	// Check for an interrupted sync before checking the exe.
+	if game.IsSyncIncomplete(gameDir) {
 		return &ui.UserError{
-			Message:    "Game extraction was interrupted.",
-			Suggestion: "Run `cluckers update` to re-extract the game files.",
+			Message:    "Game update was interrupted.",
+			Suggestion: "Run `cluckers update` to finish downloading the game files.",
 		}
 	}
 

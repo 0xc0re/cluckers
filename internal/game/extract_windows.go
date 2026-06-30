@@ -4,9 +4,9 @@ package game
 
 import "os"
 
-// prepareTarget ensures the target file is writable before extraction overwrites it.
-// On Windows, files extracted from zip with mode 0444 get the read-only attribute,
-// which prevents subsequent extractions from overwriting them.
+// prepareTarget ensures the target file is writable before a sync overwrites it.
+// On Windows, files with mode 0444 get the read-only attribute, which prevents
+// a subsequent sync from overwriting them.
 func prepareTarget(path string) {
 	info, err := os.Stat(path)
 	if err != nil {

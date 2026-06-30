@@ -26,9 +26,6 @@ type VersionInfo struct {
 	GameVersionDatPath   string `json:"gameversion_dat_path"`
 	GameVersionDatBLAKE3 string `json:"gameversion_dat_blake3"`
 	GameVersionDatSize   int64  `json:"gameversion_dat_size"`
-	ZipURL               string `json:"zip_url"`
-	ZipBLAKE3            string `json:"zip_blake3"`
-	ZipSize              int64  `json:"zip_size"`
 }
 
 // FetchVersionInfo retrieves the current version information from the updater API.
@@ -81,10 +78,10 @@ func FetchVersionInfo(ctx context.Context) (*VersionInfo, error) {
 
 // NeedsUpdate checks whether the local game files need updating by comparing
 // the local GameVersion.dat BLAKE3 hash against the remote version.
-// Also returns true if a previous extraction was interrupted.
+// Also returns true if a previous sync was interrupted.
 func NeedsUpdate(gameDir string, remote *VersionInfo) (bool, error) {
-	// Interrupted extraction means files are inconsistent — force re-download.
-	if IsExtractionIncomplete(gameDir) {
+	// An interrupted sync means files are inconsistent — force re-download.
+	if IsSyncIncomplete(gameDir) {
 		return true, nil
 	}
 
