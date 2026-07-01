@@ -1,0 +1,118 @@
+========================================================================
+TODO / RESUME-DEV PLAN — cluckers
+Move active development to the remote box (smiggly, 192.168.20.249),
+which has a known-good, launchable game build. Written 2026-06-30.
+Branch: feat/manifest-updater
+========================================================================
+
+WHY WE'RE MOVING DEV TO THE REMOTE BOX
+--------------------------------------
+The current "latest" game build 0.37.6744.0 will NOT launch. This was
+root-caused this session and is an UPSTREAM defect, not a cluckers bug.
+The remote box (smiggly) has a known-good 6742 build that launches to a
+full session, so real launch testing must happen there until 6744 is
+fixed upstream.
+
+
+ROOT CAUSE (CONFIRMED — not cluckers, not this machine)
+-------------------------------------------------------
+- 6744 aborts at startup with, in Binaries/Logs/MCTS-*.log:
+      Bad marshal [UNKNOWN] id=[0/0x00000000] flags=0x00 size=594600 place=61   Source=Platform
+  then system-*.log: "Abnormal termination triggered by abort call".
+  It dies BEFORE UE3 engine init, so no RealmGame/Logs/Launch.log is written.
+- Only TWO files changed 6742 -> 6744:
+      Binaries/Win64/ShippingPC-RealmGameNoEditor.exe
+      Binaries/Win64/MctsInterface.dll   <- the DLL that emits "Bad marshal"
+  Every other MCTS/EOS/EAC DLL (CSMctsInterface, CSMctsBridge, solstice,
+  AgentInterface, EOSSDK-Win64-Shipping, eac_server64) is byte-identical.
+- The 594600-byte object is RealmGame/Localization/WordFilter.dat — the only
+  file of that size — and it is BYTE-IDENTICAL to 6742's. So 6744's new
+  MctsInterface.dll rejects data that 6742's DLL parsed fine.
+- The cluckers install is BYTE-PERFECT to manifest-v0.37.6744.0.json
+  (0 files missing, 0 extra; only RealmSystemSettings.ini differs by +4 bytes,
+  which the game rewrites at runtime). Nothing for a launcher to fix.
+- PROOF: dropping 6742's MctsInterface.dll into the 6744 install clears the
+  "Bad marshal" and the game reaches a window — then the 6744 .exe fatal-errors
+  (matched exe/DLL pair; you cannot mix versions). See UE3AutoReportDump*.txt
+  "Fatal error!" in ShippingPC-RealmGameNoEditor.exe.
+- NOT a launch-method problem. All three of these left the abort unchanged:
+    * restoring the root EasyAntiCheat/Certificates/{base.bin,base.cer}
+    * adding a RealmGame/CookedPC/ dir with the precompiled ShaderCodeStorage
+    * launching via RealmEAC.exe (EAC bootstrapper) instead of ShippingPC direct
+- Reproduces identically on BOTH Linux/Proton machines, both byte-perfect to
+  the manifest => 6744 is broken as published. cluckers cannot reconstruct
+  data the server never republished.
+
+
+KNOWN-GOOD STATE ON smiggly (192.168.20.249)
+--------------------------------------------
+- WORKS: 6742 at  ~/.cluckers-bak/game   (confirmed full session 2026-06-30:
+  reached PLAYER_LOGOFF, clean "Exit: Exiting.")
+- WORKS: older official-launcher builds under ~/POC/Cluckers/0.36.2100.0 (and 0.34.2000.0)
+- BROKEN: 6744 at ~/.cluckers/game (manifest-updater install).
+  Do NOT run `cluckers update` expecting a fix — it re-pulls 6744.
+
+
+STEP 1 — GET PLAYING/TESTING AGAIN ON smiggly (do this first)
+-------------------------------------------------------------
+Option A (fastest): run the known-good 6742 tree.
+    # back up the broken 6744 install, then restore 6742 into the active dir
+    mv ~/.cluckers/game/Realm-Royale ~/.cluckers/game/Realm-Royale.6744
+    cp -a ~/.cluckers-bak/game/Realm-Royale ~/.cluckers/game/Realm-Royale
+    cluckers launch          # launch does NOT auto-update; do not run `cluckers update`
+Option B: set  game_dir  in ~/.cluckers/config/settings.toml to a 6742 tree.
+Verify: game reaches menu / connects to 157.90.131.105.
+
+
+STEP 2 — CLUCKERS DEV TASKS
+---------------------------
+1. VERSION PIN / ROLLBACK (highest value — makes a broken "latest" survivable):
+   - internal/game/version.go: FetchVersionInfo()/NeedsUpdate() currently always
+     target latest_version (6744).
+   - Add a pin: config key (e.g. pinned_version) and/or a `--version` flag so
+     update/prep/launch can stay on a known-good build when latest is broken.
+   - TDD with t.TempDir() + t.Setenv("CLUCKERS_HOME", tmp) per project convention.
+2. (optional) Post-sync smoke hook: the manifest updater is correct here, but a
+   quick post-install sanity check could catch bad upstream builds earlier.
+3. Re-test 6744 when Project Crown republishes it (see upstream report below).
+
+
+STEP 3 — UPSTREAM DEFECT REPORT (send to Project Crown; cluckers can't fix this)
+-------------------------------------------------------------------------------
+Subject: Build 0.37.6744.0 aborts at startup (MctsInterface.dll bad marshal)
+- 6744 is byte-perfect to manifest-v0.37.6744.0.json yet aborts before UE3 init.
+- MctsInterface.dll logs: Bad marshal [UNKNOWN] ... size=594600 place=61 (Source=Platform), then abort().
+- 594600 bytes = RealmGame/Localization/WordFilter.dat, byte-identical to 6742.
+- Reverting ONLY MctsInterface.dll to the 6742 build clears the marshal error
+  (then exe/DLL mismatch fatal-errors — expected).
+- Repro on two independent Linux/Proton machines; 6742 unaffected.
+- Ask: republish 6744 with a WordFilter.dat compatible with the new
+  MctsInterface.dll (or a matching MctsInterface.dll), OR roll updater
+  latest_version back to 6742 until fixed.
+
+
+REFERENCE — OFFICIAL LAUNCHER INTEL (not the cause, but mapped this session)
+---------------------------------------------------------------------------
+- Official "CluckersCentral" 1.2.54 is a Tauri/Rust app.
+  Download: https://updater.realmhub.io/cluckers-central_1.2.54_x64-setup.exe
+  (URL comes from project-crown.com -> /launcher/latest.json)
+- Differences vs cluckers (tested; neither affects the 6744 abort):
+    * It spawns RealmEAC.exe (EAC bootstrapper), choosing it as primary when
+      present, rather than launching ShippingPC-RealmGameNoEditor.exe directly.
+    * Its arg builder still includes -eac_oidc_token / -eac_oidc_token_file.
+      cluckers dropped both in the v1.2 migration (commit 636a0f6) on the
+      assumption "the game resolves EAC/OIDC itself". Revisit only if EAC
+      enforcement becomes relevant.
+  Same gateway endpoints, same content-bootstrap shared-memory mechanism
+  (CreateFileMappingW + Local\realm_content_bootstrap_*), same core game args.
+
+
+REPO / SYNC NOTES
+-----------------
+- Branch feat/manifest-updater carries the manifest-based updater work
+  (4 commits on top of master 7505f48).
+- No leftover code changes from the investigation: an experimental RealmEAC
+  launch spike in internal/launch/process_linux.go was tested and reverted.
+- This file (TODO.plan.txt) is committed on feat/manifest-updater; drop it
+  before opening a PR to master if you don't want it in history.
+========================================================================
