@@ -24,8 +24,8 @@ import (
 )
 
 const (
-	githubOwner    = "0xc0re"
-	githubRepo     = "cluckers"
+	githubOwner      = "0xc0re"
+	githubRepo       = "cluckers"
 	latestReleaseURL = "https://api.github.com/repos/" + githubOwner + "/" + githubRepo + "/releases/latest"
 )
 
@@ -350,7 +350,9 @@ func verifyChecksum(ctx context.Context, archivePath, assetName string, checksum
 		return nil
 	}
 
-	body, err := io.ReadAll(resp.Body)
+	// Cap the read: checksums.txt is a few lines; 1 MB guards against a
+	// misbehaving or compromised server exhausting memory.
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	if err != nil {
 		ui.Warn("Could not read checksum file — skipping integrity verification")
 		return nil
