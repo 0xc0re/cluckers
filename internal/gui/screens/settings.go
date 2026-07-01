@@ -4,6 +4,7 @@ package screens
 
 import (
 	"runtime"
+	"strings"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
@@ -40,11 +41,17 @@ func MakeSettingsView(w fyne.Window, cfg *config.Config, onBack func()) fyne.Can
 		gameDirEntry.PlaceHolder = "%LOCALAPPDATA%\\cluckers\\game (default)"
 	}
 
+	// Pinned game version (empty = latest).
+	pinnedVersionEntry := widget.NewEntry()
+	pinnedVersionEntry.SetText(cfg.PinnedVersion)
+	pinnedVersionEntry.PlaceHolder = "leave empty for latest"
+
 	// Build form items. Start with common fields.
 	formItems := []*widget.FormItem{
 		widget.NewFormItem("Gateway URL", gatewayEntry),
 		widget.NewFormItem("Verbose", verboseCheck),
 		widget.NewFormItem("Game Directory", gameDirEntry),
+		widget.NewFormItem("Pinned Game Version", pinnedVersionEntry),
 	}
 
 	// Proton path entry (Linux only).
@@ -69,6 +76,7 @@ func MakeSettingsView(w fyne.Window, cfg *config.Config, onBack func()) fyne.Can
 		viper.Set("gateway", gatewayEntry.Text)
 		viper.Set("verbose", verboseCheck.Checked)
 		viper.Set("game_dir", gameDirEntry.Text)
+		viper.Set("pinned_version", strings.TrimSpace(pinnedVersionEntry.Text))
 
 		if runtime.GOOS == "linux" && winePathEntry != nil {
 			viper.Set("wine_path", winePathEntry.Text)
@@ -90,6 +98,7 @@ func MakeSettingsView(w fyne.Window, cfg *config.Config, onBack func()) fyne.Can
 		cfg.Gateway = gatewayEntry.Text
 		cfg.Verbose = verboseCheck.Checked
 		cfg.GameDir = gameDirEntry.Text
+		cfg.PinnedVersion = strings.TrimSpace(pinnedVersionEntry.Text)
 		if runtime.GOOS == "linux" && winePathEntry != nil {
 			cfg.WinePath = winePathEntry.Text
 		}
