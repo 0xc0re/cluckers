@@ -33,6 +33,7 @@ type LaunchState struct {
 	SteamShortcutAppID   uint32 // Non-Steam shortcut appid (parsed from shortcuts.vdf). 0 if not found.
 	GameDir              string
 	VersionInfo          *game.VersionInfo // Used by prep pipeline only.
+	Manifest             *game.Manifest    // Reused between check/download when pinned. Prep only.
 	NeedsDownload        bool              // Used by prep pipeline only.
 	TokenCache           *auth.TokenCache
 	Reporter             ProgressReporter
@@ -355,7 +356,7 @@ func stepCheckVersion(ctx context.Context, state *LaunchState) error {
 	}
 	state.GameDir = gameDir
 
-	info, err := game.FetchVersionInfo(ctx)
+	info, err := game.ResolveVersionInfo(ctx, state.Config.PinnedVersion)
 	if err != nil {
 		return &ui.UserError{
 			Message:    "Could not check game version.",
@@ -365,10 +366,11 @@ func stepCheckVersion(ctx context.Context, state *LaunchState) error {
 	}
 	state.VersionInfo = info
 
-	needsUpdate, err := game.NeedsUpdate(gameDir, info)
+	needsUpdate, manifest, err := game.ResolveNeedsUpdate(ctx, gameDir, info)
 	if err != nil {
 		return fmt.Errorf("checking game version: %w", err)
 	}
+	state.Manifest = manifest
 
 	if needsUpdate {
 		state.NeedsDownload = true
@@ -395,12 +397,18 @@ func stepDownloadGame(ctx context.Context, state *LaunchState) error {
 		return fmt.Errorf("creating game directory: %w", err)
 	}
 
-	manifest, err := game.FetchManifest(ctx, state.VersionInfo)
-	if err != nil {
-		return &ui.UserError{
-			Message:    "Failed to fetch game manifest.",
-			Detail:     fmt.Sprintf("%s", err),
-			Suggestion: "Check your internet connection and try again.",
+	// ResolveNeedsUpdate only fetches the manifest on the pinned path; fetch it
+	// here for the latest path.
+	manifest := state.Manifest
+	if manifest == nil {
+		var err error
+		manifest, err = game.FetchManifest(ctx, state.VersionInfo)
+		if err != nil {
+			return &ui.UserError{
+				Message:    "Failed to fetch game manifest.",
+				Detail:     fmt.Sprintf("%s", err),
+				Suggestion: "Check your internet connection and try again.",
+			}
 		}
 	}
 

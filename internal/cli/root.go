@@ -32,9 +32,11 @@ var rootCmd = &cobra.Command{
 func init() {
 	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "Enable verbose output (debug details, API responses, timing)")
 	rootCmd.PersistentFlags().String("gateway", config.DefaultGateway(), "Gateway API base URL")
+	rootCmd.PersistentFlags().String("game-version", "", "Pin the game to a specific version (e.g. 0.37.6742.0) instead of latest")
 
 	_ = viper.BindPFlag("verbose", rootCmd.PersistentFlags().Lookup("verbose"))
 	_ = viper.BindPFlag("gateway", rootCmd.PersistentFlags().Lookup("gateway"))
+	_ = viper.BindPFlag("pinned_version", rootCmd.PersistentFlags().Lookup("game-version"))
 }
 
 // InitFlags re-applies flag defaults that depend on build-time values.

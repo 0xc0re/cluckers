@@ -149,7 +149,7 @@ func MakeMainView(w fyne.Window, cfg *config.Config, username, password string, 
 			if gameDir == "" {
 				gameDir = game.GameDir()
 			}
-			info, err := game.FetchVersionInfo(context.Background())
+			info, err := game.ResolveVersionInfo(context.Background(), cfg.PinnedVersion)
 			if err != nil {
 				fyne.Do(func() {
 					dialog.ShowError(fmt.Errorf("could not check version: %s", err), w)
@@ -157,7 +157,7 @@ func MakeMainView(w fyne.Window, cfg *config.Config, username, password string, 
 				})
 				return
 			}
-			needsUpdate, err := game.NeedsUpdate(gameDir, info)
+			needsUpdate, _, err := game.ResolveNeedsUpdate(context.Background(), gameDir, info)
 			if err != nil {
 				fyne.Do(func() {
 					dialog.ShowError(fmt.Errorf("verification error: %s", err), w)
@@ -185,7 +185,7 @@ func MakeMainView(w fyne.Window, cfg *config.Config, username, password string, 
 			if gameDir == "" {
 				gameDir = game.GameDir()
 			}
-			info, err := game.FetchVersionInfo(context.Background())
+			info, err := game.ResolveVersionInfo(context.Background(), cfg.PinnedVersion)
 			if err != nil {
 				fyne.Do(func() {
 					dialog.ShowError(fmt.Errorf("could not check version: %s", err), w)
@@ -193,7 +193,7 @@ func MakeMainView(w fyne.Window, cfg *config.Config, username, password string, 
 				})
 				return
 			}
-			needsUpdate, err := game.NeedsUpdate(gameDir, info)
+			needsUpdate, manifest, err := game.ResolveNeedsUpdate(context.Background(), gameDir, info)
 			if err != nil {
 				fyne.Do(func() {
 					dialog.ShowError(fmt.Errorf("version check error: %s", err), w)
@@ -216,14 +216,17 @@ func MakeMainView(w fyne.Window, cfg *config.Config, username, password string, 
 				return
 			}
 			fyne.Do(func() { showProgress("Downloading...") })
-			manifest, err := game.FetchManifest(context.Background(), info)
-			if err != nil {
-				fyne.Do(func() {
-					hideProgress()
-					dialog.ShowError(fmt.Errorf("could not fetch manifest: %s", err), w)
-					setFileOpsLocked(false)
-				})
-				return
+			// ResolveNeedsUpdate only fetches the manifest on the pinned path.
+			if manifest == nil {
+				manifest, err = game.FetchManifest(context.Background(), info)
+				if err != nil {
+					fyne.Do(func() {
+						hideProgress()
+						dialog.ShowError(fmt.Errorf("could not fetch manifest: %s", err), w)
+						setFileOpsLocked(false)
+					})
+					return
+				}
 			}
 			if err := game.SyncManifest(context.Background(), info, manifest, gameDir, makeDownloadProgressFunc()); err != nil {
 				fyne.Do(func() {
@@ -263,7 +266,7 @@ func MakeMainView(w fyne.Window, cfg *config.Config, username, password string, 
 						})
 						return
 					}
-					info, err := game.FetchVersionInfo(context.Background())
+					info, err := game.ResolveVersionInfo(context.Background(), cfg.PinnedVersion)
 					if err != nil {
 						fyne.Do(func() {
 							dialog.ShowError(fmt.Errorf("could not check version: %s", err), w)

@@ -74,11 +74,23 @@ func FetchManifest(ctx context.Context, info *VersionInfo) (*Manifest, error) {
 		}
 	}
 
-	if m.Schema != manifestSchema {
+	// Schema 0 means the "schema" field is absent — the legacy schema-less
+	// manifest format used by older builds (e.g. those a version pin falls back
+	// to). Its file list is structurally identical, so accept it. Reject any
+	// newer/unknown schema this launcher does not understand.
+	if m.Schema != manifestSchema && m.Schema != 0 {
 		return nil, &ui.UserError{
 			Message:    "Unsupported game manifest version.",
 			Detail:     fmt.Sprintf("manifest schema %d, this launcher supports %d", m.Schema, manifestSchema),
 			Suggestion: "Update Cluckers with `cluckers self-update` and try again.",
+		}
+	}
+
+	if len(m.Files) == 0 {
+		return nil, &ui.UserError{
+			Message:    "Game manifest contained no files.",
+			Detail:     fmt.Sprintf("GET %s returned a manifest with an empty file list", info.ManifestURL),
+			Suggestion: "Try again later or check the Cluckers Discord for server status.",
 		}
 	}
 

@@ -20,14 +20,18 @@ var updateCmd = &cobra.Command{
 
 		ui.Info("Checking for updates...")
 
-		info, err := game.FetchVersionInfo(cmd.Context())
+		info, err := game.ResolveVersionInfo(cmd.Context(), Cfg.PinnedVersion)
 		if err != nil {
 			return err
 		}
 
-		ui.Verbose("Server version: "+info.LatestVersion, Cfg.Verbose)
+		if Cfg.PinnedVersion != "" {
+			ui.Verbose("Pinned to version: "+info.LatestVersion, Cfg.Verbose)
+		} else {
+			ui.Verbose("Server version: "+info.LatestVersion, Cfg.Verbose)
+		}
 
-		needsUpdate, err := game.NeedsUpdate(gameDir, info)
+		needsUpdate, manifest, err := game.ResolveNeedsUpdate(cmd.Context(), gameDir, info)
 		if err != nil {
 			return err
 		}
@@ -43,9 +47,13 @@ var updateCmd = &cobra.Command{
 			return err
 		}
 
-		manifest, err := game.FetchManifest(cmd.Context(), info)
-		if err != nil {
-			return err
+		// ResolveNeedsUpdate only fetches the manifest on the pinned path; fetch
+		// it here for the latest path.
+		if manifest == nil {
+			manifest, err = game.FetchManifest(cmd.Context(), info)
+			if err != nil {
+				return err
+			}
 		}
 
 		if err := game.SyncManifest(cmd.Context(), info, manifest, gameDir, nil); err != nil {
@@ -53,7 +61,7 @@ var updateCmd = &cobra.Command{
 		}
 
 		// Verify the sync actually produced matching game files.
-		stillNeedsUpdate, verifyErr := game.NeedsUpdate(gameDir, info)
+		stillNeedsUpdate, verifyErr := game.NeedsUpdateFromManifest(gameDir, manifest)
 		if verifyErr != nil {
 			return &ui.UserError{
 				Message:    "Could not verify game files after sync.",
