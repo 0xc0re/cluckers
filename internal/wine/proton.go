@@ -105,10 +105,10 @@ var knownDistros = map[string]bool{
 	"arch": true, "steamos": true,
 	"ubuntu": true, "debian": true, "linuxmint": true, "pop": true,
 	"fedora": true, "bazzite": true,
-	"nixos": true,
+	"nixos":    true,
 	"opensuse": true, "suse": true,
 	"gentoo": true,
-	"void": true,
+	"void":   true,
 }
 
 // effectiveDistro returns the best distro ID for install instructions.
