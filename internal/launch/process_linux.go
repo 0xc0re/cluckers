@@ -48,8 +48,7 @@ func LaunchGame(ctx context.Context, cfg *LaunchConfig) error {
 		fmt.Sprintf("-token_file=%s", wine.LinuxToWinePath(cfg.TokenPath)),
 		"-Language=INT",
 		"-dx11",
-		"-seekfreeloading",
-		"-pcconsole",
+		"-seekfreeloadingpcconsole",
 		"-nohomedir",
 	}
 

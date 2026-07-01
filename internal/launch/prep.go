@@ -124,8 +124,7 @@ func stepWriteLaunchConfig(_ context.Context, state *LaunchState) error {
 		"-Language=INT",
 		"-dx11",
 		fmt.Sprintf("-content_bootstrap_size=%d", len(state.Bootstrap)),
-		"-seekfreeloading",
-		"-pcconsole",
+		"-seekfreeloadingpcconsole",
 		"-nohomedir",
 		fmt.Sprintf("-content_bootstrap_shm=%s", prepSHMName),
 	}

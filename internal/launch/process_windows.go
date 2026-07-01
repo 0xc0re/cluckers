@@ -44,8 +44,7 @@ func LaunchGame(ctx context.Context, cfg *LaunchConfig) error {
 		fmt.Sprintf("-token_file=%s", cfg.TokenPath),
 		"-Language=INT",
 		"-dx11",
-		"-seekfreeloading",
-		"-pcconsole",
+		"-seekfreeloadingpcconsole",
 		"-nohomedir",
 	}
 
