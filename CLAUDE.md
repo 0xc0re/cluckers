@@ -16,10 +16,10 @@
 
 - **Gateway API** (v1.2+): `https://api.project-crown.com` (behind Cloudflare). RESTful JSON API under `/launcher/v1/*`. Success is signalled by HTTP 2xx (there is no `SUCCESS` field); errors are RFC 7807 problem+json (`detail`, `title`, `status`). Authenticated calls send the access token as `Authorization: Bearer <token>`. Endpoints: `GET /healthz` (health, returns `{status:"ok",...}`), `POST /launcher/v1/session-or-link` (login + Discord link, body `{user_name,password}`), `POST /launcher/v1/session` (login by password, same shape), `GET /launcher/v1/content-bootstrap` (bearer), `POST /launcher/v1/account` (register), `POST /launcher/v1/discord/link/code`, `GET /launcher/v1/discord/link` (bearer), `POST /launcher/v1/password-reset`, `GET|PUT|DELETE /launcher/v1/supporter/bot-names[/{slot}]` (bearer). The old `POST /json/<COMMAND>` scheme and the separate `LAUNCHER_EAC_OIDC_TOKEN` call are gone. User-Agent: `CluckersCentral/1.2.54` (see `gateway.UserAgent`). Session response fields: `account_id`, `user_name`, `session_id`, `access_token` (`lpt_v1_...`), `expiration_datetime`, `linked_flag`, `custom_message`, `custom_value_1..4`, `text_value`, `portal_info_1`.
 - **Game Server (MCTS)**: `157.90.131.105` (the game now resolves the server itself; `-hostx` is no longer passed)
-- **Updater API**: `https://updater.realmhub.io/builds/version.json` (GET, no auth, returns version info with zip URL and BLAKE3 hash)
+- **Updater API**: `https://updater.realmhub.io/builds/version.json` (GET, no auth). Returns `base_url`, `manifest_url`, and `gameversion_dat_*` fields. The per-version manifest (`manifest_url`) lists every game file with its relative path, BLAKE3 hash, and size; each file is fetched from `base_url/<path>`. (The old single-`game.zip` scheme with `zip_url`/`zip_blake3`/`zip_size` is gone.) Delta-patch, repair-index, and minisign fields are present in the API but not yet consumed by the client.
 - **Game**: UE3-based Win64 binary (`ShippingPC-RealmGameNoEditor.exe`), runs under Wine/Proton-GE on Linux, directly on Windows
 - **Launch pipeline**: Sequential steps with spinner UI. Shared steps: health check -> auth -> content bootstrap (bearer GET) -> verify game installed -> launch game. Linux adds: detect Proton -> ensure compatdata -> resolve Steam integration (before verify) and deck config (after verify). Windows skips Proton/compatdata/deck steps entirely. The launch pipeline does NOT download or update game files -- users must run `cluckers update` separately.
-- **Game launch args** (v1.2): `-user=<name> -token_file=<path> -content_bootstrap_shm=<name> -content_bootstrap_size=136 -Language=INT -dx11 -seekfreeloading -pcconsole -nohomedir`. The access token is written to a temp file passed via `-token_file`. There is no `-eac_oidc_token` or `-hostx` anymore.
+- **Game launch args** (v1.2): `-user=<name> -token_file=<path> -content_bootstrap_shm=<name> -content_bootstrap_size=136 -Language=INT -dx11 -seekfreeloadingpcconsole -nohomedir`. The access token is written to a temp file passed via `-token_file`. There is no `-eac_oidc_token` or `-hostx` anymore. **`-seekfreeloadingpcconsole` MUST be a single token** — splitting it into `-seekfreeloading -pcconsole` makes UE3 read cooked content from `CookedPC` (empty) instead of `CookedPCConsole`, so it tries to compile shaders and crashes on the missing `UE3ShaderCompileWorker.exe`. Verified against the official launcher's command line.
 - **Shared memory**: Game reads content bootstrap via Win32 named shared memory (`OpenFileMapping`). `shm_launcher.exe` (embedded, compiled from C) creates the mapping and launches game as child process. On Linux it runs under Wine; on Windows it runs natively.
 
 ## 3. CLI Commands
@@ -74,8 +74,7 @@ Configuration and paths. Platform-specific `DataDir()` uses `_linux.go` / `_wind
 
 ### `internal/gateway/`
 HTTP client for Project Crown gateway.
-- `client.go`: `Client` struct with retryablehttp (3 retries, 500ms-5s backoff, 15s timeout). `Post()` method for JSON POST to `/json/<command>`. `HealthCheck()`. User-Agent: `CluckersCentral/1.1.68`. Returns `*ui.UserError` on failures.
-- `client.go`: REST client. `Do(ctx, method, path, bearer, body, result)` is the core request method (success=2xx, RFC 7807 errors -> `*ui.UserError`, optional `Authorization: Bearer`). `HealthCheck()` hits `GET /healthz`. `UserAgent` constant.
+- `client.go`: `Client` struct with retryablehttp (3 retries, 500ms-5s backoff, 15s timeout). REST client. `Do(ctx, method, path, bearer, body, result)` is the core request method (success=2xx, RFC 7807 errors -> `*ui.UserError`, optional `Authorization: Bearer`). `HealthCheck()` hits `GET /healthz`. `UserAgent` constant.
 - `types.go`: Request/response types (`LoginRequest`, `SessionResponse`, `BootstrapResponse`, `RegisterRequest`, `LinkCodeRequest`, `LinkCodeResponse`, `DiscordStatusResponse`, `PasswordResetRequest`, `PasswordResetResponse`, `BotNameUpsertRequest`, `HealthResponse`). `FlexBool` custom type handles bool/number/string JSON variants (e.g. `linked_flag`).
 
 ### `internal/auth/`
@@ -103,13 +102,12 @@ Game launch orchestration. Platform-specific behavior uses `_linux.go` / `_windo
 
 ### `internal/game/`
 Game file management.
-- `version.go`: `FetchVersionInfo()` (GET updater API, 15s timeout), `NeedsUpdate()` (compares GameVersion.dat BLAKE3 hash), `LocalVersion()`, `GameDir()`, `GameExePath()`.
-- `download.go`: `DownloadGameZip()` (HTTP Range resume, progress bar, ~5.3GB), `VerifyBLAKE3()`, `DownloadAndVerify()` (download + verify, deletes corrupt).
+- `version.go`: `FetchVersionInfo()` (GET updater API, 15s timeout), `NeedsUpdate()` (compares GameVersion.dat BLAKE3 hash; also true if a sync was interrupted), `LocalVersion()`, `GameDir()`, `GameExePath()`.
+- `manifest.go`: `Manifest`/`ManifestFile` types, `FetchManifest()` (GET `manifest_url`, validates schema 1). The manifest lists every game file with its relative path, BLAKE3 hash, and size.
+- `sync.go`: `SyncManifest()` (manifest-based updater: per-file BLAKE3 diff, bounded parallel worker pool downloading `base_url/<path>` with verify + atomic rename, path-traversal guard, clean-sync deletion of files not in the manifest, aggregated progress). `IsSyncIncomplete()` checks the `.cluckers-syncing` marker. `ProgressFunc` type. Replaces the old zip download/extract path.
 - `diskspace_linux.go`: `checkDiskSpace()` using syscall.Statfs.
 - `diskspace_windows.go`: `checkDiskSpace()` using GetDiskFreeSpaceExW.
-- `extract.go`: `ExtractZip()` (zip-slip protection, progress counter, removes zip after extraction). Calls `prepareTarget()` before each file overwrite.
-- `extract_linux.go`: `prepareTarget()` no-op (Unix allows owner overwrite regardless).
-- `extract_windows.go`: `prepareTarget()` clears read-only attribute via `os.Chmod` before overwrite.
+- `extract_linux.go` / `extract_windows.go`: `prepareTarget()` clears the read-only bit (via `os.Chmod`) before a sync overwrites an existing file.
 
 ### `internal/wine/`
 Proton-GE detection, compatdata management, and Steam integration. **Linux-only** (all files have `//go:build linux`).
@@ -138,7 +136,7 @@ GUI screen implementations.
 - `login.go`: `MakeLoginScreen()` -- username/password form, inline error display, Enter-to-submit, Create Account button.
 - `register.go`: `MakeRegisterScreen()` -- username/password/email form, Discord link code flow with `showDiscordLinking()` polling view.
 - `main.go`: `MakeMainView()` -- launch button, game management (verify/update/repair) with progress bars, supporter bot names section (auto-detected), community links, settings/logout buttons.
-- `settings.go`: `MakeSettingsView()` -- gateway URL, verbose mode, game directory, Proton path (Linux only). Persists via viper TOML.
+- `settings.go`: `MakeSettingsView()` -- gateway URL, verbose mode, game directory, pinned game version, Proton path (Linux only). Persists via viper TOML.
 - `launch_progress.go`: `MakeLaunchProgressView()` -- pipeline step list with live status updates, cancel button.
 
 ### `internal/gui/widgets/`
@@ -193,7 +191,7 @@ Build-time source files (not embedded directly).
     settings.toml        # optional TOML config
     credentials.enc      # NaCl secretbox encrypted JSON {username, password}
   cache/
-    tokens.json          # {access_token, oidc_token, username, cached_at}
+    tokens.json          # {access_token, username, access_cached_at}
   logs/
     cluckers.log         # Rolling log file (rotated at 5MB)
   game/                  # Game files (managed by update command)
@@ -215,7 +213,7 @@ Build-time source files (not embedded directly).
     settings.toml        # optional TOML config
     credentials.enc      # NaCl secretbox encrypted JSON {username, password}
   cache\
-    tokens.json          # {access_token, oidc_token, username, cached_at}
+    tokens.json          # {access_token, username, access_cached_at}
   logs\
     cluckers.log         # Rolling log file (rotated at 5MB)
   game\                  # Game files (managed by update command)

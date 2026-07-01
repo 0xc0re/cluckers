@@ -3,6 +3,7 @@
 package launch
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -43,8 +44,7 @@ func LaunchGame(ctx context.Context, cfg *LaunchConfig) error {
 		fmt.Sprintf("-token_file=%s", cfg.TokenPath),
 		"-Language=INT",
 		"-dx11",
-		"-seekfreeloading",
-		"-pcconsole",
+		"-seekfreeloadingpcconsole",
 		"-nohomedir",
 	}
 
@@ -97,18 +97,17 @@ func LaunchGame(ctx context.Context, cfg *LaunchConfig) error {
 	cmd.Dir = cfg.GameDir
 	cmd.Stdout = os.Stdout
 
-	// Tee stderr to unified log file for diagnostics.
-	cmd.Stderr = io.MultiWriter(os.Stderr, ui.LogWriter())
+	// Tee stderr to the unified log file and capture it for diagnostics.
+	var stderrBuf bytes.Buffer
+	cmd.Stderr = io.MultiWriter(os.Stderr, &stderrBuf, ui.LogWriter())
 
 	if err := cmd.Run(); err != nil {
 		// If context was cancelled (Ctrl+C), don't treat as an error.
 		if ctx.Err() != nil {
 			return nil
 		}
-		return &ui.UserError{
-			Message: "Game exited with an error.",
-			Detail:  err.Error(),
-		}
+		// Lead with the game's own logged error (the real cause) when present.
+		return newLaunchError(cfg.GameDir, "Game exited with an error.", stderrBuf.String(), "")
 	}
 
 	return nil

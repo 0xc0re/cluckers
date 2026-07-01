@@ -190,6 +190,39 @@ func TestExtraCompatToolsDirsTrailingColon(t *testing.T) {
 	}
 }
 
+// TestFindProtonGE_WoW64SingleWineBinary verifies detection of Proton-GE 10+
+// builds (Wine 10 WoW64) that ship a single files/bin/wine instead of the older
+// files/bin/wine64. Such an install is fully usable (launch runs the `proton`
+// script, not wine directly), so detection must not require wine64.
+func TestFindProtonGE_WoW64SingleWineBinary(t *testing.T) {
+	t.Setenv("STEAM_EXTRA_COMPAT_TOOLS_PATHS", "") // isolate from host env
+
+	home := t.TempDir()
+	protonDir := filepath.Join(home, ".steam", "root", "compatibilitytools.d", "GE-Proton11-1")
+	binDir := filepath.Join(protonDir, "files", "bin")
+	if err := os.MkdirAll(binDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	// New Proton-GE ships a single 'wine' binary; there is no 'wine64'.
+	if err := os.WriteFile(filepath.Join(binDir, "wine"), []byte("fake"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(protonDir, "proton"), []byte("#!/usr/bin/env python3\n"), 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	installs := FindProtonGE(home)
+	if len(installs) == 0 {
+		t.Fatal("FindProtonGE should detect Proton-GE that ships only files/bin/wine (WoW64)")
+	}
+	if installs[0].ProtonDir != protonDir {
+		t.Errorf("ProtonDir = %q, want %q", installs[0].ProtonDir, protonDir)
+	}
+	if filepath.Base(installs[0].WinePath) != "wine" {
+		t.Errorf("WinePath base = %q, want \"wine\"", filepath.Base(installs[0].WinePath))
+	}
+}
+
 // TestFindProtonGEExtraCompatPaths verifies that STEAM_EXTRA_COMPAT_TOOLS_PATHS
 // is scanned for Proton-GE installations (NixOS declarative installs).
 func TestFindProtonGEExtraCompatPaths(t *testing.T) {

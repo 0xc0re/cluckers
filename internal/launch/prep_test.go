@@ -146,14 +146,23 @@ func TestStepWriteLaunchConfig_LaunchConfigFormat(t *testing.T) {
 		"-Language=INT",
 		"-dx11",
 		fmt.Sprintf("-content_bootstrap_size=%d", len(state.Bootstrap)),
-		"-seekfreeloading",
-		"-pcconsole",
+		// UE3 requires the seekfree+console mode as a SINGLE token; splitting it
+		// into "-seekfreeloading -pcconsole" makes the game read cooked content
+		// from CookedPC (empty) instead of CookedPCConsole, so it tries to compile
+		// shaders and crashes on the missing UE3ShaderCompileWorker.exe.
+		"-seekfreeloadingpcconsole",
 		"-nohomedir",
 		"-content_bootstrap_shm=" + prepSHMName,
 	}
 	for _, arg := range expectedArgs {
 		if !strings.Contains(fullContent, arg) {
 			t.Errorf("launch-config.txt missing %q", arg)
+		}
+	}
+	// The split form must NOT be emitted (lines are newline-separated).
+	for _, split := range []string{"-seekfreeloading\n", "-pcconsole\n"} {
+		if strings.Contains(fullContent, split) {
+			t.Errorf("launch-config.txt has split seekfree token %q; want combined -seekfreeloadingpcconsole", split)
 		}
 	}
 	// The old -hostx and -eac_oidc_token args must no longer be present.

@@ -212,8 +212,8 @@ Config file: `~/.cluckers/config/settings.toml` (optional, created manually).
 ```toml
 gateway = "https://gateway-dev.project-crown.com"
 wine_path = ""       # auto-detected if empty (Linux only)
-wine_prefix = ""     # defaults to ~/.cluckers/prefix/ (Linux only)
 game_dir = ""        # defaults to ~/.cluckers/game/
+pinned_version = ""  # pin the game to a specific build (empty = latest)
 verbose = false
 ```
 
@@ -224,14 +224,15 @@ Config file: `%LOCALAPPDATA%\cluckers\config\settings.toml` (optional, created m
 ```toml
 gateway = "https://gateway-dev.project-crown.com"
 game_dir = ""        # defaults to %LOCALAPPDATA%\cluckers\game\
+pinned_version = ""  # pin the game to a specific build (empty = latest)
 verbose = false
 ```
 
-The `wine_path` and `wine_prefix` settings are Linux-only and have no effect on Windows.
+The `wine_path` setting is Linux-only and has no effect on Windows.
 
 ### Common options
 
-CLI flags: `--gateway`, `-v/--verbose`
+CLI flags: `--gateway`, `--game-version`, `-v/--verbose`
 
 Environment variable: `CLUCKERS_HOME` overrides the base data directory
 (`~/.cluckers` on Linux, `%LOCALAPPDATA%\cluckers` on Windows).
@@ -250,7 +251,7 @@ Created at runtime:
   cache/
     tokens.json          # cached auth tokens
   game/                  # game files (managed by update command)
-  prefix/                # Wine prefix (auto-created on launch)
+  compatdata/            # Proton compatibility data (auto-created on first launch)
 ```
 
 ### Windows

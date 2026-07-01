@@ -48,8 +48,7 @@ func LaunchGame(ctx context.Context, cfg *LaunchConfig) error {
 		fmt.Sprintf("-token_file=%s", wine.LinuxToWinePath(cfg.TokenPath)),
 		"-Language=INT",
 		"-dx11",
-		"-seekfreeloading",
-		"-pcconsole",
+		"-seekfreeloadingpcconsole",
 		"-nohomedir",
 	}
 
@@ -120,12 +119,9 @@ func LaunchGame(ctx context.Context, cfg *LaunchConfig) error {
 			return shmErr
 		}
 
-		// General Proton launch failure with last 10 stderr lines.
-		return &ui.UserError{
-			Message:    "Proton launch failed",
-			Detail:     lastNLines(stderrBuf.String(), 10),
-			Suggestion: protonErrorSuggestion(cfg.CompatDataPath),
-		}
+		// General Proton launch failure. newLaunchError leads with the game's
+		// own logged error (the real cause) so it's visible even without -v.
+		return newLaunchError(cfg.GameDir, "Proton launch failed", stderrBuf.String(), protonErrorSuggestion(cfg.CompatDataPath))
 	}
 
 	return nil

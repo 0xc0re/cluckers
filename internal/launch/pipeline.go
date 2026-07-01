@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"path/filepath"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -34,10 +34,28 @@ type LaunchState struct {
 	SteamShortcutAppID   uint32 // Non-Steam shortcut appid (parsed from shortcuts.vdf). 0 if not found.
 	GameDir              string
 	VersionInfo          *game.VersionInfo // Used by prep pipeline only.
+	Manifest             *game.Manifest    // Reused between check/download when pinned. Prep only.
 	NeedsDownload        bool              // Used by prep pipeline only.
 	TokenCache           *auth.TokenCache
 	Reporter             ProgressReporter
-	TokenTempFile        string // Path to the access-token temp file for cleanup on interrupt.
+
+	// tokenTempFile holds the access-token temp file path for cleanup on
+	// interrupt. Atomic because the signal-handler goroutine reads it while
+	// the pipeline goroutine writes it.
+	tokenTempFile atomic.Pointer[string]
+}
+
+// SetTokenTempFile records the access-token temp file path for interrupt cleanup.
+func (s *LaunchState) SetTokenTempFile(path string) {
+	s.tokenTempFile.Store(&path)
+}
+
+// TokenTempFile returns the recorded access-token temp file path, or "" if unset.
+func (s *LaunchState) TokenTempFile() string {
+	if p := s.tokenTempFile.Load(); p != nil {
+		return *p
+	}
+	return ""
 }
 
 // Step represents a single step in the launch pipeline.
@@ -78,8 +96,8 @@ func RunWithReporter(ctx context.Context, cfg *config.Config, reporter ProgressR
 	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
 	go func() {
 		<-sigCh
-		if state.TokenTempFile != "" {
-			os.Remove(state.TokenTempFile)
+		if path := state.TokenTempFile(); path != "" {
+			os.Remove(path)
 		}
 		fmt.Println("\nInterrupted.")
 		os.Exit(130)
@@ -356,7 +374,7 @@ func stepCheckVersion(ctx context.Context, state *LaunchState) error {
 	}
 	state.GameDir = gameDir
 
-	info, err := game.FetchVersionInfo(ctx)
+	info, err := game.ResolveVersionInfo(ctx, state.Config.PinnedVersion)
 	if err != nil {
 		return &ui.UserError{
 			Message:    "Could not check game version.",
@@ -366,10 +384,11 @@ func stepCheckVersion(ctx context.Context, state *LaunchState) error {
 	}
 	state.VersionInfo = info
 
-	needsUpdate, err := game.NeedsUpdate(gameDir, info)
+	needsUpdate, manifest, err := game.ResolveNeedsUpdate(ctx, gameDir, info)
 	if err != nil {
 		return fmt.Errorf("checking game version: %w", err)
 	}
+	state.Manifest = manifest
 
 	if needsUpdate {
 		state.NeedsDownload = true
@@ -381,7 +400,7 @@ func stepCheckVersion(ctx context.Context, state *LaunchState) error {
 	return nil
 }
 
-// stepDownloadGame downloads and extracts the game update if needed.
+// stepDownloadGame syncs the game files to the manifest if needed.
 // Used by the prep pipeline (prep.go) -- not used in the launch pipeline.
 func stepDownloadGame(ctx context.Context, state *LaunchState) error {
 	if !state.NeedsDownload {
@@ -396,20 +415,26 @@ func stepDownloadGame(ctx context.Context, state *LaunchState) error {
 		return fmt.Errorf("creating game directory: %w", err)
 	}
 
-	if err := game.DownloadAndVerify(ctx, state.VersionInfo, state.GameDir); err != nil {
-		return &ui.UserError{
-			Message:    "Failed to download game update.",
-			Detail:     fmt.Sprintf("%s", err),
-			Suggestion: "Check your internet connection and try again. Partial downloads will be resumed.",
+	// ResolveNeedsUpdate only fetches the manifest on the pinned path; fetch it
+	// here for the latest path.
+	manifest := state.Manifest
+	if manifest == nil {
+		var err error
+		manifest, err = game.FetchManifest(ctx, state.VersionInfo)
+		if err != nil {
+			return &ui.UserError{
+				Message:    "Failed to fetch game manifest.",
+				Detail:     fmt.Sprintf("%s", err),
+				Suggestion: "Check your internet connection and try again.",
+			}
 		}
 	}
 
-	zipPath := filepath.Join(state.GameDir, "game.zip")
-	if err := game.ExtractZip(zipPath, state.GameDir); err != nil {
+	if err := game.SyncManifest(ctx, state.VersionInfo, manifest, state.GameDir, nil); err != nil {
 		return &ui.UserError{
-			Message:    "Failed to extract game files.",
+			Message:    "Failed to download game update.",
 			Detail:     fmt.Sprintf("%s", err),
-			Suggestion: "Run `cluckers update` to retry.",
+			Suggestion: "Check your internet connection and try again. Interrupted downloads resume on the next run.",
 		}
 	}
 
@@ -418,7 +443,7 @@ func stepDownloadGame(ctx context.Context, state *LaunchState) error {
 }
 
 // stepVerifyGameInstalled checks that the game executable exists on disk and
-// that no previous extraction was interrupted.
+// that no previous sync was interrupted.
 // The launch pipeline does not download or update game files -- users must
 // run `cluckers update` separately before launching.
 func stepVerifyGameInstalled(_ context.Context, state *LaunchState) error {
@@ -429,11 +454,11 @@ func stepVerifyGameInstalled(_ context.Context, state *LaunchState) error {
 	}
 	state.GameDir = gameDir
 
-	// Check for interrupted extraction before checking exe.
-	if game.IsExtractionIncomplete(gameDir) {
+	// Check for an interrupted sync before checking the exe.
+	if game.IsSyncIncomplete(gameDir) {
 		return &ui.UserError{
-			Message:    "Game extraction was interrupted.",
-			Suggestion: "Run `cluckers update` to re-extract the game files.",
+			Message:    "Game update was interrupted.",
+			Suggestion: "Run `cluckers update` to finish downloading the game files.",
 		}
 	}
 
@@ -458,7 +483,7 @@ func stepLaunchGame(ctx context.Context, state *LaunchState) error {
 	defer tokenCleanup()
 
 	// Store path for signal handler cleanup (os.Exit bypasses defers).
-	state.TokenTempFile = tokenPath
+	state.SetTokenTempFile(tokenPath)
 
 	return LaunchGame(ctx, &LaunchConfig{
 		ProtonScript:     state.ProtonScript,

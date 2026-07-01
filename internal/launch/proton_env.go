@@ -184,16 +184,3 @@ func shmBridgeError(exitErr error, stderr string, compatDataPath string) *ui.Use
 
 	return nil
 }
-
-// lastNLines returns the last n lines from a string. If the string has
-// fewer than n lines, it is returned as-is. An empty string returns empty.
-func lastNLines(s string, n int) string {
-	if s == "" {
-		return ""
-	}
-	lines := strings.Split(s, "\n")
-	if len(lines) <= n {
-		return s
-	}
-	return strings.Join(lines[len(lines)-n:], "\n")
-}

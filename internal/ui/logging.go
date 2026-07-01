@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	logFileName    = "cluckers.log"
-	logMaxBytes    = 5 * 1024 * 1024 // 5 MB
+	logFileName     = "cluckers.log"
+	logMaxBytes     = 5 * 1024 * 1024 // 5 MB
 	logBackupSuffix = ".1"
 )
 

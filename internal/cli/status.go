@@ -61,6 +61,7 @@ type gameStatusResult struct {
 	remoteErr     error
 	needsUpdate   bool
 	exeExists     bool
+	pinned        bool
 }
 
 type authStatusResult struct {
@@ -125,23 +126,25 @@ func checkGameStatus(ctx context.Context) gameStatusResult {
 	timeoutCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	info, err := game.FetchVersionInfo(timeoutCtx)
+	info, err := game.ResolveVersionInfo(timeoutCtx, Cfg.PinnedVersion)
 	if err != nil {
 		return gameStatusResult{
 			gameDir:      gameDir,
 			localVersion: localVer,
 			remoteErr:    err,
 			exeExists:    exeExists,
+			pinned:       Cfg.PinnedVersion != "",
 		}
 	}
 
-	needsUpdate, _ := game.NeedsUpdate(gameDir, info)
+	needsUpdate, _, _ := game.ResolveNeedsUpdate(timeoutCtx, gameDir, info)
 	return gameStatusResult{
 		gameDir:       gameDir,
 		localVersion:  localVer,
 		remoteVersion: info.LatestVersion,
 		needsUpdate:   needsUpdate,
 		exeExists:     exeExists,
+		pinned:        Cfg.PinnedVersion != "" && Cfg.PinnedVersion == info.LatestVersion,
 	}
 }
 
@@ -205,12 +208,16 @@ func printCompactStatus(ps *protonStatusResult, cs *compatdataStatusResult, as a
 	}
 
 	// Server
+	label := "Server:"
+	if gs.pinned {
+		label = "Pinned:"
+	}
 	if gs.remoteErr != nil {
-		fmt.Printf("  %-10s %-45s %s\n", "Server:", "", red("[Unavailable]"))
+		fmt.Printf("  %-10s %-45s %s\n", label, "", red("[Unavailable]"))
 	} else if gs.needsUpdate {
-		fmt.Printf("  %-10s %-45s %s\n", "Server:", "v"+gs.remoteVersion, yellow("[Update available]"))
+		fmt.Printf("  %-10s %-45s %s\n", label, "v"+gs.remoteVersion, yellow("[Update available]"))
 	} else {
-		fmt.Printf("  %-10s %-45s %s\n", "Server:", "v"+gs.remoteVersion, green("[Up to date]"))
+		fmt.Printf("  %-10s %-45s %s\n", label, "v"+gs.remoteVersion, green("[Up to date]"))
 	}
 
 	// Gateway
@@ -296,7 +303,11 @@ func printVerboseStatus(ps *protonStatusResult, cs *compatdataStatusResult, as a
 		fmt.Printf("  Status:  %s\n", red("Unavailable"))
 		fmt.Printf("  Error:   %s\n", gs.remoteErr)
 	} else {
-		fmt.Printf("  Latest:  %s\n", gs.remoteVersion)
+		verLabel := "Latest:  "
+		if gs.pinned {
+			verLabel = "Pinned:  "
+		}
+		fmt.Printf("  %s%s\n", verLabel, gs.remoteVersion)
 		if gs.needsUpdate {
 			fmt.Printf("  Status:  %s\n", yellow("Update available"))
 		} else {

@@ -32,7 +32,7 @@ func checkDiskSpace(dir string, requiredBytes int64) error {
 		return nil
 	}
 
-	if int64(freeBytesAvailable) < requiredBytes {
+	if requiredBytes > 0 && freeBytesAvailable < uint64(requiredBytes) {
 		requiredGB := float64(requiredBytes) / (1024 * 1024 * 1024)
 		availableGB := float64(freeBytesAvailable) / (1024 * 1024 * 1024)
 		return &ui.UserError{

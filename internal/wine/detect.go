@@ -19,8 +19,22 @@ var protonVersionRe = regexp.MustCompile(`GE-Proton(\d+)-(\d+)`)
 
 // ProtonGEInstall represents a discovered Proton-GE installation.
 type ProtonGEInstall struct {
-	WinePath  string // Full path to the wine64 binary.
+	WinePath  string // Full path to the Wine binary (wine64 on Proton-GE 9 and earlier; wine on 10+).
 	ProtonDir string // Root of the Proton-GE installation (contains files/ and default_pfx).
+}
+
+// protonWineBinary returns the path to a usable Wine binary inside a Proton
+// install's files/bin directory, or "" if the directory is not a usable Proton
+// install. It prefers wine64 (Proton-GE 9 and earlier) and falls back to wine
+// (Proton-GE 10+ ships a single Wine 10 WoW64 binary with no separate wine64).
+func protonWineBinary(protonDir string) string {
+	for _, name := range []string{"wine64", "wine"} {
+		p := filepath.Join(protonDir, "files", "bin", name)
+		if fi, err := os.Stat(p); err == nil && !fi.IsDir() {
+			return p
+		}
+	}
+	return ""
 }
 
 // Version returns a sortable version string extracted from the Proton directory name.
@@ -147,30 +161,25 @@ func FindProtonGE(home string) []ProtonGEInstall {
 	searchDirs = append(searchDirs, extraCompatToolsDirs()...)
 
 	for _, dir := range searchDirs {
-		// Check system package: proton-ge-custom/files/bin/wine64
-		sysPath := filepath.Join(dir, "proton-ge-custom", "files", "bin", "wine64")
-		if _, err := os.Stat(sysPath); err == nil {
-			real := resolveReal(sysPath)
+		// System package: proton-ge-custom/
+		sysDir := filepath.Join(dir, "proton-ge-custom")
+		if w := protonWineBinary(sysDir); w != "" {
+			real := resolveReal(w)
 			if !seen[real] {
 				seen[real] = true
-				installs = append(installs, ProtonGEInstall{
-					WinePath:  sysPath,
-					ProtonDir: filepath.Join(dir, "proton-ge-custom"),
-				})
+				installs = append(installs, ProtonGEInstall{WinePath: w, ProtonDir: sysDir})
 			}
 		}
 
-		// Check ProtonUp-Qt versioned: GE-Proton*/files/bin/wine64
-		pattern := filepath.Join(dir, "GE-Proton*", "files", "bin", "wine64")
-		matches, _ := filepath.Glob(pattern)
-		for _, m := range matches {
-			real := resolveReal(m)
-			if !seen[real] {
-				seen[real] = true
-				installs = append(installs, ProtonGEInstall{
-					WinePath:  m,
-					ProtonDir: filepath.Dir(filepath.Dir(filepath.Dir(m))),
-				})
+		// ProtonUp-Qt versioned: GE-Proton*/
+		geDirs, _ := filepath.Glob(filepath.Join(dir, "GE-Proton*"))
+		for _, gd := range geDirs {
+			if w := protonWineBinary(gd); w != "" {
+				real := resolveReal(w)
+				if !seen[real] {
+					seen[real] = true
+					installs = append(installs, ProtonGEInstall{WinePath: w, ProtonDir: gd})
+				}
 			}
 		}
 	}

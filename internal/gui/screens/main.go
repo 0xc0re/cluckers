@@ -142,22 +142,6 @@ func MakeMainView(w fyne.Window, cfg *config.Config, username, password string, 
 		}
 	}
 
-	// makeExtractProgressFunc creates a game.ExtractProgressFunc that updates
-	// the progress bar and status label. All GUI updates are wrapped in fyne.Do().
-	makeExtractProgressFunc := func() game.ExtractProgressFunc {
-		return func(extracted, total int) {
-			if total <= 0 {
-				return
-			}
-			pct := float64(extracted) / float64(total)
-			text := fmt.Sprintf("Extracting... %d / %d files", extracted, total)
-			fyne.Do(func() {
-				progressBar.SetValue(pct)
-				progressStatus.SetText(text)
-			})
-		}
-	}
-
 	verifyBtn.OnTapped = func() {
 		setFileOpsLocked(true)
 		go func() {
@@ -165,7 +149,7 @@ func MakeMainView(w fyne.Window, cfg *config.Config, username, password string, 
 			if gameDir == "" {
 				gameDir = game.GameDir()
 			}
-			info, err := game.FetchVersionInfo(context.Background())
+			info, err := game.ResolveVersionInfo(context.Background(), cfg.PinnedVersion)
 			if err != nil {
 				fyne.Do(func() {
 					dialog.ShowError(fmt.Errorf("could not check version: %s", err), w)
@@ -173,7 +157,7 @@ func MakeMainView(w fyne.Window, cfg *config.Config, username, password string, 
 				})
 				return
 			}
-			needsUpdate, err := game.NeedsUpdate(gameDir, info)
+			needsUpdate, _, err := game.ResolveNeedsUpdate(context.Background(), gameDir, info)
 			if err != nil {
 				fyne.Do(func() {
 					dialog.ShowError(fmt.Errorf("verification error: %s", err), w)
@@ -201,7 +185,7 @@ func MakeMainView(w fyne.Window, cfg *config.Config, username, password string, 
 			if gameDir == "" {
 				gameDir = game.GameDir()
 			}
-			info, err := game.FetchVersionInfo(context.Background())
+			info, err := game.ResolveVersionInfo(context.Background(), cfg.PinnedVersion)
 			if err != nil {
 				fyne.Do(func() {
 					dialog.ShowError(fmt.Errorf("could not check version: %s", err), w)
@@ -209,7 +193,7 @@ func MakeMainView(w fyne.Window, cfg *config.Config, username, password string, 
 				})
 				return
 			}
-			needsUpdate, err := game.NeedsUpdate(gameDir, info)
+			needsUpdate, manifest, err := game.ResolveNeedsUpdate(context.Background(), gameDir, info)
 			if err != nil {
 				fyne.Do(func() {
 					dialog.ShowError(fmt.Errorf("version check error: %s", err), w)
@@ -232,27 +216,22 @@ func MakeMainView(w fyne.Window, cfg *config.Config, username, password string, 
 				return
 			}
 			fyne.Do(func() { showProgress("Downloading...") })
-			if err := game.DownloadAndVerifyWithProgress(context.Background(), info, gameDir, makeDownloadProgressFunc()); err != nil {
+			// ResolveNeedsUpdate only fetches the manifest on the pinned path.
+			if manifest == nil {
+				manifest, err = game.FetchManifest(context.Background(), info)
+				if err != nil {
+					fyne.Do(func() {
+						hideProgress()
+						dialog.ShowError(fmt.Errorf("could not fetch manifest: %s", err), w)
+						setFileOpsLocked(false)
+					})
+					return
+				}
+			}
+			if err := game.SyncManifest(context.Background(), info, manifest, gameDir, makeDownloadProgressFunc()); err != nil {
 				fyne.Do(func() {
 					hideProgress()
 					dialog.ShowError(fmt.Errorf("download failed: %s", err), w)
-					setFileOpsLocked(false)
-				})
-				return
-			}
-			fyne.Do(func() {
-				progressBar.SetValue(1.0)
-				progressStatus.SetText("Verifying download...")
-			})
-			zipPath := filepath.Join(gameDir, "game.zip")
-			fyne.Do(func() {
-				progressBar.SetValue(0)
-				progressStatus.SetText("Extracting...")
-			})
-			if err := game.ExtractZipWithProgress(zipPath, gameDir, makeExtractProgressFunc()); err != nil {
-				fyne.Do(func() {
-					hideProgress()
-					dialog.ShowError(fmt.Errorf("extraction failed: %s", err), w)
 					setFileOpsLocked(false)
 				})
 				return
@@ -287,7 +266,7 @@ func MakeMainView(w fyne.Window, cfg *config.Config, username, password string, 
 						})
 						return
 					}
-					info, err := game.FetchVersionInfo(context.Background())
+					info, err := game.ResolveVersionInfo(context.Background(), cfg.PinnedVersion)
 					if err != nil {
 						fyne.Do(func() {
 							dialog.ShowError(fmt.Errorf("could not check version: %s", err), w)
@@ -303,27 +282,19 @@ func MakeMainView(w fyne.Window, cfg *config.Config, username, password string, 
 						return
 					}
 					fyne.Do(func() { showProgress("Downloading...") })
-					if err := game.DownloadAndVerifyWithProgress(context.Background(), info, gameDir, makeDownloadProgressFunc()); err != nil {
+					manifest, err := game.FetchManifest(context.Background(), info)
+					if err != nil {
 						fyne.Do(func() {
 							hideProgress()
-							dialog.ShowError(fmt.Errorf("download failed: %s", err), w)
+							dialog.ShowError(fmt.Errorf("could not fetch manifest: %s", err), w)
 							setFileOpsLocked(false)
 						})
 						return
 					}
-					fyne.Do(func() {
-						progressBar.SetValue(1.0)
-						progressStatus.SetText("Verifying download...")
-					})
-					zipPath := filepath.Join(gameDir, "game.zip")
-					fyne.Do(func() {
-						progressBar.SetValue(0)
-						progressStatus.SetText("Extracting...")
-					})
-					if err := game.ExtractZipWithProgress(zipPath, gameDir, makeExtractProgressFunc()); err != nil {
+					if err := game.SyncManifest(context.Background(), info, manifest, gameDir, makeDownloadProgressFunc()); err != nil {
 						fyne.Do(func() {
 							hideProgress()
-							dialog.ShowError(fmt.Errorf("extraction failed: %s", err), w)
+							dialog.ShowError(fmt.Errorf("download failed: %s", err), w)
 							setFileOpsLocked(false)
 						})
 						return
