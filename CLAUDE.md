@@ -74,8 +74,7 @@ Configuration and paths. Platform-specific `DataDir()` uses `_linux.go` / `_wind
 
 ### `internal/gateway/`
 HTTP client for Project Crown gateway.
-- `client.go`: `Client` struct with retryablehttp (3 retries, 500ms-5s backoff, 15s timeout). `Post()` method for JSON POST to `/json/<command>`. `HealthCheck()`. User-Agent: `CluckersCentral/1.1.68`. Returns `*ui.UserError` on failures.
-- `client.go`: REST client. `Do(ctx, method, path, bearer, body, result)` is the core request method (success=2xx, RFC 7807 errors -> `*ui.UserError`, optional `Authorization: Bearer`). `HealthCheck()` hits `GET /healthz`. `UserAgent` constant.
+- `client.go`: `Client` struct with retryablehttp (3 retries, 500ms-5s backoff, 15s timeout). REST client. `Do(ctx, method, path, bearer, body, result)` is the core request method (success=2xx, RFC 7807 errors -> `*ui.UserError`, optional `Authorization: Bearer`). `HealthCheck()` hits `GET /healthz`. `UserAgent` constant.
 - `types.go`: Request/response types (`LoginRequest`, `SessionResponse`, `BootstrapResponse`, `RegisterRequest`, `LinkCodeRequest`, `LinkCodeResponse`, `DiscordStatusResponse`, `PasswordResetRequest`, `PasswordResetResponse`, `BotNameUpsertRequest`, `HealthResponse`). `FlexBool` custom type handles bool/number/string JSON variants (e.g. `linked_flag`).
 
 ### `internal/auth/`
@@ -137,7 +136,7 @@ GUI screen implementations.
 - `login.go`: `MakeLoginScreen()` -- username/password form, inline error display, Enter-to-submit, Create Account button.
 - `register.go`: `MakeRegisterScreen()` -- username/password/email form, Discord link code flow with `showDiscordLinking()` polling view.
 - `main.go`: `MakeMainView()` -- launch button, game management (verify/update/repair) with progress bars, supporter bot names section (auto-detected), community links, settings/logout buttons.
-- `settings.go`: `MakeSettingsView()` -- gateway URL, verbose mode, game directory, Proton path (Linux only). Persists via viper TOML.
+- `settings.go`: `MakeSettingsView()` -- gateway URL, verbose mode, game directory, pinned game version, Proton path (Linux only). Persists via viper TOML.
 - `launch_progress.go`: `MakeLaunchProgressView()` -- pipeline step list with live status updates, cancel button.
 
 ### `internal/gui/widgets/`
@@ -192,7 +191,7 @@ Build-time source files (not embedded directly).
     settings.toml        # optional TOML config
     credentials.enc      # NaCl secretbox encrypted JSON {username, password}
   cache/
-    tokens.json          # {access_token, oidc_token, username, cached_at}
+    tokens.json          # {access_token, username, access_cached_at}
   logs/
     cluckers.log         # Rolling log file (rotated at 5MB)
   game/                  # Game files (managed by update command)
@@ -214,7 +213,7 @@ Build-time source files (not embedded directly).
     settings.toml        # optional TOML config
     credentials.enc      # NaCl secretbox encrypted JSON {username, password}
   cache\
-    tokens.json          # {access_token, oidc_token, username, cached_at}
+    tokens.json          # {access_token, username, access_cached_at}
   logs\
     cluckers.log         # Rolling log file (rotated at 5MB)
   game\                  # Game files (managed by update command)
