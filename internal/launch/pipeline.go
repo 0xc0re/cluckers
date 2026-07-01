@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -37,7 +38,24 @@ type LaunchState struct {
 	NeedsDownload        bool              // Used by prep pipeline only.
 	TokenCache           *auth.TokenCache
 	Reporter             ProgressReporter
-	TokenTempFile        string // Path to the access-token temp file for cleanup on interrupt.
+
+	// tokenTempFile holds the access-token temp file path for cleanup on
+	// interrupt. Atomic because the signal-handler goroutine reads it while
+	// the pipeline goroutine writes it.
+	tokenTempFile atomic.Pointer[string]
+}
+
+// SetTokenTempFile records the access-token temp file path for interrupt cleanup.
+func (s *LaunchState) SetTokenTempFile(path string) {
+	s.tokenTempFile.Store(&path)
+}
+
+// TokenTempFile returns the recorded access-token temp file path, or "" if unset.
+func (s *LaunchState) TokenTempFile() string {
+	if p := s.tokenTempFile.Load(); p != nil {
+		return *p
+	}
+	return ""
 }
 
 // Step represents a single step in the launch pipeline.
@@ -78,8 +96,8 @@ func RunWithReporter(ctx context.Context, cfg *config.Config, reporter ProgressR
 	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
 	go func() {
 		<-sigCh
-		if state.TokenTempFile != "" {
-			os.Remove(state.TokenTempFile)
+		if path := state.TokenTempFile(); path != "" {
+			os.Remove(path)
 		}
 		fmt.Println("\nInterrupted.")
 		os.Exit(130)
@@ -465,7 +483,7 @@ func stepLaunchGame(ctx context.Context, state *LaunchState) error {
 	defer tokenCleanup()
 
 	// Store path for signal handler cleanup (os.Exit bypasses defers).
-	state.TokenTempFile = tokenPath
+	state.SetTokenTempFile(tokenPath)
 
 	return LaunchGame(ctx, &LaunchConfig{
 		ProtonScript:     state.ProtonScript,
