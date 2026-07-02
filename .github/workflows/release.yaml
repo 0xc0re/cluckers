@@ -40,7 +40,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Server endpoints — update these repo variables and cut a new tag to change endpoints.
           # Set in: GitHub repo > Settings > Secrets and variables > Actions > Variables tab
-          GATEWAY_URL: ${{ vars.GATEWAY_URL || 'https://gateway-dev.project-crown.com' }}
+          GATEWAY_URL: ${{ vars.GATEWAY_URL || 'https://api.project-crown.com' }}
           HOSTX_IP: ${{ vars.HOSTX_IP || '157.90.131.105' }}
 
       - name: Free disk space for AppImage build
