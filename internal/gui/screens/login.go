@@ -4,9 +4,9 @@ package screens
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"image/color"
-	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -78,7 +78,8 @@ func MakeLoginScreen(w fyne.Window, cfg *config.Config, onSuccess func(username,
 		go func() {
 			client := gateway.NewClient(cfg.Gateway, cfg.Verbose)
 			result, err := auth.Login(context.Background(), client, username, password)
-			if err != nil {
+			var nl *auth.NotLinkedError
+			if err != nil && !errors.As(err, &nl) {
 				fyne.Do(func() {
 					errorLabel.Text = formatGUIError(err)
 					errorLabel.Refresh()
@@ -92,12 +93,16 @@ func MakeLoginScreen(w fyne.Window, cfg *config.Config, onSuccess func(username,
 				ui.Warn(fmt.Sprintf("could not save credentials: %s", err))
 			}
 
-			// Cache the access token so downstream features (bot names) work without re-auth.
-			if err := auth.SaveTokenCache(&auth.TokenCache{
-				Username:       username,
-				AccessToken:    result.AccessToken,
-				AccessCachedAt: time.Now(),
-			}); err != nil {
+			if nl != nil {
+				// Credentials are fine; the account needs Discord linking first.
+				fyne.Do(func() {
+					ShowDiscordLinking(w, cfg, username, password, nl.LinkCode, onSuccess)
+				})
+				return
+			}
+
+			// Cache the session so downstream features (bot names) work without re-auth.
+			if err := auth.SaveTokenCache(auth.NewTokenCache(result)); err != nil {
 				ui.Warn(fmt.Sprintf("could not save token cache: %s", err))
 			}
 

@@ -4,14 +4,15 @@ package screens
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"image/color"
+	"net/url"
 	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 
@@ -24,8 +25,9 @@ import (
 
 // MakeRegisterScreen builds the registration screen with logo, username/password/email
 // fields, register button, back-to-login link, and inline error display. On successful
-// registration, credentials are saved, a Discord link code is requested, and the user
-// transitions to the Discord linking view or directly to the main view.
+// registration, credentials are saved and the user transitions to the Discord linking
+// view (the gateway hands out the link code with the registration reply) or, if the
+// account is already linked, directly to the main view.
 func MakeRegisterScreen(w fyne.Window, cfg *config.Config, onSuccess func(username, password string), onBackToLogin func()) fyne.CanvasObject {
 	// Logo.
 	logo := canvas.NewImageFromResource(guiassets.LogoResource())
@@ -87,7 +89,8 @@ func MakeRegisterScreen(w fyne.Window, cfg *config.Config, onSuccess func(userna
 		go func() {
 			client := gateway.NewClient(cfg.Gateway, cfg.Verbose)
 			result, err := auth.Register(context.Background(), client, username, password, email)
-			if err != nil {
+			var nl *auth.NotLinkedError
+			if err != nil && !errors.As(err, &nl) {
 				fyne.Do(func() {
 					errorLabel.Text = formatGUIError(err)
 					errorLabel.Refresh()
@@ -101,34 +104,19 @@ func MakeRegisterScreen(w fyne.Window, cfg *config.Config, onSuccess func(userna
 				ui.Warn(fmt.Sprintf("could not save credentials: %s", err))
 			}
 
-			// Cache the access token from registration (acts as auto-login).
-			if err := auth.SaveTokenCache(&auth.TokenCache{
-				Username:       result.Username,
-				AccessToken:    result.AccessToken,
-				AccessCachedAt: time.Now(),
-			}); err != nil {
-				ui.Warn(fmt.Sprintf("could not save token cache: %s", err))
-			}
-
-			// Request Discord link code (uses password auth).
-			code, err := auth.RequestLinkCode(context.Background(), client, username, password)
-			if err != nil {
-				// Registration succeeded but link code failed -- warn and continue to main view.
-				ui.Warn(fmt.Sprintf("could not get Discord link code: %s", err))
+			if nl != nil {
+				// A new account must be linked to Discord before it gets a session.
 				fyne.Do(func() {
-					d := dialog.NewInformation("Discord Linking",
-						fmt.Sprintf("Could not get Discord link code: %s\nYou can request a link code later by logging in.", err),
-						w)
-					d.SetOnClosed(func() { onSuccess(username, password) })
-					d.Show()
+					ShowDiscordLinking(w, cfg, username, password, nl.LinkCode, onSuccess)
 				})
 				return
 			}
 
-			// Show Discord linking screen.
-			fyne.Do(func() {
-				showDiscordLinking(w, cfg, code, result.Username, result.AccessToken, username, password, onSuccess)
-			})
+			// Cache the session from registration (acts as auto-login).
+			if err := auth.SaveTokenCache(auth.NewTokenCache(result)); err != nil {
+				ui.Warn(fmt.Sprintf("could not save token cache: %s", err))
+			}
+			fyne.Do(func() { onSuccess(username, password) })
 		}()
 	}
 
@@ -171,9 +159,11 @@ func MakeRegisterScreen(w fyne.Window, cfg *config.Config, onSuccess func(userna
 	)
 }
 
-// showDiscordLinking replaces the window content with a Discord linking view
-// that displays the link code and polls for linking status.
-func showDiscordLinking(w fyne.Window, cfg *config.Config, code, regUsername, accessToken, username, password string, onSuccess func(username, password string)) {
+// ShowDiscordLinking replaces the window content with a Discord linking view
+// that displays the link code and polls the gateway (via session-or-link)
+// until the account is linked. The code is refreshed on screen if the server
+// rotates it. On success the fresh session is cached and onLinked is called.
+func ShowDiscordLinking(w fyne.Window, cfg *config.Config, username, password, code string, onLinked func(username, password string)) {
 	// Logo.
 	logo := canvas.NewImageFromResource(guiassets.LogoResource())
 	logo.FillMode = canvas.ImageFillContain
@@ -184,40 +174,52 @@ func showDiscordLinking(w fyne.Window, cfg *config.Config, code, regUsername, ac
 	title.Wrapping = fyne.TextWrapOff
 
 	// Instruction text.
-	instruction := widget.NewLabel("DM the following code to the Project Crown Discord bot:")
+	instruction := widget.NewLabel("Your account must be linked to Discord before you can play. DM the following code to the Project Crown bot:")
 	instruction.Alignment = fyne.TextAlignCenter
 	instruction.Wrapping = fyne.TextWrapWord
 
 	// Code display — bold label, readable against dark theme.
+	currentCode := code
 	codeLabel := widget.NewLabelWithStyle(code, fyne.TextAlignCenter, fyne.TextStyle{Bold: true, Monospace: true})
 
 	// Copy button.
 	copyBtn := widget.NewButton("Copy Code", func() {
-		w.Clipboard().SetContent(code)
+		w.Clipboard().SetContent(currentCode)
 	})
 	copyBtn.Importance = widget.MediumImportance
 
+	// Discord links: DM the bot directly, or join the server first.
+	botURL, _ := url.Parse(auth.DiscordBotDMURL)
+	botLink := widget.NewHyperlink("Open a DM with the Project Crown bot", botURL)
+	botLink.Alignment = fyne.TextAlignCenter
+	discordURL, _ := url.Parse(auth.DiscordInviteURL)
+	discordLink := widget.NewHyperlink("Join the Project Crown Discord", discordURL)
+	discordLink.Alignment = fyne.TextAlignCenter
+
 	// Status label.
-	statusLabel := widget.NewLabel("Waiting for Discord linking...")
+	statusLabel := widget.NewLabel("Waiting for Discord linking (checking every 3 seconds)...")
 	statusLabel.Alignment = fyne.TextAlignCenter
+	statusLabel.Wrapping = fyne.TextWrapWord
 
 	// Cancellable context for the polling goroutine.
 	ctx, cancelFunc := context.WithCancel(context.Background())
 
-	// Continue without linking button.
+	// Continue without linking button (launching will prompt again).
 	continueBtn := widget.NewButton("Continue Without Linking", func() {
 		cancelFunc()
-		onSuccess(username, password)
+		onLinked(username, password)
 	})
 
 	// Form layout: fixed-width rows so text doesn't collapse.
-	formWidth := float32(300)
+	formWidth := float32(320)
 	formHeight := float32(40)
 
 	instructionRow := container.NewGridWrap(fyne.NewSize(formWidth, formHeight*2), instruction)
 	codeRow := container.NewGridWrap(fyne.NewSize(formWidth, formHeight), codeLabel)
 	copyRow := container.NewGridWrap(fyne.NewSize(formWidth, formHeight), copyBtn)
-	statusRow := container.NewGridWrap(fyne.NewSize(formWidth, formHeight), statusLabel)
+	botRow := container.NewGridWrap(fyne.NewSize(formWidth, formHeight), botLink)
+	linkRow := container.NewGridWrap(fyne.NewSize(formWidth, formHeight), discordLink)
+	statusRow := container.NewGridWrap(fyne.NewSize(formWidth, formHeight*2), statusLabel)
 	buttonRow := container.NewGridWrap(fyne.NewSize(formWidth, formHeight), continueBtn)
 
 	form := container.NewVBox(
@@ -227,6 +229,8 @@ func showDiscordLinking(w fyne.Window, cfg *config.Config, code, regUsername, ac
 		container.NewCenter(instructionRow),
 		container.NewCenter(codeRow),
 		container.NewCenter(copyRow),
+		container.NewCenter(botRow),
+		container.NewCenter(linkRow),
 		container.NewCenter(statusRow),
 		widget.NewSeparator(),
 		container.NewCenter(buttonRow),
@@ -240,45 +244,40 @@ func showDiscordLinking(w fyne.Window, cfg *config.Config, code, regUsername, ac
 
 	w.SetContent(content)
 
-	// Start polling goroutine.
+	// Poll until linked.
 	go func() {
 		client := gateway.NewClient(cfg.Gateway, cfg.Verbose)
-		ticker := time.NewTicker(5 * time.Second)
-		defer ticker.Stop()
-		timeout := time.After(5 * time.Minute)
-
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-timeout:
-				fyne.Do(func() {
-					statusLabel.Importance = widget.WarningImportance
-					statusLabel.SetText("Linking timed out - you can link later")
-				})
-				time.Sleep(2 * time.Second)
-				fyne.Do(func() {
-					onSuccess(username, password)
-				})
-				return
-			case <-ticker.C:
-				linked, err := auth.CheckDiscordStatus(ctx, client, regUsername, accessToken)
-				if err != nil {
-					ui.Warn(fmt.Sprintf("Discord status poll error: %s", err))
-					continue
-				}
-				if linked {
-					fyne.Do(func() {
-						statusLabel.Importance = widget.SuccessImportance
-						statusLabel.SetText("Discord linked!")
-					})
-					time.Sleep(1500 * time.Millisecond)
-					fyne.Do(func() {
-						onSuccess(username, password)
-					})
+		result, err := auth.WaitForLink(ctx, client, username, password, func(newCode string) {
+			fyne.Do(func() {
+				if newCode == currentCode {
 					return
 				}
-			}
+				currentCode = newCode
+				codeLabel.SetText(newCode)
+				statusLabel.SetText("The server issued a new code. DM the code above to the bot.")
+			})
+		})
+		if ctx.Err() != nil {
+			return // User continued without linking.
 		}
+		if err != nil {
+			fyne.Do(func() {
+				statusLabel.Importance = widget.WarningImportance
+				statusLabel.SetText(formatGUIError(err))
+			})
+			return
+		}
+
+		if err := auth.SaveTokenCache(auth.NewTokenCache(result)); err != nil {
+			ui.Warn(fmt.Sprintf("could not save token cache: %s", err))
+		}
+		fyne.Do(func() {
+			statusLabel.Importance = widget.SuccessImportance
+			statusLabel.SetText("Discord linked!")
+		})
+		time.Sleep(1500 * time.Millisecond)
+		fyne.Do(func() {
+			onLinked(username, password)
+		})
 	}()
 }

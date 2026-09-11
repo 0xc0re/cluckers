@@ -59,12 +59,12 @@ func buildPrepSteps(state *LaunchState) []Step {
 	steps := []Step{
 		{Name: "Checking gateway", Fn: stepHealthCheck},
 		{Name: "Authenticating", Fn: stepAuthenticate},
-		{Name: "Requesting content bootstrap", Fn: stepBootstrap},
 	}
 	steps = append(steps, platformSteps(state)...)
 	steps = append(steps,
 		Step{Name: "Checking game version", Fn: stepCheckVersion},
 		Step{Name: "Downloading game update", Fn: stepDownloadGame},
+		Step{Name: "Requesting launch authorization", Fn: stepLaunchAuth},
 	)
 	steps = append(steps, platformPostSteps(state)...)
 	steps = append(steps, Step{Name: "Writing launch config", Fn: stepWriteLaunchConfig})
@@ -73,13 +73,19 @@ func buildPrepSteps(state *LaunchState) []Step {
 
 // stepWriteLaunchConfig writes persistent files for Steam-managed launch:
 //   - ~/.cluckers/cache/bootstrap.bin   — content bootstrap bytes
-//   - ~/.cluckers/cache/token.txt       — launcher access token string
+//   - ~/.cluckers/cache/token.txt       — per-launch game token from launch-auth
 //   - ~/.cluckers/bin/shm_launcher.exe  — extracted from embedded asset
 //   - ~/.cluckers/bin/launch-config.txt — Wine-path args for shm_launcher
 func stepWriteLaunchConfig(_ context.Context, state *LaunchState) error {
 	if state.Bootstrap == nil || len(state.Bootstrap) == 0 {
 		return &ui.UserError{
 			Message:    "Content bootstrap is required for prep mode",
+			Suggestion: "Try again — the gateway may have been temporarily unavailable.",
+		}
+	}
+	if state.LaunchToken == "" {
+		return &ui.UserError{
+			Message:    "Launch token is required for prep mode",
 			Suggestion: "Try again — the gateway may have been temporarily unavailable.",
 		}
 	}
@@ -100,10 +106,14 @@ func stepWriteLaunchConfig(_ context.Context, state *LaunchState) error {
 		return fmt.Errorf("writing bootstrap.bin: %w", err)
 	}
 
-	// 2. Write token.txt (the launcher access token, read by the game via -token_file)
+	// 2. Write token.txt (the per-launch game token, read by the game via -token_file)
 	tokenPath := filepath.Join(cacheDir, "token.txt")
-	if err := os.WriteFile(tokenPath, []byte(state.AccessToken), 0600); err != nil {
+	if err := os.WriteFile(tokenPath, []byte(state.LaunchToken), 0600); err != nil {
 		return fmt.Errorf("writing token.txt: %w", err)
+	}
+	if !state.LaunchExpiresAt.IsZero() {
+		ui.Warn(fmt.Sprintf("Launch token expires at %s. Run 'cluckers prep' again right before launching from Steam.",
+			state.LaunchExpiresAt.Local().Format("15:04")))
 	}
 
 	// 3. Extract shm_launcher.exe to bin dir (idempotent).

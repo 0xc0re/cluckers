@@ -176,6 +176,14 @@ func showLaunchProgress(w fyne.Window, cfg *config.Config, username, password st
 				showMainView(w, cfg, username, password)
 				return
 			}
+			// Unlinked account: walk through Discord linking, then back to main.
+			var nl *auth.NotLinkedError
+			if errors.As(err, &nl) {
+				screens.ShowDiscordLinking(w, cfg, username, password, nl.LinkCode, func(u, p string) {
+					showMainView(w, cfg, u, p)
+				})
+				return
+			}
 			// Show error dialog, then return to main view.
 			dialog.ShowError(err, w)
 			showMainView(w, cfg, username, password)

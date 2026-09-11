@@ -33,20 +33,12 @@ func newTestPrepState(t *testing.T) *LaunchState {
 		},
 		Username:    "testuser",
 		AccessToken: "test-access-token",
+		LaunchToken: "test-launch-token",
 		Bootstrap:   []byte("BPS1" + strings.Repeat("\x00", 132)), // 136 bytes with magic header
 		GameDir:     gameDir,
 		Reporter:    &noopReporter{},
 	}
 }
-
-// noopReporter is a ProgressReporter that does nothing (for tests).
-type noopReporter struct{}
-
-func (n *noopReporter) StepStarted(name string)           {}
-func (n *noopReporter) StepCompleted(name string)         {}
-func (n *noopReporter) StepFailed(name string, err error) {}
-func (n *noopReporter) StepSkipped(name string)           {}
-func (n *noopReporter) StepPaused(name string)            {}
 
 func TestStepWriteLaunchConfig_WritesAllFiles(t *testing.T) {
 	state := newTestPrepState(t)
@@ -91,8 +83,24 @@ func TestStepWriteLaunchConfig_WritesAllFiles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("reading token.txt: %v", err)
 	}
-	if string(tok) != "test-access-token" {
-		t.Errorf("token.txt = %q, want %q", string(tok), "test-access-token")
+	if string(tok) != "test-launch-token" {
+		t.Errorf("token.txt = %q, want the launch token %q", string(tok), "test-launch-token")
+	}
+	if string(tok) == state.AccessToken {
+		t.Error("token.txt must never contain the session access token")
+	}
+}
+
+func TestStepWriteLaunchConfig_EmptyLaunchToken(t *testing.T) {
+	state := newTestPrepState(t)
+	state.LaunchToken = ""
+
+	err := stepWriteLaunchConfig(context.Background(), state)
+	if err == nil {
+		t.Fatal("expected error for empty launch token, got nil")
+	}
+	if !strings.Contains(strings.ToLower(err.Error()), "launch token") {
+		t.Errorf("error should mention the launch token, got: %v", err)
 	}
 }
 
@@ -246,5 +254,29 @@ func TestStepWriteLaunchConfig_DynamicBootstrapSize(t *testing.T) {
 	// Verify the old hardcoded value is NOT present.
 	if strings.Contains(content, "-content_bootstrap_size=136") {
 		t.Error("launch-config.txt still contains hardcoded -content_bootstrap_size=136")
+	}
+}
+
+// TestBuildPrepSteps_LaunchAuthAfterDownload pins the prep ordering: the
+// launch-auth header needs the installed build (written by the sync) and the
+// launch token should be minted as late as possible.
+func TestBuildPrepSteps_LaunchAuthAfterDownload(t *testing.T) {
+	steps := buildPrepSteps(&LaunchState{Config: &config.Config{}})
+	idx := func(name string) int {
+		for i, s := range steps {
+			if s.Name == name {
+				return i
+			}
+		}
+		t.Fatalf("step %q missing from prep pipeline", name)
+		return -1
+	}
+	download, launchAuth, write := idx("Downloading game update"), idx("Requesting launch authorization"), idx("Writing launch config")
+	if !(download < launchAuth && launchAuth < write) {
+		names := make([]string, len(steps))
+		for i, s := range steps {
+			names[i] = s.Name
+		}
+		t.Errorf("prep order = %v; want download < launch-auth < write config", names)
 	}
 }

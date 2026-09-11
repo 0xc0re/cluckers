@@ -327,36 +327,21 @@ func MakeMainView(w fyne.Window, cfg *config.Config, username, password string, 
 		}
 		botSetBtn.Disable()
 		go func() {
-			var accessToken string
-
-			// Fast path: try cached access token first.
-			cache, err := auth.LoadTokenCache()
-			if err == nil && cache != nil && cache.AccessTokenValid() {
-				accessToken = cache.AccessToken
-			}
-
-			// Fallback: authenticate inline using available credentials.
-			if accessToken == "" {
-				client := gateway.NewClient(cfg.Gateway, cfg.Verbose)
-				result, loginErr := auth.Login(context.Background(), client, username, password)
-				if loginErr != nil {
-					fyne.Do(func() {
-						dialog.ShowError(fmt.Errorf("could not authenticate: %s", loginErr), w)
-						botSetBtn.Enable()
-					})
-					return
-				}
-				accessToken = result.AccessToken
-
-				newCache := &auth.TokenCache{
-					AccessToken:    accessToken,
-					Username:       username,
-					AccessCachedAt: time.Now(),
-				}
-				_ = auth.SaveTokenCache(newCache)
-			}
-
 			client := gateway.NewClient(cfg.Gateway, cfg.Verbose)
+
+			// Cached access token, else refresh, else password login.
+			cache, _ := auth.LoadTokenCache()
+			sess, sessErr := auth.EnsureSession(context.Background(), client, auth.SessionRequest{
+				Username: username, Password: password, Cache: cache, Verbose: cfg.Verbose,
+			})
+			if sessErr != nil {
+				fyne.Do(func() {
+					dialog.ShowError(fmt.Errorf("could not authenticate: %s", formatGUIError(sessErr)), w)
+					botSetBtn.Enable()
+				})
+				return
+			}
+			accessToken := sess.AccessToken
 
 			// Set or clear each bot name (one API call per slot, 1-indexed).
 			// An empty entry clears that slot.

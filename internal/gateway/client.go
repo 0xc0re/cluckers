@@ -14,14 +14,17 @@ import (
 	"github.com/hashicorp/go-retryablehttp"
 )
 
-// UserAgent identifies the launcher to the gateway. Kept in sync with the
-// official Project Crown launcher version that the API expects.
-const UserAgent = "CluckersCentral/1.2.54"
+// UserAgent identifies the launcher to the gateway. The official 1.6.3
+// launcher sends no User-Agent at all and the server does not check it; this
+// value is informational only.
+const UserAgent = "CluckersCentral/1.6.3"
 
 // sensitiveKeys are JSON field names whose values are redacted in verbose logs.
 var sensitiveKeys = map[string]bool{
 	"password":      true,
 	"access_token":  true,
+	"refresh_token": true,
+	"launch_token":  true,
 	"portal_info_1": true,
 	"text_value":    true,
 }
@@ -81,8 +84,15 @@ type problemDetails struct {
 //
 // Success is indicated by a 2xx status code (there is no SUCCESS field). Non-2xx
 // responses are parsed as RFC 7807 problem+json and returned as *ui.UserError.
-// A nil body sends no request payload; a nil result skips response decoding.
+// A nil body sends no request payload (pass struct{}{} to send an empty JSON
+// object); a nil result skips response decoding.
 func (c *Client) Do(ctx context.Context, method, path, bearer string, body, result interface{}) error {
+	return c.DoWithHeaders(ctx, method, path, bearer, nil, body, result)
+}
+
+// DoWithHeaders is Do with additional request headers (e.g. x-realm-client-build
+// on launch-auth). A nil or empty headers map behaves exactly like Do.
+func (c *Client) DoWithHeaders(ctx context.Context, method, path, bearer string, headers map[string]string, body, result interface{}) error {
 	url := c.baseURL + path
 
 	var reader io.Reader
@@ -107,6 +117,9 @@ func (c *Client) Do(ctx context.Context, method, path, bearer string, body, resu
 	}
 	if bearer != "" {
 		req.Header.Set("Authorization", "Bearer "+bearer)
+	}
+	for k, v := range headers {
+		req.Header.Set(k, v)
 	}
 
 	resp, err := c.httpClient.Do(req)
@@ -149,7 +162,7 @@ func (c *Client) Do(ctx context.Context, method, path, bearer string, body, resu
 	if err := json.Unmarshal(respBody, result); err != nil {
 		return &ui.UserError{
 			Message: "Failed to parse gateway response.",
-			Detail:  fmt.Sprintf("JSON unmarshal error: %s; body: %s", err.Error(), string(respBody)),
+			Detail:  fmt.Sprintf("JSON unmarshal error: %s (body: %d bytes, not logged)", err.Error(), len(respBody)),
 			Err:     err,
 		}
 	}
@@ -166,6 +179,7 @@ func (c *Client) errorFromResponse(method, path string, status int, body []byte)
 			Message:    "Gateway unreachable (received HTML error page).",
 			Detail:     fmt.Sprintf("HTTP %d from %s %s", status, method, path),
 			Suggestion: "The Project Crown servers may be down. Try again later.",
+			Status:     status,
 		}
 	}
 
@@ -178,12 +192,15 @@ func (c *Client) errorFromResponse(method, path string, status int, body []byte)
 		return &ui.UserError{
 			Message: msg,
 			Detail:  fmt.Sprintf("HTTP %d (%s)", status, pd.Title),
+			Status:  status,
+			Code:    pd.Title,
 		}
 	}
 
 	return &ui.UserError{
 		Message: fmt.Sprintf("Gateway error (HTTP %d).", status),
 		Detail:  string(body),
+		Status:  status,
 	}
 }
 

@@ -12,7 +12,7 @@ import (
 var resetPasswordCmd = &cobra.Command{
 	Use:   "reset-password",
 	Short: "Request a password reset for your account",
-	Long:  "Sends a password reset request to the Project Crown server. Reset instructions will be sent to your registered email or Discord.",
+	Long:  "Requests a password reset from the Project Crown server. The server replies with a reset code that you DM to the Project Crown Discord bot, then reply with your new password.",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client := gateway.NewClient(Cfg.Gateway, Cfg.Verbose)
 
@@ -27,7 +27,7 @@ var resetPasswordCmd = &cobra.Command{
 		}
 
 		sp := ui.StartStep("Requesting password reset...")
-		err = auth.RequestPasswordReset(cmd.Context(), client, username)
+		result, err := auth.RequestPasswordReset(cmd.Context(), client, username)
 		if err != nil {
 			sp.Fail()
 			return err
@@ -35,7 +35,18 @@ var resetPasswordCmd = &cobra.Command{
 		sp.Success()
 
 		ui.Success("Password reset requested for " + username)
-		ui.Info("Check your email or Discord for reset instructions.")
+		if result.Message != "" {
+			ui.Info(result.Message)
+		} else {
+			ui.Info("DM the reset code to the Project Crown bot on Discord, then reply with your new password.")
+		}
+		if result.Code != "" {
+			fmt.Println()
+			fmt.Printf("  Your reset code: %s\n", result.Code)
+			fmt.Println()
+			ui.Info("Bot DM: " + auth.DiscordBotDMURL)
+			ui.Info("Server: " + auth.DiscordInviteURL)
+		}
 		return nil
 	},
 }

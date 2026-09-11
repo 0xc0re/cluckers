@@ -1,11 +1,12 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
-	"time"
 
 	"github.com/0xc0re/cluckers/internal/auth"
 	"github.com/0xc0re/cluckers/internal/gateway"
+	"github.com/0xc0re/cluckers/internal/launch"
 	"github.com/0xc0re/cluckers/internal/ui"
 	"github.com/spf13/cobra"
 )
@@ -13,7 +14,7 @@ import (
 var registerCmd = &cobra.Command{
 	Use:   "register",
 	Short: "Create a new Project Crown account",
-	Long:  "Creates a new account on the Project Crown server, saves credentials, and provides a Discord verification code to complete account linking.",
+	Long:  "Creates a new account on the Project Crown server, saves credentials, and walks you through linking the account to Discord with a code you DM to the Project Crown bot.",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client := gateway.NewClient(Cfg.Gateway, Cfg.Verbose)
 
@@ -31,72 +32,43 @@ var registerCmd = &cobra.Command{
 			return err
 		}
 
-		// Register account.
+		// Register account. A new account is normally not linked to Discord
+		// yet, in which case the reply carries the link code instead of a token.
 		result, err := auth.Register(cmd.Context(), client, username, password, email)
-		if err != nil {
+		var nl *auth.NotLinkedError
+		switch {
+		case err == nil:
+		case errors.As(err, &nl):
+		default:
 			return err
 		}
 
-		ui.Success("Account created for " + result.Username)
+		ui.Success("Account created for " + username)
 
 		// Save credentials so login/launch work immediately.
 		if err := auth.SaveCredentials(username, password); err != nil {
 			ui.Warn(fmt.Sprintf("Could not save credentials: %s", err))
 		}
 
-		// Cache the access token from registration (acts as auto-login).
-		cache := &auth.TokenCache{
-			Username:       result.Username,
-			AccessToken:    result.AccessToken,
-			AccessCachedAt: time.Now(),
+		if nl != nil {
+			result, err = launch.WaitForLinkInteractive(cmd.Context(), client, username, password, nl.LinkCode)
+			if err != nil {
+				if errors.Is(err, auth.ErrPinRequired) {
+					return err
+				}
+				ui.Warn(fmt.Sprintf("Discord linking did not complete: %s", err))
+				ui.Info("DM the code to the bot, then run: cluckers login")
+				return nil
+			}
 		}
-		if err := auth.SaveTokenCache(cache); err != nil {
+
+		// Cache the session from registration/linking (acts as auto-login).
+		if err := auth.SaveTokenCache(auth.NewTokenCache(result)); err != nil {
 			ui.Warn(fmt.Sprintf("Could not save token cache: %s", err))
 		}
 
-		// Request Discord link code (uses password auth).
-		code, err := auth.RequestLinkCode(cmd.Context(), client, result.Username, password)
-		if err != nil {
-			ui.Warn(fmt.Sprintf("Could not get Discord link code: %s", err))
-			ui.Info("You can request a link code later by logging in.")
-			return nil
-		}
-
-		// Display the link code with instructions.
-		fmt.Println()
-		ui.Info("To complete your account, DM the following code to the Project Crown Discord bot:")
-		fmt.Println()
-		fmt.Printf("  Your verification code: %s\n", code)
-		fmt.Println()
-
-		// Poll for Discord linking status.
-		sp := ui.StartStep("Waiting for Discord linking...")
-		ticker := time.NewTicker(5 * time.Second)
-		defer ticker.Stop()
-		timeout := time.After(5 * time.Minute)
-
-		for {
-			select {
-			case <-cmd.Context().Done():
-				sp.Stop()
-				return cmd.Context().Err()
-			case <-timeout:
-				sp.Stop()
-				ui.Info("Linking timed out. You can check your status later with: cluckers login")
-				return nil
-			case <-ticker.C:
-				linked, err := auth.CheckDiscordStatus(cmd.Context(), client, result.Username, result.AccessToken)
-				if err != nil {
-					ui.Verbose(fmt.Sprintf("Discord status check failed: %s", err), Cfg.Verbose)
-					continue
-				}
-				if linked {
-					sp.Success()
-					ui.Success("Discord account linked! You can now launch the game with: cluckers launch")
-					return nil
-				}
-			}
-		}
+		ui.Success("You can now launch the game with: cluckers launch")
+		return nil
 	},
 }
 
