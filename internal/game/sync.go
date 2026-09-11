@@ -93,8 +93,14 @@ func SyncManifest(ctx context.Context, info *VersionInfo, m *Manifest, gameDir s
 		return err // leave marker in place so the next run re-syncs
 	}
 
+	versionMarker := filepath.Join(gameDir, installedVersionMarker)
+	want[filepath.Clean(versionMarker)] = struct{}{}
 	if err := removeStale(gameDir, want, markerPath); err != nil {
 		return err
+	}
+
+	if err := WriteInstalledVersion(gameDir, m.Version); err != nil {
+		ui.Warn(fmt.Sprintf("Could not record installed version: %s", err))
 	}
 
 	if err := os.Remove(markerPath); err != nil {

@@ -16,8 +16,14 @@ import (
 	"github.com/zeebo/blake3"
 )
 
-// UpdaterURL is the endpoint for game version information.
-const UpdaterURL = "https://updater.realmhub.io/builds/version.json"
+// UpdaterURL is the endpoint for game version information. A variable so
+// tests can point it at a local server.
+var UpdaterURL = "https://updater.realmhub.io/builds/version.json"
+
+// installedVersionMarker records, relative to the game directory, the build
+// version the game files were last synced to. Written by SyncManifest and read
+// by InstalledVersion (the value sent to the gateway as x-realm-client-build).
+const installedVersionMarker = ".cluckers-installed-version"
 
 // GameVersionDatRelPath is the manifest-relative path of the version marker
 // used to decide whether the installed game matches a given build.
@@ -234,4 +240,62 @@ func GameDir() string {
 // GameExePath returns the full path to the game executable within a game directory.
 func GameExePath(gameDir string) string {
 	return filepath.Join(gameDir, "Realm-Royale", "Binaries", "Win64", "ShippingPC-RealmGameNoEditor.exe")
+}
+
+// WriteInstalledVersion records version as the build the game directory holds.
+func WriteInstalledVersion(gameDir, version string) error {
+	version = strings.TrimSpace(version)
+	if version == "" {
+		return nil
+	}
+	return os.WriteFile(filepath.Join(gameDir, installedVersionMarker), []byte(version+"\n"), 0644)
+}
+
+// readInstalledVersion returns the recorded build version, or "" if none.
+func readInstalledVersion(gameDir string) string {
+	data, err := os.ReadFile(filepath.Join(gameDir, installedVersionMarker))
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(data))
+}
+
+// InstalledVersion determines the dotted build version of the game files in
+// gameDir (e.g. "0.39.6969.0"), which the gateway expects in the
+// x-realm-client-build header on launch-auth. Sources, in order:
+//  1. the marker written by the last successful sync;
+//  2. the pinned version from config, if any;
+//  3. the updater API: if the local GameVersion.dat matches the latest build's
+//     hash, latest_version (and the marker is written so later launches skip
+//     the network).
+//
+// Returns "" and a descriptive error when none applies (e.g. an install that
+// predates the marker and no longer matches latest); callers should then omit
+// the header and let the gateway decide.
+func InstalledVersion(ctx context.Context, gameDir, pinned string) (string, error) {
+	if v := readInstalledVersion(gameDir); v != "" {
+		return v, nil
+	}
+	if pinned = strings.TrimSpace(pinned); pinned != "" {
+		return pinned, nil
+	}
+
+	info, err := FetchVersionInfo(ctx)
+	if err != nil {
+		return "", err
+	}
+	if info.LatestVersion == "" || info.GameVersionDatBLAKE3 == "" {
+		return "", fmt.Errorf("updater did not report a latest version")
+	}
+	needs, err := NeedsUpdate(gameDir, info)
+	if err != nil {
+		return "", err
+	}
+	if needs {
+		return "", fmt.Errorf("installed game files do not match the latest build %s; run 'cluckers update'", info.LatestVersion)
+	}
+	if err := WriteInstalledVersion(gameDir, info.LatestVersion); err != nil {
+		ui.Verbose(fmt.Sprintf("Could not record installed version: %s", err), true)
+	}
+	return info.LatestVersion, nil
 }
