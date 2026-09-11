@@ -161,7 +161,9 @@ func expiryFrom(unix json.Number, datetime string) time.Time {
 	if datetime == "" {
 		return time.Time{}
 	}
-	for _, layout := range []string{time.RFC3339Nano, time.RFC3339, "2006-01-02T15:04:05", "2006-01-02 15:04:05"} {
+	// The live gateway formats *_expiration_datetime as "2026-09-11_19.53.36"
+	// (observed 2026-09-11); the unix fields are preferred, this is a fallback.
+	for _, layout := range []string{time.RFC3339Nano, time.RFC3339, "2006-01-02_15.04.05", "2006-01-02T15:04:05", "2006-01-02 15:04:05"} {
 		if ts, err := time.Parse(layout, datetime); err == nil {
 			return ts
 		}

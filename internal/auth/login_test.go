@@ -151,6 +151,7 @@ func TestExpiryFrom(t *testing.T) {
 		{"unix wins", "1800000000", "2020-01-01T00:00:00Z", time.Unix(1800000000, 0)},
 		{"rfc3339 fallback", "", "2020-01-02T03:04:05Z", time.Date(2020, 1, 2, 3, 4, 5, 0, time.UTC)},
 		{"naive datetime", "", "2020-01-02T03:04:05", time.Date(2020, 1, 2, 3, 4, 5, 0, time.UTC)},
+		{"gateway underscore format", "", "2026-09-11_19.53.36", time.Date(2026, 9, 11, 19, 53, 36, 0, time.UTC)},
 		{"nothing", "", "", time.Time{}},
 		{"garbage", "abc", "soon", time.Time{}},
 		{"zero unix ignored", "0", "", time.Time{}},
