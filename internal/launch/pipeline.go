@@ -8,7 +8,6 @@ import (
 	"os/signal"
 	"sync/atomic"
 	"syscall"
-	"time"
 
 	"github.com/0xc0re/cluckers/internal/auth"
 	"github.com/0xc0re/cluckers/internal/config"
@@ -251,11 +250,7 @@ func stepAuthenticate(ctx context.Context, state *LaunchState) error {
 			state.Password = password
 
 			// Cache the access token for future launches.
-			state.TokenCache = &auth.TokenCache{
-				Username:       result.Username,
-				AccessToken:    result.AccessToken,
-				AccessCachedAt: time.Now(),
-			}
+			state.TokenCache = auth.NewTokenCache(result)
 			if saveErr := auth.SaveTokenCache(state.TokenCache); saveErr != nil {
 				ui.Verbose(fmt.Sprintf("Could not save token cache: %s", saveErr), state.Config.Verbose)
 			}
@@ -304,11 +299,7 @@ func stepAuthenticate(ctx context.Context, state *LaunchState) error {
 	}
 
 	// Cache the access token for future launches.
-	state.TokenCache = &auth.TokenCache{
-		Username:       result.Username,
-		AccessToken:    result.AccessToken,
-		AccessCachedAt: time.Now(),
-	}
+	state.TokenCache = auth.NewTokenCache(result)
 	if saveErr := auth.SaveTokenCache(state.TokenCache); saveErr != nil {
 		ui.Verbose(fmt.Sprintf("Could not save token cache: %s", saveErr), state.Config.Verbose)
 	}
@@ -341,11 +332,7 @@ func stepBootstrap(ctx context.Context, state *LaunchState) error {
 		state.AccessToken = result.AccessToken
 
 		// Save fresh token cache.
-		state.TokenCache = &auth.TokenCache{
-			Username:       result.Username,
-			AccessToken:    result.AccessToken,
-			AccessCachedAt: time.Now(),
-		}
+		state.TokenCache = auth.NewTokenCache(result)
 		if saveErr := auth.SaveTokenCache(state.TokenCache); saveErr != nil {
 			ui.Verbose(fmt.Sprintf("Could not save token cache: %s", saveErr), state.Config.Verbose)
 		}

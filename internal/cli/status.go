@@ -69,6 +69,7 @@ type authStatusResult struct {
 	username     string
 	accessValid  bool
 	accessRemain time.Duration
+	refreshValid bool
 	cacheErr     error
 	credsErr     error
 }
@@ -100,8 +101,9 @@ func checkAuthStatus() authStatusResult {
 	if cache != nil {
 		if cache.AccessTokenValid() {
 			result.accessValid = true
-			result.accessRemain = auth.AccessTokenTTL - time.Since(cache.AccessCachedAt)
+			result.accessRemain = cache.AccessRemaining()
 		}
+		result.refreshValid = cache.RefreshTokenValid()
 		if result.username == "" {
 			result.username = cache.Username
 		}
@@ -192,6 +194,8 @@ func printCompactStatus(ps *protonStatusResult, cs *compatdataStatusResult, as a
 	// Auth
 	if as.credsSaved && as.accessValid {
 		fmt.Printf("  %-10s %-45s %s\n", "Auth:", "Logged in as "+as.username, green("[OK]"))
+	} else if as.credsSaved && as.refreshValid {
+		fmt.Printf("  %-10s %-45s %s\n", "Auth:", "Logged in as "+as.username, green("[OK, will refresh]"))
 	} else if as.credsSaved {
 		fmt.Printf("  %-10s %-45s %s\n", "Auth:", "Credentials saved ("+as.username+")", yellow("[Token expired]"))
 	} else {
@@ -282,6 +286,11 @@ func printVerboseStatus(ps *protonStatusResult, cs *compatdataStatusResult, as a
 		fmt.Printf("  Access:  %s (expires in %s)\n", green("Valid"), as.accessRemain.Truncate(time.Minute))
 	} else {
 		fmt.Printf("  Access:  %s\n", yellow("Expired or missing"))
+	}
+	if as.refreshValid {
+		fmt.Printf("  Refresh: %s\n", green("Available"))
+	} else {
+		fmt.Printf("  Refresh: %s\n", yellow("None (next launch logs in with the saved password)"))
 	}
 	fmt.Println()
 

@@ -48,24 +48,44 @@ type LoginRequest struct {
 }
 
 // SessionResponse is the 200 response from the session endpoints
-// (/launcher/v1/session-or-link, /launcher/v1/session) and account creation.
-// Success is signalled by HTTP 2xx; there is no SUCCESS field. Errors arrive as
-// RFC 7807 problem+json and are surfaced as *ui.UserError before unmarshalling.
+// (/launcher/v1/session-or-link, /launcher/v1/session/refresh) and account
+// creation. Success is signalled by HTTP 2xx; there is no SUCCESS field. Errors
+// arrive as RFC 7807 problem+json and are surfaced as *ui.UserError before
+// unmarshalling.
+//
+// Semantics of a 2xx body (matching the official 1.6.3 launcher):
+//   - linked_flag != 1: the account is not linked to Discord yet and
+//     access_token carries the Discord LINK CODE, not a session token.
+//   - linked_flag == 1 and text_value is PIN_REQUIRED / PIN_INVALID: the server
+//     is in developer-only mode; no token is issued.
+//   - otherwise access_token is a real session token (lpt_v1_...), and
+//     refresh_token / *_expires_at_unix describe the session lifetime.
+//   - custom_message is the supporter tier name, custom_value_1 the tier level,
+//     custom_value_2/3 bot-name slots total/used, custom_value_4 announcement
+//     seconds, text_value announcement text, portal_info_1 a JSON array of bot
+//     names (on the login response).
 type SessionResponse struct {
-	AccountID          json.Number `json:"account_id"`
-	UserName           string      `json:"user_name"`
-	SessionID          string      `json:"session_id"`
-	AccessToken        string      `json:"access_token"`
-	ExpirationDatetime string      `json:"expiration_datetime"`
-	LinkedFlag         FlexBool    `json:"linked_flag"`
-	CustomMessage      string      `json:"custom_message"`
-	CustomValue1       json.Number `json:"custom_value_1"`
-	TextValue          string      `json:"text_value"`
-	PortalInfo1        string      `json:"portal_info_1"`
+	AccountID                 json.Number `json:"account_id"`
+	UserName                  string      `json:"user_name"`
+	SessionID                 string      `json:"session_id"`
+	AccessToken               string      `json:"access_token"`
+	ExpirationDatetime        string      `json:"expiration_datetime"`
+	AccessExpiresAtUnix       json.Number `json:"access_expires_at_unix"`
+	RefreshToken              string      `json:"refresh_token"`
+	RefreshExpirationDatetime string      `json:"refresh_expiration_datetime"`
+	RefreshExpiresAtUnix      json.Number `json:"refresh_expires_at_unix"`
+	LinkedFlag                FlexBool    `json:"linked_flag"`
+	CustomMessage             string      `json:"custom_message"`
+	CustomValue1              json.Number `json:"custom_value_1"`
+	CustomValue2              json.Number `json:"custom_value_2"`
+	CustomValue3              json.Number `json:"custom_value_3"`
+	CustomValue4              json.Number `json:"custom_value_4"`
+	TextValue                 string      `json:"text_value"`
+	PortalInfo1               string      `json:"portal_info_1"`
 }
 
-// BootstrapResponse is the response from GET /launcher/v1/content-bootstrap.
-// portal_info_1 holds the base64-encoded BPS1 content bootstrap blob.
+// BootstrapResponse is the response from the legacy GET /launcher/v1/content-bootstrap.
+// Deprecated: replaced by LaunchAuthResponse; removed once the pipeline migrates.
 type BootstrapResponse struct {
 	AccountID          json.Number `json:"account_id"`
 	SessionID          string      `json:"session_id"`
@@ -76,31 +96,33 @@ type BootstrapResponse struct {
 	PortalInfo1        string      `json:"portal_info_1"`
 }
 
+// RefreshRequest is the request body for POST /launcher/v1/session/refresh.
+// The call carries no Authorization header; the refresh token is the credential.
+type RefreshRequest struct {
+	RefreshToken string `json:"refresh_token"`
+}
+
+// LaunchAuthResponse is the response from POST /launcher/v1/launch-auth
+// (Bearer access token, empty JSON object body, x-realm-client-build header).
+// portal_info_1 holds the base64-encoded 136-byte BPS1 content bootstrap and
+// launch_token is the short-lived token the game reads from -token_file.
+type LaunchAuthResponse struct {
+	AccountID                json.Number `json:"account_id"`
+	SessionID                string      `json:"session_id"`
+	LaunchToken              string      `json:"launch_token"`
+	LaunchExpirationDatetime string      `json:"launch_expiration_datetime"`
+	LaunchExpiresAtUnix      json.Number `json:"launch_expires_at_unix"`
+	ExpirationDatetime       string      `json:"expiration_datetime"`
+	CustomValue1             json.Number `json:"custom_value_1"`
+	CustomValue2             json.Number `json:"custom_value_2"`
+	PortalInfo1              string      `json:"portal_info_1"`
+}
+
 // RegisterRequest is the request body for POST /launcher/v1/account.
 type RegisterRequest struct {
 	UserName string `json:"user_name"`
 	Password string `json:"password"`
 	Email    string `json:"email"`
-}
-
-// LinkCodeRequest is the request body for POST /launcher/v1/discord/link/code.
-type LinkCodeRequest struct {
-	UserName string `json:"user_name"`
-	Password string `json:"password"`
-}
-
-// LinkCodeResponse is the response from POST /launcher/v1/discord/link/code.
-type LinkCodeResponse struct {
-	Code        string   `json:"code"`
-	AccessToken string   `json:"access_token"`
-	LinkedFlag  FlexBool `json:"linked_flag"`
-}
-
-// DiscordStatusResponse is the response from GET /launcher/v1/discord/link.
-type DiscordStatusResponse struct {
-	LinkedFlag     FlexBool `json:"linked_flag"`
-	PortalUserID   string   `json:"portal_userid"`
-	PortalUsername string   `json:"portal_username"`
 }
 
 // PasswordResetRequest is the request body for POST /launcher/v1/password-reset.
@@ -109,9 +131,12 @@ type PasswordResetRequest struct {
 }
 
 // PasswordResetResponse is the response from POST /launcher/v1/password-reset.
+// access_token carries the RESET CODE the user must DM to the Discord bot, and
+// text_value the human-readable instructions.
 type PasswordResetResponse struct {
-	RequestID string `json:"request_id"`
-	TextValue string `json:"text_value"`
+	RequestID   string `json:"request_id"`
+	AccessToken string `json:"access_token"`
+	TextValue   string `json:"text_value"`
 }
 
 // BotNameUpsertRequest is the request body for

@@ -1,8 +1,8 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
-	"time"
 
 	"github.com/0xc0re/cluckers/internal/auth"
 	"github.com/0xc0re/cluckers/internal/gateway"
@@ -13,7 +13,7 @@ import (
 var loginCmd = &cobra.Command{
 	Use:   "login",
 	Short: "Authenticate and save credentials",
-	Long:  "Logs in to the Project Crown gateway and refreshes cached tokens. Uses saved credentials if available, otherwise prompts for username and password.",
+	Long:  "Logs in to the Project Crown gateway and refreshes cached tokens. Uses saved credentials if available, otherwise prompts for username and password. Walks you through Discord linking if the account is not linked yet.",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client := gateway.NewClient(Cfg.Gateway, Cfg.Verbose)
 
@@ -40,24 +40,25 @@ var loginCmd = &cobra.Command{
 			}
 		}
 
-		// Authenticate with gateway.
-		result, err := auth.Login(cmd.Context(), client, username, password)
+		// Authenticate with gateway (handles the Discord link flow).
+		result, err := completeLogin(cmd.Context(), client, username, password)
 		if err != nil {
-			if creds != nil {
-				ui.Warn("Saved credentials failed, please re-enter.")
-				username, err = ui.PromptUsername()
-				if err != nil {
-					return err
-				}
-				password, err = ui.PromptPassword()
-				if err != nil {
-					return err
-				}
-				result, err = auth.Login(cmd.Context(), client, username, password)
-				if err != nil {
-					return err
-				}
-			} else {
+			// Server-side gates are not credential problems: don't re-prompt.
+			if creds == nil || errors.Is(err, auth.ErrPinRequired) || errors.Is(err, auth.ErrNotLinked) {
+				return err
+			}
+			ui.Warn("Saved credentials failed, please re-enter.")
+			ui.Verbose(fmt.Sprintf("Saved login error: %s", err), Cfg.Verbose)
+			username, err = ui.PromptUsername()
+			if err != nil {
+				return err
+			}
+			password, err = ui.PromptPassword()
+			if err != nil {
+				return err
+			}
+			result, err = completeLogin(cmd.Context(), client, username, password)
+			if err != nil {
 				return err
 			}
 		}
@@ -67,18 +68,15 @@ var loginCmd = &cobra.Command{
 			ui.Warn(fmt.Sprintf("Could not save credentials: %s", err))
 		}
 
-		// Cache the access token so the next launch can skip re-authentication.
-		cache := &auth.TokenCache{
-			Username:       result.Username,
-			AccessToken:    result.AccessToken,
-			AccessCachedAt: time.Now(),
-		}
-
-		if err := auth.SaveTokenCache(cache); err != nil {
+		// Cache the session so the next launch can skip re-authentication.
+		if err := auth.SaveTokenCache(auth.NewTokenCache(result)); err != nil {
 			ui.Warn(fmt.Sprintf("Could not save token cache: %s", err))
 		}
 
 		ui.Success("Logged in as " + result.Username)
+		if result.SupporterTier != "" && result.SupporterTier != "none" {
+			ui.Info("Supporter tier: " + result.SupporterTier)
+		}
 		return nil
 	},
 }

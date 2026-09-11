@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -194,10 +195,71 @@ func TestHealthCheck(t *testing.T) {
 	})
 }
 
+func TestDoWithHeadersSendsHeaderAndEmptyObject(t *testing.T) {
+	var gotBuild, gotContentType string
+	var gotBody []byte
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotBuild = r.Header.Get("x-realm-client-build")
+		gotContentType = r.Header.Get("Content-Type")
+		gotBody, _ = io.ReadAll(r.Body)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	c := NewClient(srv.URL, false)
+	err := c.DoWithHeaders(context.Background(), http.MethodPost, "/launcher/v1/launch-auth", "tok",
+		map[string]string{"x-realm-client-build": "0.39.6969.0"}, struct{}{}, nil)
+	if err != nil {
+		t.Fatalf("DoWithHeaders returned error: %v", err)
+	}
+	if gotBuild != "0.39.6969.0" {
+		t.Errorf("x-realm-client-build = %q, want 0.39.6969.0", gotBuild)
+	}
+	if gotContentType != "application/json" {
+		t.Errorf("Content-Type = %q, want application/json", gotContentType)
+	}
+	if strings.TrimSpace(string(gotBody)) != "{}" {
+		t.Errorf("body = %q, want {}", gotBody)
+	}
+
+	// No headers map: header absent.
+	gotBuild = "unset"
+	if err := c.Do(context.Background(), http.MethodPost, "/x", "", struct{}{}, nil); err != nil {
+		t.Fatalf("Do returned error: %v", err)
+	}
+	if gotBuild != "" {
+		t.Errorf("x-realm-client-build = %q, want empty when no headers given", gotBuild)
+	}
+}
+
+func TestSessionResponseDecodesNewFields(t *testing.T) {
+	for _, body := range []string{
+		`{"access_token":"a","refresh_token":"r","access_expires_at_unix":1700000000,"refresh_expires_at_unix":1700003600,"linked_flag":1}`,
+		`{"access_token":"a","refresh_token":"r","access_expires_at_unix":"1700000000","refresh_expires_at_unix":"1700003600","linked_flag":"1"}`,
+	} {
+		var resp SessionResponse
+		if err := json.Unmarshal([]byte(body), &resp); err != nil {
+			t.Fatalf("unmarshal %s: %v", body, err)
+		}
+		if resp.RefreshToken != "r" {
+			t.Errorf("RefreshToken = %q, want r", resp.RefreshToken)
+		}
+		if v, err := resp.AccessExpiresAtUnix.Int64(); err != nil || v != 1700000000 {
+			t.Errorf("AccessExpiresAtUnix = %v (%v), want 1700000000", resp.AccessExpiresAtUnix, err)
+		}
+		if v, err := resp.RefreshExpiresAtUnix.Int64(); err != nil || v != 1700003600 {
+			t.Errorf("RefreshExpiresAtUnix = %v (%v), want 1700003600", resp.RefreshExpiresAtUnix, err)
+		}
+		if !bool(resp.LinkedFlag) {
+			t.Error("LinkedFlag = false, want true")
+		}
+	}
+}
+
 func TestSanitizeJSON(t *testing.T) {
-	in := []byte(`{"user_name":"alice","password":"hunter2","access_token":"lpt_v1_abc"}`)
+	in := []byte(`{"user_name":"alice","password":"hunter2","access_token":"lpt_v1_abc","refresh_token":"lrt_1","launch_token":"lt_1"}`)
 	out := sanitizeJSON(in)
-	if strings.Contains(out, "hunter2") || strings.Contains(out, "lpt_v1_abc") {
+	if strings.Contains(out, "hunter2") || strings.Contains(out, "lpt_v1_abc") || strings.Contains(out, "lrt_1") || strings.Contains(out, "lt_1") {
 		t.Errorf("sanitizeJSON leaked sensitive values: %s", out)
 	}
 	if !strings.Contains(out, "alice") {
