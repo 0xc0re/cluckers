@@ -6,6 +6,7 @@ import (
 
 	"github.com/0xc0re/cluckers/internal/auth"
 	"github.com/0xc0re/cluckers/internal/gateway"
+	"github.com/0xc0re/cluckers/internal/launch"
 	"github.com/0xc0re/cluckers/internal/ui"
 	"github.com/spf13/cobra"
 )
@@ -50,19 +51,8 @@ var registerCmd = &cobra.Command{
 		}
 
 		if nl != nil {
-			printLinkCode(nl.LinkCode)
-			sp := ui.StartStep("Waiting for Discord linking (checking every 3 seconds)...")
-			result, err = auth.WaitForLink(cmd.Context(), client, username, password, func(code string) {
-				if code == nl.LinkCode {
-					return
-				}
-				sp.Stop()
-				ui.Warn("The server issued a new link code.")
-				printLinkCode(code)
-				sp = ui.StartStep("Waiting for Discord linking (checking every 3 seconds)...")
-			})
+			result, err = launch.WaitForLinkInteractive(cmd.Context(), client, username, password, nl.LinkCode)
 			if err != nil {
-				sp.Fail()
 				if errors.Is(err, auth.ErrPinRequired) {
 					return err
 				}
@@ -70,8 +60,6 @@ var registerCmd = &cobra.Command{
 				ui.Info("DM the code to the bot, then run: cluckers login")
 				return nil
 			}
-			sp.Success()
-			ui.Success("Discord account linked!")
 		}
 
 		// Cache the session from registration/linking (acts as auto-login).

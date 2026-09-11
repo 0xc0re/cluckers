@@ -6,6 +6,7 @@ import (
 
 	"github.com/0xc0re/cluckers/internal/auth"
 	"github.com/0xc0re/cluckers/internal/gateway"
+	"github.com/0xc0re/cluckers/internal/launch"
 	"github.com/0xc0re/cluckers/internal/ui"
 	"github.com/spf13/cobra"
 )
@@ -41,7 +42,7 @@ var loginCmd = &cobra.Command{
 		}
 
 		// Authenticate with gateway (handles the Discord link flow).
-		result, err := completeLogin(cmd.Context(), client, username, password)
+		result, err := launch.LoginInteractive(cmd.Context(), client, username, password)
 		if err != nil {
 			// Server-side gates are not credential problems: don't re-prompt.
 			if creds == nil || errors.Is(err, auth.ErrPinRequired) || errors.Is(err, auth.ErrNotLinked) {
@@ -57,7 +58,7 @@ var loginCmd = &cobra.Command{
 			if err != nil {
 				return err
 			}
-			result, err = completeLogin(cmd.Context(), client, username, password)
+			result, err = launch.LoginInteractive(cmd.Context(), client, username, password)
 			if err != nil {
 				return err
 			}

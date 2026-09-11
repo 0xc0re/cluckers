@@ -16,12 +16,11 @@ import (
 
 // REST API paths for the v1 launcher gateway.
 const (
-	pathSessionOrLink    = "/launcher/v1/session-or-link"
-	pathSessionRefresh   = "/launcher/v1/session/refresh"
-	pathContentBootstrap = "/launcher/v1/content-bootstrap"
-	pathAccount          = "/launcher/v1/account"
-	pathPasswordReset    = "/launcher/v1/password-reset"
-	pathBotNames         = "/launcher/v1/supporter/bot-names"
+	pathSessionOrLink  = "/launcher/v1/session-or-link"
+	pathSessionRefresh = "/launcher/v1/session/refresh"
+	pathAccount        = "/launcher/v1/account"
+	pathPasswordReset  = "/launcher/v1/password-reset"
+	pathBotNames       = "/launcher/v1/supporter/bot-names"
 )
 
 // text_value sentinels the gateway uses on an otherwise successful session
@@ -160,26 +159,6 @@ func expiryFrom(unix json.Number, datetime string) time.Time {
 		}
 	}
 	return time.Time{}
-}
-
-// GetContentBootstrap retrieves the content bootstrap from the gateway via
-// GET /launcher/v1/content-bootstrap using the access token as a Bearer
-// credential. The bootstrap is base64-encoded in portal_info_1 and is a BPS1
-// blob consumed by the game via shared memory.
-//
-// Deprecated: the 1.6.3 gateway serves the bootstrap together with the launch
-// token from POST /launcher/v1/launch-auth; see LaunchAuth.
-func GetContentBootstrap(ctx context.Context, client *gateway.Client, accessToken string) ([]byte, error) {
-	var resp gateway.BootstrapResponse
-	if err := client.Do(ctx, http.MethodGet, pathContentBootstrap, accessToken, nil, &resp); err != nil {
-		return nil, classifyTokenError(err, "Content bootstrap request failed")
-	}
-
-	if resp.PortalInfo1 == "" {
-		return nil, nil // No bootstrap data — not an error.
-	}
-
-	return decodeBootstrap(resp.PortalInfo1)
 }
 
 // decodeBootstrap base64-decodes a portal_info_1 value into raw bootstrap bytes.

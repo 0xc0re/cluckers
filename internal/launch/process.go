@@ -9,8 +9,8 @@ type LaunchConfig struct {
 	SteamGameId      string // Non-Steam shortcut app ID for Gamescope tracking (Linux only). "0" if not found.
 	GameDir          string
 	Username         string
-	AccessToken      string
-	TokenPath        string // Path to a file containing the access token (passed via -token_file).
+	LaunchToken      string // Per-launch token from launch-auth; written to TokenPath.
+	TokenPath        string // Path to a file containing the launch token (passed via -token_file).
 	ContentBootstrap []byte
 	Verbose          bool
 }

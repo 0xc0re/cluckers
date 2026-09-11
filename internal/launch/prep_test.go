@@ -33,20 +33,12 @@ func newTestPrepState(t *testing.T) *LaunchState {
 		},
 		Username:    "testuser",
 		AccessToken: "test-access-token",
+		LaunchToken: "test-launch-token",
 		Bootstrap:   []byte("BPS1" + strings.Repeat("\x00", 132)), // 136 bytes with magic header
 		GameDir:     gameDir,
 		Reporter:    &noopReporter{},
 	}
 }
-
-// noopReporter is a ProgressReporter that does nothing (for tests).
-type noopReporter struct{}
-
-func (n *noopReporter) StepStarted(name string)           {}
-func (n *noopReporter) StepCompleted(name string)         {}
-func (n *noopReporter) StepFailed(name string, err error) {}
-func (n *noopReporter) StepSkipped(name string)           {}
-func (n *noopReporter) StepPaused(name string)            {}
 
 func TestStepWriteLaunchConfig_WritesAllFiles(t *testing.T) {
 	state := newTestPrepState(t)
@@ -91,8 +83,24 @@ func TestStepWriteLaunchConfig_WritesAllFiles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("reading token.txt: %v", err)
 	}
-	if string(tok) != "test-access-token" {
-		t.Errorf("token.txt = %q, want %q", string(tok), "test-access-token")
+	if string(tok) != "test-launch-token" {
+		t.Errorf("token.txt = %q, want the launch token %q", string(tok), "test-launch-token")
+	}
+	if string(tok) == state.AccessToken {
+		t.Error("token.txt must never contain the session access token")
+	}
+}
+
+func TestStepWriteLaunchConfig_EmptyLaunchToken(t *testing.T) {
+	state := newTestPrepState(t)
+	state.LaunchToken = ""
+
+	err := stepWriteLaunchConfig(context.Background(), state)
+	if err == nil {
+		t.Fatal("expected error for empty launch token, got nil")
+	}
+	if !strings.Contains(strings.ToLower(err.Error()), "launch token") {
+		t.Errorf("error should mention the launch token, got: %v", err)
 	}
 }
 

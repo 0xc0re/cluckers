@@ -61,7 +61,7 @@ func TestDoBearerHeader(t *testing.T) {
 
 	c := NewClient(srv.URL, false)
 
-	if err := c.Do(context.Background(), http.MethodGet, "/launcher/v1/content-bootstrap", "lpt_v1_secret", nil, nil); err != nil {
+	if err := c.Do(context.Background(), http.MethodGet, "/launcher/v1/supporter/bot-names", "lpt_v1_secret", nil, nil); err != nil {
 		t.Fatalf("Do returned error: %v", err)
 	}
 	if gotAuth != "Bearer lpt_v1_secret" {

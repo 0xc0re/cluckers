@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"sync/atomic"
 	"syscall"
+	"time"
 
 	"github.com/0xc0re/cluckers/internal/auth"
 	"github.com/0xc0re/cluckers/internal/config"
@@ -23,6 +24,8 @@ type LaunchState struct {
 	Username             string
 	Password             string
 	AccessToken          string
+	LaunchToken          string    // Per-launch game token from launch-auth (written to -token_file).
+	LaunchExpiresAt      time.Time // Zero if the gateway did not report it.
 	Bootstrap            []byte
 	ProtonScript         string // Path to the proton Python script (Linux only).
 	ProtonDir            string // Root of the Proton-GE installation (Linux only).
@@ -38,18 +41,18 @@ type LaunchState struct {
 	TokenCache           *auth.TokenCache
 	Reporter             ProgressReporter
 
-	// tokenTempFile holds the access-token temp file path for cleanup on
+	// tokenTempFile holds the launch-token temp file path for cleanup on
 	// interrupt. Atomic because the signal-handler goroutine reads it while
 	// the pipeline goroutine writes it.
 	tokenTempFile atomic.Pointer[string]
 }
 
-// SetTokenTempFile records the access-token temp file path for interrupt cleanup.
+// SetTokenTempFile records the launch-token temp file path for interrupt cleanup.
 func (s *LaunchState) SetTokenTempFile(path string) {
 	s.tokenTempFile.Store(&path)
 }
 
-// TokenTempFile returns the recorded access-token temp file path, or "" if unset.
+// TokenTempFile returns the recorded launch-token temp file path, or "" if unset.
 func (s *LaunchState) TokenTempFile() string {
 	if p := s.tokenTempFile.Load(); p != nil {
 		return *p
@@ -63,7 +66,7 @@ type Step struct {
 	Fn   func(ctx context.Context, state *LaunchState) error
 }
 
-// Run orchestrates the full launch pipeline: health check, auth, OIDC, bootstrap, game launch.
+// Run orchestrates the full launch pipeline: health check, auth, install check, launch-auth, game launch.
 // Each step shows a spinner while active and a checkmark on completion.
 // This is a convenience wrapper that uses CLIReporter for terminal output.
 func Run(ctx context.Context, cfg *config.Config) error {
@@ -170,15 +173,16 @@ func StepNames(cfg *config.Config) []string {
 
 // buildSteps constructs the ordered list of pipeline steps including platform-specific steps.
 func buildSteps(state *LaunchState) []Step {
+	// Launch authorization runs after the install check because the request
+	// carries the installed game build version, and as late as possible
+	// because the launch token is short-lived.
 	steps := []Step{
 		{Name: "Checking gateway", Fn: stepHealthCheck},
 		{Name: "Authenticating", Fn: stepAuthenticate},
-		{Name: "Requesting content bootstrap", Fn: stepBootstrap},
+		{Name: "Verifying game installation", Fn: stepVerifyGameInstalled},
+		{Name: "Requesting launch authorization", Fn: stepLaunchAuth},
 	}
 	steps = append(steps, platformSteps(state)...)
-	steps = append(steps,
-		Step{Name: "Verifying game installation", Fn: stepVerifyGameInstalled},
-	)
 	steps = append(steps, platformPostSteps(state)...)
 	steps = append(steps, platformLaunchStep())
 	return steps
@@ -195,82 +199,60 @@ func stepHealthCheck(ctx context.Context, state *LaunchState) error {
 	return nil
 }
 
-// stepAuthenticate loads saved credentials or prompts for new ones, then logs in.
-// On saved credential failure, re-prompts once before returning an error.
-// Checks the token cache first to skip the API call when a valid cached token exists.
-// When Username and Password are pre-populated on state (GUI mode), uses them directly.
+// stepAuthenticate obtains a session with the least intrusive method (cached
+// access token, refresh token, saved or pre-populated password), prompting on
+// the terminal only when the CLI has nothing usable. It also runs the Discord
+// link flow on the terminal when the account is not linked yet. In GUI mode
+// (Username and Password pre-populated on state) it never prompts: link/PIN
+// outcomes are returned as errors for the GUI to handle.
 func stepAuthenticate(ctx context.Context, state *LaunchState) error {
-	// Load token cache for potential reuse.
 	cache, err := auth.LoadTokenCache()
 	if err != nil {
 		ui.Verbose(fmt.Sprintf("Could not load token cache: %s", err), state.Config.Verbose)
 	}
 
-	// Determine credentials source: pre-populated (GUI) or saved/prompted (CLI).
-	username := state.Username
-	password := state.Password
-
-	if username == "" || password == "" {
-		// CLI path: try saved credentials.
-		creds, err := auth.LoadCredentials()
+	guiMode := state.Username != "" && state.Password != ""
+	username, password := state.Username, state.Password
+	var creds *auth.Credentials
+	if !guiMode {
+		creds, err = auth.LoadCredentials()
 		if err != nil {
 			ui.Verbose(fmt.Sprintf("Could not load saved credentials: %s", err), state.Config.Verbose)
 		}
-
-		// If cache has a valid access token for the same user, use it directly.
-		if cache != nil && cache.AccessTokenValid() && creds != nil && cache.Username == creds.Username {
-			state.Username = cache.Username
-			state.AccessToken = cache.AccessToken
-			state.Password = creds.Password
-			state.TokenCache = cache
-			ui.Verbose("Using cached access token (still valid)", state.Config.Verbose)
-			return nil
-		}
-
 		if creds != nil {
-			username = creds.Username
-			password = creds.Password
-		}
-	} else {
-		// GUI path: credentials pre-populated. Check cache for same user.
-		if cache != nil && cache.AccessTokenValid() && cache.Username == username {
-			state.AccessToken = cache.AccessToken
-			state.TokenCache = cache
-			ui.Verbose("Using cached access token (still valid)", state.Config.Verbose)
-			return nil
+			username, password = creds.Username, creds.Password
 		}
 	}
 
-	if username != "" && password != "" {
-		// Try login with available credentials.
-		result, err := auth.Login(ctx, state.Client, username, password)
-		if err == nil {
-			state.Username = result.Username
-			state.AccessToken = result.AccessToken
-			state.Password = password
+	sess, err := auth.EnsureSession(ctx, state.Client, auth.SessionRequest{
+		Username: username, Password: password, Cache: cache, Verbose: state.Config.Verbose,
+	})
+	if err == nil {
+		state.applySession(sess, password)
+		return nil
+	}
+	if guiMode {
+		return err
+	}
 
-			// Cache the access token for future launches.
-			state.TokenCache = auth.NewTokenCache(result)
-			if saveErr := auth.SaveTokenCache(state.TokenCache); saveErr != nil {
-				ui.Verbose(fmt.Sprintf("Could not save token cache: %s", saveErr), state.Config.Verbose)
-			}
-
-			ui.Verbose("Logged in with credentials", state.Config.Verbose)
-			return nil
+	var nl *auth.NotLinkedError
+	switch {
+	case errors.Is(err, auth.ErrPinRequired):
+		return err
+	case errors.As(err, &nl):
+		// Saved credentials are fine; the account just needs linking.
+		state.Reporter.StepPaused("Authenticating")
+		result, linkErr := WaitForLinkInteractive(ctx, state.Client, username, password, nl.LinkCode)
+		if linkErr != nil {
+			return linkErr
 		}
-
-		// If credentials were pre-populated (GUI), don't fall through to prompts.
-		if state.Username != "" {
-			return err
-		}
-
-		// Saved credentials failed -- pause spinner so prompt is visible.
+		return state.applyLogin(result, password)
+	case errors.Is(err, auth.ErrNoCredentials):
+		state.Reporter.StepPaused("Authenticating")
+	default:
 		state.Reporter.StepPaused("Authenticating")
 		ui.Warn("Saved credentials failed, please re-enter.")
 		ui.Verbose(fmt.Sprintf("Saved login error: %s", err), state.Config.Verbose)
-	} else {
-		// No saved creds -- pause spinner so prompt is visible.
-		state.Reporter.StepPaused("Authenticating")
 	}
 
 	// Prompt for credentials (CLI only -- GUI never reaches here).
@@ -278,77 +260,111 @@ func stepAuthenticate(ctx context.Context, state *LaunchState) error {
 	if err != nil {
 		return err
 	}
-
 	promptedPassword, err := ui.PromptPassword()
 	if err != nil {
 		return err
 	}
 
-	result, err := auth.Login(ctx, state.Client, promptedUsername, promptedPassword)
+	result, err := LoginInteractive(ctx, state.Client, promptedUsername, promptedPassword)
 	if err != nil {
 		return err
 	}
-
-	state.Username = result.Username
-	state.AccessToken = result.AccessToken
-	state.Password = promptedPassword
 
 	// Save credentials for future launches.
 	if saveErr := auth.SaveCredentials(promptedUsername, promptedPassword); saveErr != nil {
 		ui.Warn(fmt.Sprintf("Could not save credentials: %s", saveErr))
 	}
+	return state.applyLogin(result, promptedPassword)
+}
 
-	// Cache the access token for future launches.
-	state.TokenCache = auth.NewTokenCache(result)
-	if saveErr := auth.SaveTokenCache(state.TokenCache); saveErr != nil {
-		ui.Verbose(fmt.Sprintf("Could not save token cache: %s", saveErr), state.Config.Verbose)
+// applySession records an established session on the state. The password is
+// kept so a later token rejection can fall back to a full login.
+func (s *LaunchState) applySession(sess *auth.Session, password string) {
+	s.Username = sess.Username
+	s.AccessToken = sess.AccessToken
+	s.Password = password
+	s.TokenCache = sess.Cache
+	switch sess.Source {
+	case auth.SourceCache:
+		ui.Verbose("Using cached access token (still valid)", s.Config.Verbose)
+	case auth.SourceRefresh:
+		ui.Verbose("Refreshed the launcher session", s.Config.Verbose)
+	default:
+		ui.Verbose("Logged in with credentials", s.Config.Verbose)
 	}
+}
 
+// applyLogin caches a fresh login result and records it on the state.
+func (s *LaunchState) applyLogin(result *auth.LoginResult, password string) error {
+	cache := auth.NewTokenCache(result)
+	if saveErr := auth.SaveTokenCache(cache); saveErr != nil {
+		ui.Verbose(fmt.Sprintf("Could not save token cache: %s", saveErr), s.Config.Verbose)
+	}
+	s.applySession(&auth.Session{Username: cache.Username, AccessToken: cache.AccessToken, Cache: cache, Source: auth.SourceLogin}, password)
 	return nil
 }
 
-// stepBootstrap retrieves the content bootstrap from the gateway using the
-// access token as a Bearer credential. Nil bootstrap is OK -- the game can
-// launch without it. If the server rejects the token (HTTP 401),
-// re-authenticates once and retries.
-func stepBootstrap(ctx context.Context, state *LaunchState) error {
-	data, err := auth.GetContentBootstrap(ctx, state.Client, state.AccessToken)
+// stepLaunchAuth requests the per-launch artifacts (content bootstrap and
+// launch token) from the gateway. If the access token is rejected it obtains
+// a new session (refresh token first, then password) and retries once.
+func stepLaunchAuth(ctx context.Context, state *LaunchState) error {
+	build := resolveClientBuild(ctx, state)
+
+	res, err := auth.LaunchAuth(ctx, state.Client, state.AccessToken, build)
 	if err != nil {
 		if !errors.Is(err, auth.ErrTokenRejected) {
 			return err
 		}
-
-		// Stale access token — re-authenticate and retry once.
-		ui.Verbose("Access token rejected during bootstrap, re-authenticating...", state.Config.Verbose)
-
-		if clearErr := auth.ClearTokenCache(); clearErr != nil {
-			ui.Verbose(fmt.Sprintf("Could not clear token cache: %s", clearErr), state.Config.Verbose)
+		ui.Verbose("Access token rejected during launch authorization, renewing session...", state.Config.Verbose)
+		if state.TokenCache != nil {
+			state.TokenCache.InvalidateAccess()
 		}
-
-		result, loginErr := auth.Login(ctx, state.Client, state.Username, state.Password)
-		if loginErr != nil {
-			return loginErr
+		sess, sessErr := auth.EnsureSession(ctx, state.Client, auth.SessionRequest{
+			Username: state.Username, Password: state.Password, Cache: state.TokenCache, Verbose: state.Config.Verbose,
+		})
+		if sessErr != nil {
+			return sessErr
 		}
-		state.AccessToken = result.AccessToken
+		state.applySession(sess, state.Password)
 
-		// Save fresh token cache.
-		state.TokenCache = auth.NewTokenCache(result)
-		if saveErr := auth.SaveTokenCache(state.TokenCache); saveErr != nil {
-			ui.Verbose(fmt.Sprintf("Could not save token cache: %s", saveErr), state.Config.Verbose)
-		}
-
-		data, err = auth.GetContentBootstrap(ctx, state.Client, state.AccessToken)
+		res, err = auth.LaunchAuth(ctx, state.Client, state.AccessToken, build)
 		if err != nil {
 			return err
 		}
 	}
-	state.Bootstrap = data
-	if data == nil {
+
+	state.Bootstrap = res.Bootstrap
+	state.LaunchToken = res.LaunchToken
+	state.LaunchExpiresAt = res.LaunchExpiresAt
+	if res.Bootstrap == nil {
 		ui.Warn("No content bootstrap received (game may still work)")
 	} else {
-		ui.Verbose(fmt.Sprintf("Content bootstrap: %d bytes", len(data)), state.Config.Verbose)
+		ui.Verbose(fmt.Sprintf("Content bootstrap: %d bytes", len(res.Bootstrap)), state.Config.Verbose)
+	}
+	if !res.LaunchExpiresAt.IsZero() {
+		ui.Verbose(fmt.Sprintf("Launch token valid for %s", time.Until(res.LaunchExpiresAt).Truncate(time.Second)), state.Config.Verbose)
 	}
 	return nil
+}
+
+// resolveClientBuild determines the installed game build version for the
+// x-realm-client-build header. Failure is not fatal: the header is omitted
+// and the gateway decides.
+func resolveClientBuild(ctx context.Context, state *LaunchState) string {
+	gameDir := state.GameDir
+	if gameDir == "" {
+		gameDir = state.Config.GameDir
+		if gameDir == "" {
+			gameDir = game.GameDir()
+		}
+	}
+	build, err := game.InstalledVersion(ctx, gameDir, state.Config.PinnedVersion)
+	if err != nil {
+		ui.Verbose(fmt.Sprintf("Installed game version unknown, launch-auth will not send x-realm-client-build: %s", err), state.Config.Verbose)
+		return ""
+	}
+	ui.Verbose("Installed game build: "+build, state.Config.Verbose)
+	return build
 }
 
 // stepCheckVersion checks the remote game version and determines if a download is needed.
@@ -462,8 +478,15 @@ func stepVerifyGameInstalled(_ context.Context, state *LaunchState) error {
 
 // stepLaunchGame writes temp files and launches the game.
 func stepLaunchGame(ctx context.Context, state *LaunchState) error {
-	// Write the access token to a temp file passed to the game via -token_file.
-	tokenPath, tokenCleanup, err := writeTokenFile(state.AccessToken)
+	if state.LaunchToken == "" {
+		return &ui.UserError{
+			Message:    "No launch token available.",
+			Suggestion: "This is a launcher bug: launch authorization did not run. Please report it.",
+		}
+	}
+
+	// Write the launch token to a temp file passed to the game via -token_file.
+	tokenPath, tokenCleanup, err := writeTokenFile(state.LaunchToken)
 	if err != nil {
 		return err
 	}
@@ -480,15 +503,15 @@ func stepLaunchGame(ctx context.Context, state *LaunchState) error {
 		SteamGameId:      state.SteamGameId,
 		GameDir:          state.GameDir,
 		Username:         state.Username,
-		AccessToken:      state.AccessToken,
+		LaunchToken:      state.LaunchToken,
 		TokenPath:        tokenPath,
 		ContentBootstrap: state.Bootstrap,
 		Verbose:          state.Config.Verbose,
 	})
 }
 
-// writeTokenFile writes the launcher access token to a temp file. The path is
-// passed to the game via -token_file (the v1 game reads the token from disk).
+// writeTokenFile writes the per-launch game token to a temp file. The path is
+// passed to the game via -token_file (the game reads the token from disk).
 func writeTokenFile(token string) (path string, cleanup func(), err error) {
 	tmpDir := config.TmpDir()
 	if err := config.EnsureDir(tmpDir); err != nil {

@@ -84,18 +84,6 @@ type SessionResponse struct {
 	PortalInfo1               string      `json:"portal_info_1"`
 }
 
-// BootstrapResponse is the response from the legacy GET /launcher/v1/content-bootstrap.
-// Deprecated: replaced by LaunchAuthResponse; removed once the pipeline migrates.
-type BootstrapResponse struct {
-	AccountID          json.Number `json:"account_id"`
-	SessionID          string      `json:"session_id"`
-	Version            json.Number `json:"version"`
-	CustomValue1       json.Number `json:"custom_value_1"`
-	CustomValue2       json.Number `json:"custom_value_2"`
-	ExpirationDatetime string      `json:"expiration_datetime"`
-	PortalInfo1        string      `json:"portal_info_1"`
-}
-
 // RefreshRequest is the request body for POST /launcher/v1/session/refresh.
 // The call carries no Authorization header; the refresh token is the credential.
 type RefreshRequest struct {
