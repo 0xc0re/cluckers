@@ -72,7 +72,7 @@ func MakeForgotPasswordScreen(w fyne.Window, cfg *config.Config, onBackToLogin f
 
 		go func() {
 			client := gateway.NewClient(cfg.Gateway, cfg.Verbose)
-			err := auth.RequestPasswordReset(context.Background(), client, username)
+			result, err := auth.RequestPasswordReset(context.Background(), client, username)
 			if err != nil {
 				fyne.Do(func() {
 					errorLabel.Text = formatGUIError(err)
@@ -82,10 +82,18 @@ func MakeForgotPasswordScreen(w fyne.Window, cfg *config.Config, onBackToLogin f
 				return
 			}
 
+			msg := result.Message
+			if msg == "" {
+				msg = "DM the reset code to the Project Crown bot on Discord, then reply with your new password."
+			}
+			if result.Code != "" {
+				msg += "\n\nYour reset code: " + result.Code + "\n(copied to clipboard)"
+			}
 			fyne.Do(func() {
-				d := dialog.NewInformation("Password Reset Requested",
-					"Check your email or Discord for reset instructions.",
-					w)
+				if result.Code != "" {
+					w.Clipboard().SetContent(result.Code)
+				}
+				d := dialog.NewInformation("Password Reset Requested", msg, w)
 				d.SetOnClosed(onBackToLogin)
 				d.Show()
 			})
