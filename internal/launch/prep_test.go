@@ -256,3 +256,27 @@ func TestStepWriteLaunchConfig_DynamicBootstrapSize(t *testing.T) {
 		t.Error("launch-config.txt still contains hardcoded -content_bootstrap_size=136")
 	}
 }
+
+// TestBuildPrepSteps_LaunchAuthAfterDownload pins the prep ordering: the
+// launch-auth header needs the installed build (written by the sync) and the
+// launch token should be minted as late as possible.
+func TestBuildPrepSteps_LaunchAuthAfterDownload(t *testing.T) {
+	steps := buildPrepSteps(&LaunchState{Config: &config.Config{}})
+	idx := func(name string) int {
+		for i, s := range steps {
+			if s.Name == name {
+				return i
+			}
+		}
+		t.Fatalf("step %q missing from prep pipeline", name)
+		return -1
+	}
+	download, launchAuth, write := idx("Downloading game update"), idx("Requesting launch authorization"), idx("Writing launch config")
+	if !(download < launchAuth && launchAuth < write) {
+		names := make([]string, len(steps))
+		for i, s := range steps {
+			names[i] = s.Name
+		}
+		t.Errorf("prep order = %v; want download < launch-auth < write config", names)
+	}
+}
