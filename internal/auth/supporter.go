@@ -15,7 +15,7 @@ import (
 func ListBotNames(ctx context.Context, client *gateway.Client, accessToken string) ([]string, error) {
 	var names []string
 	if err := client.Do(ctx, http.MethodGet, pathBotNames, accessToken, nil, &names); err != nil {
-		return nil, err
+		return nil, classifyTokenError(err, "Bot name request failed")
 	}
 	return names, nil
 }
@@ -25,12 +25,12 @@ func ListBotNames(ctx context.Context, client *gateway.Client, accessToken strin
 func UpsertBotName(ctx context.Context, client *gateway.Client, accessToken string, slot int, name string) error {
 	path := fmt.Sprintf("%s/%d", pathBotNames, slot)
 	req := gateway.BotNameUpsertRequest{BotName: name}
-	return client.Do(ctx, http.MethodPut, path, accessToken, req, nil)
+	return classifyTokenError(client.Do(ctx, http.MethodPut, path, accessToken, req, nil), "Bot name update failed")
 }
 
 // DeleteBotName clears the supporter bot name at the given 1-indexed slot via
 // DELETE /launcher/v1/supporter/bot-names/{slot} with a Bearer credential.
 func DeleteBotName(ctx context.Context, client *gateway.Client, accessToken string, slot int) error {
 	path := fmt.Sprintf("%s/%d", pathBotNames, slot)
-	return client.Do(ctx, http.MethodDelete, path, accessToken, nil, nil)
+	return classifyTokenError(client.Do(ctx, http.MethodDelete, path, accessToken, nil, nil), "Bot name delete failed")
 }

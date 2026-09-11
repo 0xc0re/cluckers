@@ -100,13 +100,14 @@ func GetContentBootstrap(ctx context.Context, client *gateway.Client, accessToke
 // callers can transparently re-authenticate. Other errors pass through.
 func classifyTokenError(err error, message string) error {
 	var ue *ui.UserError
-	if errors.As(err, &ue) {
-		if strings.Contains(ue.Detail, "HTTP 401") || strings.Contains(ue.Detail, "HTTP 403") {
-			return &ui.UserError{
-				Message:    message + ": " + ue.Message,
-				Suggestion: "Your session may have expired. Try logging out and back in.",
-				Err:        ErrTokenRejected,
-			}
+	if errors.As(err, &ue) && ue.IsStatus(http.StatusUnauthorized, http.StatusForbidden) {
+		return &ui.UserError{
+			Message:    message + ": " + ue.Message,
+			Detail:     ue.Detail,
+			Suggestion: "Your session may have expired. Try logging out and back in.",
+			Err:        ErrTokenRejected,
+			Status:     ue.Status,
+			Code:       ue.Code,
 		}
 	}
 	return err

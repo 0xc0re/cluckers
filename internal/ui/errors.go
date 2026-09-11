@@ -11,6 +11,21 @@ type UserError struct {
 	Detail     string // Technical detail (shown with -v).
 	Suggestion string // Actionable hint (shown if non-empty).
 	Err        error  // Wrapped underlying error.
+	Status     int    // HTTP status code when the error came from the gateway (0 otherwise).
+	Code       string // RFC 7807 problem "title" (e.g. invalid_session) when the gateway sent one.
+}
+
+// IsStatus reports whether the error carries one of the given HTTP status codes.
+func (e *UserError) IsStatus(codes ...int) bool {
+	if e == nil || e.Status == 0 {
+		return false
+	}
+	for _, c := range codes {
+		if e.Status == c {
+			return true
+		}
+	}
+	return false
 }
 
 // Error implements the error interface, returning the user-friendly message.

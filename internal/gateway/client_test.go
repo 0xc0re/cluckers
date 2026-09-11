@@ -99,6 +99,18 @@ func TestDoProblemJSONError(t *testing.T) {
 	if !strings.Contains(ue.Detail, "401") || !strings.Contains(ue.Detail, "Unauthorized") {
 		t.Errorf("Detail = %q, want it to mention status 401 and title", ue.Detail)
 	}
+	if ue.Status != http.StatusUnauthorized {
+		t.Errorf("Status = %d, want 401", ue.Status)
+	}
+	if ue.Code != "Unauthorized" {
+		t.Errorf("Code = %q, want problem title", ue.Code)
+	}
+	if !ue.IsStatus(http.StatusUnauthorized, http.StatusForbidden) {
+		t.Error("IsStatus(401, 403) = false, want true")
+	}
+	if ue.IsStatus(http.StatusForbidden) {
+		t.Error("IsStatus(403) = true, want false")
+	}
 }
 
 func TestDoHTMLErrorPage(t *testing.T) {
@@ -121,6 +133,9 @@ func TestDoHTMLErrorPage(t *testing.T) {
 	}
 	if !strings.Contains(ue.Message, "Gateway unreachable") {
 		t.Errorf("Message = %q, want gateway-unreachable message", ue.Message)
+	}
+	if ue.Status != http.StatusForbidden {
+		t.Errorf("Status = %d, want 403", ue.Status)
 	}
 }
 

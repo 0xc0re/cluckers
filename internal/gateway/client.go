@@ -166,6 +166,7 @@ func (c *Client) errorFromResponse(method, path string, status int, body []byte)
 			Message:    "Gateway unreachable (received HTML error page).",
 			Detail:     fmt.Sprintf("HTTP %d from %s %s", status, method, path),
 			Suggestion: "The Project Crown servers may be down. Try again later.",
+			Status:     status,
 		}
 	}
 
@@ -178,12 +179,15 @@ func (c *Client) errorFromResponse(method, path string, status int, body []byte)
 		return &ui.UserError{
 			Message: msg,
 			Detail:  fmt.Sprintf("HTTP %d (%s)", status, pd.Title),
+			Status:  status,
+			Code:    pd.Title,
 		}
 	}
 
 	return &ui.UserError{
 		Message: fmt.Sprintf("Gateway error (HTTP %d).", status),
 		Detail:  string(body),
+		Status:  status,
 	}
 }
 
