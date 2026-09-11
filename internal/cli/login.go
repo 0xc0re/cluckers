@@ -3,6 +3,7 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"net/http"
 
 	"github.com/0xc0re/cluckers/internal/auth"
 	"github.com/0xc0re/cluckers/internal/gateway"
@@ -44,8 +45,11 @@ var loginCmd = &cobra.Command{
 		// Authenticate with gateway (handles the Discord link flow).
 		result, err := launch.LoginInteractive(cmd.Context(), client, username, password)
 		if err != nil {
-			// Server-side gates are not credential problems: don't re-prompt.
-			if creds == nil || errors.Is(err, auth.ErrPinRequired) || errors.Is(err, auth.ErrNotLinked) {
+			// Re-prompt only when the gateway rejected the saved credentials.
+			// Link timeouts, the PIN gate, and network trouble are not fixed by retyping.
+			var ue *ui.UserError
+			rejected := errors.As(err, &ue) && ue.IsStatus(http.StatusUnauthorized, http.StatusForbidden)
+			if creds == nil || !rejected {
 				return err
 			}
 			ui.Warn("Saved credentials failed, please re-enter.")

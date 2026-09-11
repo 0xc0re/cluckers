@@ -189,3 +189,14 @@ func TestLogin_BadCredentials(t *testing.T) {
 		t.Errorf("message = %q, want the problem detail", ue.Message)
 	}
 }
+
+// TestLogin_MissingLinkedFlagWithRealToken guards against showing a session
+// token as a link code when the server omits linked_flag.
+func TestLogin_MissingLinkedFlagWithRealToken(t *testing.T) {
+	srv := newJSONServer(t, http.StatusOK, map[string]interface{}{"user_name": "user", "access_token": "lpt_v1_real"})
+	defer srv.Close()
+	res, err := Login(context.Background(), gateway.NewClient(srv.URL, false), "user", "pass")
+	if err != nil || res.AccessToken != "lpt_v1_real" {
+		t.Fatalf("res = %+v, err = %v; want the token accepted as a session", res, err)
+	}
+}

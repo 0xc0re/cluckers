@@ -323,6 +323,13 @@ func stepLaunchAuth(ctx context.Context, state *LaunchState) error {
 			Username: state.Username, Password: state.Password, Cache: state.TokenCache, Verbose: state.Config.Verbose,
 		})
 		if sessErr != nil {
+			if errors.Is(sessErr, auth.ErrNoCredentials) {
+				return &ui.UserError{
+					Message:    "Your session expired and no saved credentials are available to renew it.",
+					Suggestion: "Run 'cluckers login' and launch again.",
+					Err:        sessErr,
+				}
+			}
 			return sessErr
 		}
 		state.applySession(sess, state.Password)

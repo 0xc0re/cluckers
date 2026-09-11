@@ -162,7 +162,7 @@ func (c *Client) DoWithHeaders(ctx context.Context, method, path, bearer string,
 	if err := json.Unmarshal(respBody, result); err != nil {
 		return &ui.UserError{
 			Message: "Failed to parse gateway response.",
-			Detail:  fmt.Sprintf("JSON unmarshal error: %s; body: %s", err.Error(), string(respBody)),
+			Detail:  fmt.Sprintf("JSON unmarshal error: %s (body: %d bytes, not logged)", err.Error(), len(respBody)),
 			Err:     err,
 		}
 	}

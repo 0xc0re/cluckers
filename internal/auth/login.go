@@ -30,6 +30,11 @@ const (
 	textPinInvalid  = "PIN_INVALID"
 )
 
+// sessionTokenPrefix is how real launcher session tokens start. A value with
+// this prefix is never interpreted as a Discord link code even if linked_flag
+// is missing from the reply.
+const sessionTokenPrefix = "lpt_v1_"
+
 // DiscordInviteURL is the public Project Crown Discord server.
 const DiscordInviteURL = "https://discord.gg/realmroyale"
 
@@ -113,7 +118,7 @@ func sessionResultFrom(resp *gateway.SessionResponse, fallbackUser, what string,
 		}
 	}
 
-	if checkLink && !resp.IsLinked() && resp.AccessToken != "" {
+	if checkLink && !resp.IsLinked() && resp.AccessToken != "" && !strings.HasPrefix(resp.AccessToken, sessionTokenPrefix) {
 		return nil, &ui.UserError{
 			Message:    "Your account is not linked to Discord yet.",
 			Detail:     text,

@@ -248,11 +248,11 @@ func ShowDiscordLinking(w fyne.Window, cfg *config.Config, username, password, c
 	go func() {
 		client := gateway.NewClient(cfg.Gateway, cfg.Verbose)
 		result, err := auth.WaitForLink(ctx, client, username, password, func(newCode string) {
-			if newCode == currentCode {
-				return
-			}
-			currentCode = newCode
 			fyne.Do(func() {
+				if newCode == currentCode {
+					return
+				}
+				currentCode = newCode
 				codeLabel.SetText(newCode)
 				statusLabel.SetText("The server issued a new code. DM the code above to the bot.")
 			})

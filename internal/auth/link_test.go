@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/0xc0re/cluckers/internal/gateway"
+	"github.com/0xc0re/cluckers/internal/ui"
 )
 
 func TestWaitForLink_PollsUntilLinked(t *testing.T) {
@@ -80,5 +81,49 @@ func TestWaitForLink_ContextCancel(t *testing.T) {
 	_, err := WaitForLink(ctx, gateway.NewClient(srv.URL, false), "u", "p", nil)
 	if !errors.Is(err, context.Canceled) {
 		t.Errorf("expected context.Canceled, got %v", err)
+	}
+}
+
+func TestWaitForLink_SurvivesTransientErrors(t *testing.T) {
+	linkPollInterval = 5 * time.Millisecond
+	t.Cleanup(func() { linkPollInterval = 3 * time.Second })
+
+	var calls int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		n := atomic.AddInt32(&calls, 1)
+		switch n {
+		case 1:
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]interface{}{"access_token": "CODE", "linked_flag": 0})
+		case 2, 3, 4, 5:
+			// Gateway hiccup: retryablehttp retries 5xx up to 3 times, then errors.
+			w.WriteHeader(http.StatusBadGateway)
+			w.Write([]byte("<html>bad gateway</html>"))
+		case 6:
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte("not json"))
+		default:
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]interface{}{"access_token": "lpt_v1_ok", "linked_flag": 1})
+		}
+	}))
+	defer srv.Close()
+
+	res, err := WaitForLink(context.Background(), gateway.NewClient(srv.URL, false), "u", "p", nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if res.AccessToken != "lpt_v1_ok" || atomic.LoadInt32(&calls) != 7 {
+		t.Errorf("token = %q, calls = %d; want lpt_v1_ok after 7 calls", res.AccessToken, calls)
+	}
+}
+
+func TestWaitForLink_StopsOnCredentialRejection(t *testing.T) {
+	srv := newJSONServer(t, http.StatusUnauthorized, map[string]interface{}{"detail": "bad password", "title": "invalid_credentials", "status": 401})
+	defer srv.Close()
+	_, err := WaitForLink(context.Background(), gateway.NewClient(srv.URL, false), "u", "p", nil)
+	var ue *ui.UserError
+	if !errors.As(err, &ue) || !ue.IsStatus(http.StatusUnauthorized) {
+		t.Fatalf("expected a 401 UserError, got %v", err)
 	}
 }
