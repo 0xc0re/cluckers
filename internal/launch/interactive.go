@@ -14,10 +14,12 @@ import (
 func PrintLinkCode(code string) {
 	fmt.Println()
 	ui.Info("Your account must be linked to Discord before you can play.")
-	ui.Info("DM the following code to the Project Crown bot on Discord (" + auth.DiscordInviteURL + "):")
+	ui.Info("DM the following code to the Project Crown bot on Discord:")
 	fmt.Println()
 	fmt.Printf("  Your link code: %s\n", code)
 	fmt.Println()
+	ui.Info("Bot DM: " + auth.DiscordBotDMURL)
+	ui.Info("Server: " + auth.DiscordInviteURL)
 }
 
 // LoginInteractive performs a login and, if the account is not linked to

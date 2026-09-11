@@ -188,9 +188,12 @@ func ShowDiscordLinking(w fyne.Window, cfg *config.Config, username, password, c
 	})
 	copyBtn.Importance = widget.MediumImportance
 
-	// Discord invite link.
+	// Discord links: DM the bot directly, or join the server first.
+	botURL, _ := url.Parse(auth.DiscordBotDMURL)
+	botLink := widget.NewHyperlink("Open a DM with the Project Crown bot", botURL)
+	botLink.Alignment = fyne.TextAlignCenter
 	discordURL, _ := url.Parse(auth.DiscordInviteURL)
-	discordLink := widget.NewHyperlink("Open the Project Crown Discord", discordURL)
+	discordLink := widget.NewHyperlink("Join the Project Crown Discord", discordURL)
 	discordLink.Alignment = fyne.TextAlignCenter
 
 	// Status label.
@@ -214,6 +217,7 @@ func ShowDiscordLinking(w fyne.Window, cfg *config.Config, username, password, c
 	instructionRow := container.NewGridWrap(fyne.NewSize(formWidth, formHeight*2), instruction)
 	codeRow := container.NewGridWrap(fyne.NewSize(formWidth, formHeight), codeLabel)
 	copyRow := container.NewGridWrap(fyne.NewSize(formWidth, formHeight), copyBtn)
+	botRow := container.NewGridWrap(fyne.NewSize(formWidth, formHeight), botLink)
 	linkRow := container.NewGridWrap(fyne.NewSize(formWidth, formHeight), discordLink)
 	statusRow := container.NewGridWrap(fyne.NewSize(formWidth, formHeight*2), statusLabel)
 	buttonRow := container.NewGridWrap(fyne.NewSize(formWidth, formHeight), continueBtn)
@@ -225,6 +229,7 @@ func ShowDiscordLinking(w fyne.Window, cfg *config.Config, username, password, c
 		container.NewCenter(instructionRow),
 		container.NewCenter(codeRow),
 		container.NewCenter(copyRow),
+		container.NewCenter(botRow),
 		container.NewCenter(linkRow),
 		container.NewCenter(statusRow),
 		widget.NewSeparator(),

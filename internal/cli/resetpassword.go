@@ -44,7 +44,8 @@ var resetPasswordCmd = &cobra.Command{
 			fmt.Println()
 			fmt.Printf("  Your reset code: %s\n", result.Code)
 			fmt.Println()
-			ui.Info("Project Crown Discord: " + auth.DiscordInviteURL)
+			ui.Info("Bot DM: " + auth.DiscordBotDMURL)
+			ui.Info("Server: " + auth.DiscordInviteURL)
 		}
 		return nil
 	},

@@ -250,8 +250,8 @@ func TestSessionResponseDecodesNewFields(t *testing.T) {
 		if v, err := resp.RefreshExpiresAtUnix.Int64(); err != nil || v != 1700003600 {
 			t.Errorf("RefreshExpiresAtUnix = %v (%v), want 1700003600", resp.RefreshExpiresAtUnix, err)
 		}
-		if !bool(resp.LinkedFlag) {
-			t.Error("LinkedFlag = false, want true")
+		if !resp.IsLinked() {
+			t.Error("IsLinked = false, want true")
 		}
 	}
 }
@@ -272,5 +272,25 @@ func TestSanitizeJSON(t *testing.T) {
 	// Non-JSON input passes through unchanged.
 	if got := sanitizeJSON([]byte("not json")); got != "not json" {
 		t.Errorf("sanitizeJSON(non-JSON) = %q, want passthrough", got)
+	}
+}
+
+func TestLinkFlagOnlyOneIsLinked(t *testing.T) {
+	cases := map[string]bool{
+		`1`: true, `true`: true, `"1"`: true, `"true"`: true,
+		`0`: false, `-1`: false, `2`: false, `false`: false, `"0"`: false, `"LINKED"`: false, `null`: false,
+	}
+	for raw, want := range cases {
+		var resp SessionResponse
+		if err := json.Unmarshal([]byte(`{"linked_flag":`+raw+`}`), &resp); err != nil {
+			t.Fatalf("unmarshal %s: %v", raw, err)
+		}
+		if resp.IsLinked() != want {
+			t.Errorf("linked_flag %s: IsLinked = %v, want %v", raw, resp.IsLinked(), want)
+		}
+	}
+	var missing SessionResponse
+	if err := json.Unmarshal([]byte(`{}`), &missing); err != nil || missing.IsLinked() {
+		t.Errorf("missing linked_flag should be not linked (err %v)", err)
 	}
 }

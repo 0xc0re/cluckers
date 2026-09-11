@@ -2,32 +2,26 @@ package gateway
 
 import (
 	"encoding/json"
-	"fmt"
-	"strconv"
-
-	"github.com/0xc0re/cluckers/internal/ui"
+	"strings"
 )
 
-// FlexBool handles JSON booleans that may arrive as bool, number, or string.
-// The v1 REST API returns linked_flag as 1/0 instead of true/false.
-type FlexBool bool
+// LinkFlag decodes linked_flag exactly like the official launcher: linked only
+// when the value is the number 1, the bool true, or the strings "1"/"true".
+// Any other value (0, -1, null, missing, other strings) means not linked.
+type LinkFlag bool
 
-func (b *FlexBool) UnmarshalJSON(data []byte) error {
+func (b *LinkFlag) UnmarshalJSON(data []byte) error {
 	var raw interface{}
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
 	switch v := raw.(type) {
 	case bool:
-		*b = FlexBool(v)
+		*b = LinkFlag(v)
 	case float64:
-		*b = FlexBool(v != 0)
+		*b = LinkFlag(v == 1)
 	case string:
-		parsed, parseErr := strconv.ParseBool(v)
-		if parseErr != nil {
-			ui.Warn(fmt.Sprintf("FlexBool: unexpected string %q, defaulting to false", v))
-		}
-		*b = FlexBool(parsed)
+		*b = LinkFlag(v == "1" || strings.EqualFold(v, "true"))
 	default:
 		*b = false
 	}
@@ -46,6 +40,10 @@ type LoginRequest struct {
 	UserName string `json:"user_name"`
 	Password string `json:"password"`
 }
+
+// IsLinked reports whether the reply says the account is Discord-linked
+// (linked_flag == 1 / true, nothing else).
+func (r *SessionResponse) IsLinked() bool { return bool(r.LinkedFlag) }
 
 // SessionResponse is the 200 response from the session endpoints
 // (/launcher/v1/session-or-link, /launcher/v1/session/refresh) and account
@@ -74,7 +72,7 @@ type SessionResponse struct {
 	RefreshToken              string      `json:"refresh_token"`
 	RefreshExpirationDatetime string      `json:"refresh_expiration_datetime"`
 	RefreshExpiresAtUnix      json.Number `json:"refresh_expires_at_unix"`
-	LinkedFlag                FlexBool    `json:"linked_flag"`
+	LinkedFlag                LinkFlag    `json:"linked_flag"`
 	CustomMessage             string      `json:"custom_message"`
 	CustomValue1              json.Number `json:"custom_value_1"`
 	CustomValue2              json.Number `json:"custom_value_2"`

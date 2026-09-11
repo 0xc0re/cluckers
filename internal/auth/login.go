@@ -37,6 +37,9 @@ const DiscordInviteURL = "https://discord.gg/realmroyale"
 // codes and password-reset codes are DM'd to.
 const DiscordBotUserID = "1404860983419211839"
 
+// DiscordBotDMURL opens a DM with the Project Crown bot.
+const DiscordBotDMURL = "https://discord.com/users/" + DiscordBotUserID
+
 // ErrTokenRejected is returned when the server rejects a cached access token
 // (e.g. after a server restart or token revocation). Callers can check
 // errors.Is(err, ErrTokenRejected) to trigger re-authentication.
@@ -110,11 +113,11 @@ func sessionResultFrom(resp *gateway.SessionResponse, fallbackUser, what string,
 		}
 	}
 
-	if checkLink && !bool(resp.LinkedFlag) && resp.AccessToken != "" {
+	if checkLink && !resp.IsLinked() && resp.AccessToken != "" {
 		return nil, &ui.UserError{
 			Message:    "Your account is not linked to Discord yet.",
 			Detail:     text,
-			Suggestion: "DM the link code to the Project Crown bot on Discord (" + DiscordInviteURL + "), then log in again.",
+			Suggestion: "DM the link code to the Project Crown bot (" + DiscordBotDMURL + "; join via " + DiscordInviteURL + "), then log in again.",
 			Err:        &NotLinkedError{LinkCode: strings.TrimSpace(resp.AccessToken), Detail: text},
 		}
 	}
@@ -136,7 +139,7 @@ func sessionResultFrom(resp *gateway.SessionResponse, fallbackUser, what string,
 		Username:         uname,
 		AccessExpiresAt:  expiryFrom(resp.AccessExpiresAtUnix, resp.ExpirationDatetime),
 		RefreshExpiresAt: expiryFrom(resp.RefreshExpiresAtUnix, resp.RefreshExpirationDatetime),
-		Linked:           bool(resp.LinkedFlag),
+		Linked:           resp.IsLinked(),
 		SupporterTier:    strings.TrimSpace(resp.CustomMessage),
 	}, nil
 }
