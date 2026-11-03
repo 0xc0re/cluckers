@@ -1,0 +1,70 @@
+{
+  "permissions": {
+    "additionalDirectories": [
+      "~/.local/state/merle-runner"
+    ],
+    "allow": [
+      "Read",
+      "Glob",
+      "Grep",
+      "Edit(~/.local/state/merle-runner/**)",
+      "Agent",
+      "Skill",
+      "SendMessage"
+    ],
+    "deny": [
+      "Read(~/.config/merle-runner/**)",
+      "Read(~/.ssh/**)",
+      "Read(//**/.env*)",
+      "Read(.env*)",
+      "Edit(~/.config/merle-runner/**)",
+      "Edit(~/.ssh/**)",
+      "Edit(//**/.env*)",
+      "Edit(.env*)",
+      "Edit(./.claude/**)",
+      "Write(./.claude/**)",
+      "Edit(~/.local/share/merle-runner/**)",
+      "Write(~/.local/share/merle-runner/**)",
+      "Bash(git push --force *)",
+      "Bash(git push -f *)",
+      "Bash(git push *--force*)",
+      "Bash(git push * -f *)",
+      "Bash(git push * -f)",
+      "Bash(git push * +*)",
+      "Bash(rm -rf *)",
+      "Bash(rm -fr *)",
+      "Bash(rm -Rf *)",
+      "Bash(rm -r *)",
+      "Bash(sudo *)",
+      "Bash(eval *)"
+    ]
+  },
+  "sandbox": {
+    "enabled": true,
+    "failIfUnavailable": true,
+    "allowUnsandboxedCommands": false,
+    "autoAllowBashIfSandboxed": false,
+    "filesystem": {
+      "allowWrite": [
+        "~/.local/state/merle-runner"
+      ],
+      "denyRead": [
+        "~/.config/merle-runner",
+        "~/.ssh"
+      ],
+      "denyWrite": [
+        "~/.config/merle-runner",
+        "~/.ssh",
+        "~/.local/share/merle-runner"
+      ]
+    },
+    "network": {
+      "allowedDomains": [
+        "github.com",
+        "api.github.com",
+        "*.githubusercontent.com",
+        "registry.npmjs.org"
+      ]
+    }
+  }
+}
